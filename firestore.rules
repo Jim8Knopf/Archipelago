@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// PROTOTYPE RULES — open read/write to anyone who knows a campaign ID.
+// This is fine for a private home game where the campaign ID is a
+// long, unguessable string that only your table has. It is NOT safe
+// for anything you'd mind a stranger poking at.
+//
+// See the "Hardening later" section of README.md for how to tighten
+// this once the prototype is working.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /campaigns/{campaignId}/characters/{characterId} {
+      allow read, write: if true;
+    }
+  }
+}

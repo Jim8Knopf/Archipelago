@@ -1,0 +1,366 @@
+/* ============================================================
+   Pirate TTRPG — shared theme
+   "Ship's ledger" aesthetic: deep navy hull, brass fittings,
+   parchment log-pages. Gauges styled like brass depth-gauges.
+   ============================================================ */
+
+:root {
+  --navy-deep:   #0a1820;
+  --navy:        #10222c;
+  --navy-light:  #17313e;
+  --brass:       #c9a24b;
+  --brass-light: #e6c876;
+  --brass-dim:   #8a7038;
+  --parchment:   #f2e6c9;
+  --parchment-dk:#e3d3a4;
+  --ink:         #2b1d10;
+  --ink-soft:    #5a4a34;
+  --danger:      #9a3324;
+  --danger-light:#c65a44;
+  --success:     #3d7a58;
+  --success-light:#5aa279;
+
+  --radius: 6px;
+  --shadow: 0 2px 10px rgba(0,0,0,0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--navy-deep);
+  color: var(--parchment);
+  font-family: 'Spectral', Georgia, serif;
+  min-height: 100vh;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse at top, var(--navy-light) 0%, var(--navy-deep) 70%);
+  padding-bottom: 3rem;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.03em;
+  color: var(--brass-light);
+  margin: 0 0 0.5em 0;
+}
+
+a { color: var(--brass-light); }
+a:visited { color: var(--brass); }
+
+header.top {
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 2px solid var(--brass-dim);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+header.top .brand {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 1.3rem;
+  color: var(--brass-light);
+}
+
+header.top nav a {
+  margin-left: 1rem;
+  text-decoration: none;
+  font-size: 0.95rem;
+  border-bottom: 1px dotted var(--brass-dim);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem;
+}
+
+.card {
+  background: var(--parchment);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--brass-dim);
+}
+
+.card h2, .card h3 { color: var(--ink); }
+.card .muted { color: var(--ink-soft); font-size: 0.9rem; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.9rem;
+}
+
+.field label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+}
+
+input[type="text"], input[type="number"], textarea {
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 1rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: #fffaf0;
+  color: var(--ink);
+}
+
+button {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--brass-dim);
+  background: var(--navy);
+  color: var(--brass-light);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+button:hover { background: var(--navy-light); }
+button:active { transform: translateY(1px); }
+
+button.brass {
+  background: var(--brass);
+  color: var(--navy-deep);
+  border-color: var(--brass-light);
+}
+button.brass:hover { background: var(--brass-light); }
+
+button.danger {
+  background: var(--danger);
+  color: var(--parchment);
+  border-color: var(--danger-light);
+}
+button.danger:hover { background: var(--danger-light); }
+
+button.small {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.row.spread { justify-content: space-between; }
+
+/* ---- Gauge: the signature element. A brass-rimmed depth gauge
+   used for both HP and Mana, colour shifts with fill level. ---- */
+.gauge {
+  border: 2px solid var(--brass-dim);
+  border-radius: 999px;
+  background: #d8c79a;
+  height: 22px;
+  position: relative;
+  overflow: hidden;
+  margin: 0.35rem 0;
+}
+.gauge .fill {
+  height: 100%;
+  transition: width 0.25s ease, background 0.25s ease;
+  background: var(--success);
+}
+.gauge.low .fill { background: var(--danger); }
+.gauge.mid .fill { background: var(--brass); }
+.gauge-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.stat-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+.stat-controls input[type="number"] { width: 4.5rem; text-align: center; }
+
+.inventory-list { list-style: none; margin: 0; padding: 0; }
+.inventory-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed var(--brass-dim);
+}
+.inventory-list li:last-child { border-bottom: none; }
+.inventory-list .item-name { flex: 1; }
+.inventory-list .item-qty { width: 2.5rem; text-align: center; }
+
+.char-link {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: #fffaf0;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: 1.5rem 0;
+  font-style: italic;
+}
+
+.status-msg {
+  font-size: 0.85rem;
+  color: var(--brass-light);
+  min-height: 1.2em;
+}
+
+/* ---- Full sheet additions ---- */
+
+details.card summary {
+  cursor: pointer;
+  list-style: none;
+  margin: -1.25rem -1.25rem 1rem -1.25rem;
+  padding: 1.25rem;
+  border-bottom: 1px solid var(--brass-dim);
+}
+details.card:not([open]) summary { margin-bottom: -1.25rem; border-bottom: none; }
+details.card summary::-webkit-details-marker { display: none; }
+details.card summary::before {
+  content: "▸ ";
+  color: var(--brass-dim);
+}
+details.card[open] summary::before { content: "▾ "; }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+@media (max-width: 480px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+.attr-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.derived {
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+.derived strong { color: var(--ink); font-size: 1.1rem; }
+
+.divider {
+  border: none;
+  border-top: 1px dashed var(--brass-dim);
+  margin: 1rem 0;
+}
+
+.budget-bar {
+  border: 2px solid var(--brass-dim);
+  border-radius: 999px;
+  background: #d8c79a;
+  height: 16px;
+  overflow: hidden;
+  margin-bottom: 0.4rem;
+}
+.budget-fill {
+  height: 100%;
+  background: var(--brass);
+  transition: width 0.25s ease, background 0.25s ease;
+}
+.budget-fill.over { background: var(--danger); }
+
+.skill-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+}
+.skill-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  border-bottom: 1px solid var(--brass-dim);
+  padding: 0.3rem 0.3rem;
+}
+.skill-table td {
+  padding: 0.3rem 0.3rem;
+  border-bottom: 1px dashed var(--brass-dim);
+  vertical-align: middle;
+}
+.skill-table input[type="text"] { width: 100%; min-width: 5rem; }
+.skill-table input[type="number"] { width: 3.5rem; text-align: center; }
+.skill-table td.num { text-align: center; color: var(--ink-soft); }
+
+.category-card {
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  margin-bottom: 0.9rem;
+  background: #fbf3de;
+}
+.category-card .cat-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+.category-card .cat-header input[type="text"] { flex: 2; }
+.category-card select { padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--brass-dim); font-family: 'Spectral', Georgia, serif; }
+.category-card .cat-bonus { font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.5rem; }
+
+.trait-card {
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--brass-dim);
+}
+.trait-card.advantage { background: #e8f0e8; }
+.trait-card.flaw { background: #f3e4de; }
+.trait-card .trait-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.trait-card .trait-header input[type="text"] { flex: 2; }
+.trait-card select { padding: 0.4rem; border-radius: var(--radius); border: 1px solid var(--brass-dim); font-family: 'Spectral', Georgia, serif; }
+.trait-card textarea { width: 100%; min-height: 2.5rem; resize: vertical; }
+.trait-tag {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: var(--brass-dim);
+  color: var(--parchment);
+}
+
+.readonly-block { font-size: 0.9rem; }
+.readonly-block table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
+.readonly-block th, .readonly-block td { text-align: left; padding: 0.25rem 0.3rem; border-bottom: 1px dashed var(--brass-dim); }
+.readonly-block th { color: var(--ink-soft); font-size: 0.75rem; text-transform: uppercase; }
+
+footer.foot {
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  margin-top: 2rem;
+  opacity: 0.7;
+}

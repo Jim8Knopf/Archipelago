@@ -1,0 +1,196 @@
+import {
+  collection, addDoc, deleteDoc, doc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { db, getCampaignId } from "../js/firebase-init.js";
+import * as R from "../js/rules-calc.js";
+
+const campaignInput = document.getElementById("campaign-input");
+const charList = document.getElementById("char-list");
+const gmStatus = document.getElementById("gm-status");
+
+let campaign = getCampaignId();
+campaignInput.value = campaign;
+
+function flash(msg) {
+  gmStatus.textContent = msg;
+  setTimeout(() => { if (gmStatus.textContent === msg) gmStatus.textContent = ""; }, 2500);
+}
+
+// Switching campaign ID updates the URL (so the choice is bookmarkable/shareable)
+// and re-subscribes to that campaign's characters.
+campaignInput.addEventListener("change", () => {
+  const val = campaignInput.value.trim() || "default-campaign";
+  const url = new URL(window.location.href);
+  url.searchParams.set("campaign", val);
+  window.location.href = url.toString();
+});
+
+document.getElementById("add-char-btn").addEventListener("click", async () => {
+  const name = document.getElementById("new-char-name").value.trim();
+  const maxHP = Math.max(0, parseInt(document.getElementById("new-char-hp").value, 10) || 0);
+  const maxMana = Math.max(0, parseInt(document.getElementById("new-char-mana").value, 10) || 0);
+  if (!name) { flash("Give the character a name first."); return; }
+
+  try {
+    const base = R.defaultCharacter(name);
+    // Convert the quick "Max HP / Max Mana" inputs into invested points so the
+    // full sheet's derived formulas stay consistent — find the smallest point
+    // investment that yields at least the requested max.
+    let hpPoints = 0;
+    while (R.hpFromPoints(hpPoints) < maxHP) hpPoints++;
+    await addDoc(collection(db, "campaigns", campaign, "characters"), {
+      ...base, hpPoints, currentHP: R.hpFromPoints(hpPoints), maxMana, currentMana: maxMana
+    });
+    document.getElementById("new-char-name").value = "";
+    flash(`Created "${name}" — link is on their card below.`);
+  } catch (err) {
+    console.error(err);
+    flash("Couldn't reach the database — check firebase-config.js and firestore.rules.");
+  }
+});
+
+function shareUrl(charId) {
+  const url = new URL(window.location.origin + window.location.pathname.replace(/gm\/?$/, "sheet/"));
+  url.searchParams.set("campaign", campaign);
+  url.searchParams.set("char", charId);
+  return url.toString();
+}
+
+function gaugeClass(current, max) {
+  if (max <= 0) return "";
+  const pct = (current / max) * 100;
+  if (pct <= 25) return "low";
+  if (pct <= 60) return "mid";
+  return "";
+}
+
+function renderCharacters(docs) {
+  charList.innerHTML = "";
+  if (docs.length === 0) {
+    charList.innerHTML = `<div class="card empty-state">No characters in this campaign yet — add one above.</div>`;
+    return;
+  }
+
+  docs.forEach(({ id, data }) => {
+    const maxHP = R.hpFromPoints(data.hpPoints);
+    const movement = R.movementFromPoints(data.movementPoints);
+    const evasion = R.evasionTotal(data.basicSkills, movement);
+    const hpPct = maxHP > 0 ? Math.min(100, ((data.currentHP ?? 0) / maxHP) * 100) : 0;
+    const manaPct = data.maxMana > 0 ? Math.min(100, ((data.currentMana ?? 0) / data.maxMana) * 100) : 0;
+    const inv = data.inventory || [];
+    const spent = R.pointsSpent(data);
+    const available = R.pointsAvailable(data);
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="row spread">
+        <h3 style="margin:0;">${escapeHtml(data.name || "Unnamed")}</h3>
+        <button class="small danger" data-action="delete" data-id="${id}">Remove</button>
+      </div>
+
+      <div class="gauge-label"><span>HP</span><span>${data.currentHP ?? 0} / ${maxHP}</span></div>
+      <div class="gauge ${gaugeClass(data.currentHP, maxHP)}"><div class="fill" style="width:${hpPct}%"></div></div>
+
+      <div class="gauge-label"><span>Mana</span><span>${data.currentMana ?? 0} / ${data.maxMana ?? 0}</span></div>
+      <div class="gauge ${gaugeClass(data.currentMana, data.maxMana)}"><div class="fill" style="width:${manaPct}%"></div></div>
+
+      <p class="muted" style="margin-top:0.5rem;">
+        Movement ${movement} m/s · Evasion ${evasion} · Points ${spent}/${available}
+      </p>
+
+      ${inv.length ? `
+        <p class="muted" style="margin-top:0.5rem;margin-bottom:0.25rem;">Inventory</p>
+        <ul class="inventory-list">
+          ${inv.map(item => `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="item-qty">×${item.qty}</span></li>`).join("")}
+        </ul>
+      ` : `<p class="muted" style="margin-top:0.5rem;">Inventory empty.</p>`}
+
+      <details style="margin-top:0.5rem;">
+        <summary style="cursor:pointer;color:var(--ink-soft);">Full sheet</summary>
+        <div class="readonly-block">${buildFullDetails(data)}</div>
+      </details>
+
+      <p class="muted" style="margin-top:0.75rem;">Player link:</p>
+      <div class="row">
+        <span class="char-link" style="flex:1;">${shareUrl(id)}</span>
+        <button class="small" data-action="copy" data-id="${id}">Copy</button>
+      </div>
+    `;
+    charList.appendChild(card);
+  });
+}
+
+function buildFullDetails(data) {
+  const info = data.basicInfo || {};
+  const infoRows = ["age", "race", "birthplace", "job", "height", "weight", "gender", "fightingStyle"]
+    .filter(k => info[k])
+    .map(k => `<tr><th>${k}</th><td>${escapeHtml(info[k])}</td></tr>`).join("");
+
+  const basicSkillRows = (data.basicSkills || []).map(s => {
+    const l = R.ladder(s.points);
+    return `<tr><td>${escapeHtml(s.name)}</td><td>${s.points}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+  }).join("");
+
+  const categoryBlocks = (data.categories || []).map(cat => {
+    const bonus = R.categoryBonus(cat.skills);
+    const rows = (cat.skills || []).map(s => {
+      const eff = R.categorySkillEffective(s, bonus);
+      const l = R.ladder(eff);
+      return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+    }).join("");
+    return `
+      <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> (${cat.type}) — bonus +${bonus}</p>
+      <table><thead><tr><th>Skill</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
+    `;
+  }).join("");
+
+  const traitRows = (data.traits || []).map(t =>
+    `<tr><td>${escapeHtml(t.name)}</td><td>${t.type}</td><td>${t.tier} (${R.tierValue(t.tier)})</td><td>${escapeHtml(t.description || "")}</td></tr>`
+  ).join("");
+
+  return `
+    ${infoRows ? `<table>${infoRows}</table>` : ""}
+    ${basicSkillRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Basic Skills</strong></p>
+      <table><thead><tr><th>Skill</th><th>Pts</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${basicSkillRows}</tbody></table>` : ""}
+    ${categoryBlocks || ""}
+    ${traitRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Traits</strong></p>
+      <table><thead><tr><th>Name</th><th>Type</th><th>Tier</th><th>Notes</th></tr></thead><tbody>${traitRows}</tbody></table>` : ""}
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+charList.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+
+  if (btn.dataset.action === "copy") {
+    navigator.clipboard.writeText(shareUrl(id));
+    flash("Link copied.");
+  }
+
+  if (btn.dataset.action === "delete") {
+    if (!confirm("Remove this character for good?")) return;
+    try {
+      await deleteDoc(doc(db, "campaigns", campaign, "characters", id));
+      flash("Character removed.");
+    } catch (err) {
+      console.error(err);
+      flash("Couldn't delete — check firestore.rules.");
+    }
+  }
+});
+
+onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
+  const docs = snap.docs.map(d => ({ id: d.id, data: d.data() }));
+  renderCharacters(docs);
+}, (err) => {
+  console.error(err);
+  flash("Connection error — check firebase-config.js and firestore.rules.");
+});

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GM Dashboard — Archipelago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">⚓ Archipelago</div>
+    <nav>
+      <a href="../">Home</a>
+      <a href="../sheet/">Character Sheet</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>GM Dashboard</h2>
+      <div class="field">
+        <label for="campaign-input">Campaign ID</label>
+        <input type="text" id="campaign-input">
+      </div>
+      <p class="muted">Everyone using the same Campaign ID sees the same characters live. Make it something only your table knows, e.g. <code>black-tortuga-42</code>, rather than something guessable — see the setup guide for why.</p>
+    </div>
+
+    <div class="card">
+      <h3>Add a character</h3>
+      <div class="row">
+        <input type="text" id="new-char-name" placeholder="Character name" style="flex:2;">
+        <input type="number" id="new-char-hp" placeholder="Max HP" value="10" style="flex:1;">
+        <input type="number" id="new-char-mana" placeholder="Max Mana" value="0" style="flex:1;">
+        <button class="brass" id="add-char-btn">Add</button>
+      </div>
+      <div class="status-msg" id="gm-status"></div>
+    </div>
+
+    <div id="char-list"></div>
+  </main>
+
+  <footer class="foot">Fair winds. ⚓</footer>
+
+  <script type="module" src="gm.js"></script>
+</body>
+</html>
