@@ -10,10 +10,10 @@
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "PASTE_YOUR_API_KEY_HERE",
-  authDomain: "PASTE_YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_YOUR_PROJECT_ID",
-  storageBucket: "PASTE_YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "PASTE_YOUR_SENDER_ID",
-  appId: "PASTE_YOUR_APP_ID"
+  apiKey: "${{ secrets.FIREBASE_API_KEY }}",
+  authDomain: "${{ secrets.FIREBASE_AUTH_DOMAIN }}",
+  projectId: "${{ secrets.FIREBASE_PROJECT_ID }}",
+  storageBucket: "${{ secrets.FIREBASE_STORAGE_BUCKET }}",
+  messagingSenderId: "${{ secrets.FIREBASE_SENDER_ID }}",
+  appId: "${{ secrets.FIREBASE_APP_ID }}"
 };
