@@ -403,6 +403,78 @@ body[data-mode="edit"] .view-only { display: none !important; }
 .readonly-block .stat-line { font-size: 1rem; margin: 0.3rem 0; }
 .readonly-block .stat-line strong { font-size: 1.15rem; }
 
+/* ---- Header: portrait + name + points ---- */
+.header-flex {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.portrait-wrap {
+  width: 96px;
+  height: 96px;
+  flex: 0 0 auto;
+  border-radius: var(--radius);
+  border: 2px solid var(--brass-dim);
+  background: var(--navy-light);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.portrait-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.portrait-placeholder { font-size: 2.2rem; color: var(--brass-dim); }
+.header-main { flex: 1 1 260px; min-width: 200px; }
+.name-input-large {
+  font-size: 1.3rem;
+  font-family: 'Cinzel', Georgia, serif;
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Skill/category tables can get wide (6 columns) — let them scroll
+   horizontally within their own card rather than force the whole
+   layout wider when a section isn't set to full-width. */
+.table-scroll { overflow-x: auto; }
+.table-scroll .skill-table { min-width: 420px; }
+
+/* ---- Icon mode toggle ---- */
+.mode-toggle button {
+  font-family: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0.5rem 0.7rem;
+}
+
+/* ---- Vitals (HP/Mana quick tracker — always visible, both modes) ---- */
+.vitals-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.vital { flex: 1 1 220px; min-width: 200px; }
+.vital h4 { margin: 0 0 0.3rem 0; color: var(--ink); font-family: 'Cinzel', Georgia, serif; font-size: 0.95rem; }
+
+/* ---- Admin panel ---- */
+.campaign-block {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px dashed var(--brass-dim);
+}
+.campaign-block:last-child { border-bottom: none; margin-bottom: 0; }
+.campaign-block h3 { margin-bottom: 0.4rem; }
+.admin-char-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px dashed var(--brass-dim);
+  flex-wrap: wrap;
+}
+.admin-char-row:last-child { border-bottom: none; }
+.admin-char-row .links a { margin-left: 0.75rem; font-size: 0.85rem; }
+
 footer.foot {
   text-align: center;
   color: var(--ink-soft);

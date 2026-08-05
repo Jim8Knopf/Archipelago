@@ -43,25 +43,28 @@ document.getElementById("view-mode-btn").addEventListener("click", () => setMode
 document.getElementById("edit-mode-btn").addEventListener("click", () => setMode("edit"));
 setMode("view"); // default — a shared link opens to the read-only view
 
-// ---- Loader form ----
+// ---- Loader form: one name field. Opens the character if it exists,
+// otherwise asks to create it. ----
 
 document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
-document.getElementById("char-input").value = params.get("char") || "";
+if (params.get("char")) {
+  // Deep link already specifies a character — nothing to type, initSheet() below handles it.
+  document.getElementById("loader-card").style.display = "none";
+}
 
 document.getElementById("open-btn").addEventListener("click", async () => {
   const campaign = document.getElementById("campaign-input").value.trim() || "default-campaign";
-  let charId = document.getElementById("char-input").value.trim();
-  const newName = document.getElementById("new-name-input").value.trim();
+  const name = document.getElementById("char-name-input").value.trim();
+  if (!name) { flash(loaderStatus, "Enter a character name first."); return; }
 
+  const charId = slugify(name);
   try {
-    if (!charId) {
-      charId = slugify(newName || "new-character");
-      const ref = doc(db, "campaigns", campaign, "characters", charId);
-      const existing = await getDoc(ref);
-      if (existing.exists()) {
-        charId = charId + "-" + Math.random().toString(36).slice(2, 5);
-      }
-      await setDoc(doc(db, "campaigns", campaign, "characters", charId), R.defaultCharacter(newName));
+    const ref = doc(db, "campaigns", campaign, "characters", charId);
+    const existing = await getDoc(ref);
+    if (!existing.exists()) {
+      const create = confirm(`No character named "${name}" exists yet in "${campaign}". Create a new one?`);
+      if (!create) return;
+      await setDoc(ref, R.defaultCharacter(name));
     }
     const url = new URL(window.location.href);
     url.searchParams.set("campaign", campaign);
@@ -83,6 +86,8 @@ function initSheet() {
   charRef = doc(db, "campaigns", campaign, "characters", charId);
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
 
+  // onSnapshot keeps this live — any change from this tab, another player's
+  // tab, or the GM dashboard appears here within a second or two, no reload.
   onSnapshot(charRef, (snap) => {
     if (!snap.exists()) {
       loaderCard.style.display = "";
@@ -100,17 +105,27 @@ function initSheet() {
   });
 }
 
-// Fills in any fields missing from older/partial docs.
+// Fills in any fields missing from older/partial docs. Also migrates any
+// legacy "language" type categories into the flat `languages` array.
 function normalize(d) {
   const def = R.defaultCharacter(d.name);
+  const rawCategories = d.categories || [];
+  const categories = rawCategories.filter(c => c.type !== "language");
+  const legacyLangSkills = rawCategories
+    .filter(c => c.type === "language")
+    .flatMap(c => c.skills || []);
+
   return {
     ...def,
     ...d,
     basicInfo: { ...def.basicInfo, ...(d.basicInfo || {}) },
     basicSkills: d.basicSkills || def.basicSkills,
-    categories: d.categories || [],
+    categories,
+    languages: d.languages && d.languages.length ? d.languages : legacyLangSkills,
     traits: d.traits || [],
-    inventory: d.inventory || []
+    inventory: d.inventory || [],
+    armor: d.armor ?? 0,
+    imageUrl: d.imageUrl || ""
   };
 }
 
@@ -134,25 +149,58 @@ function render() {
   if (document.activeElement !== nameInput) nameInput.value = d.name || "";
   document.getElementById("name-display").textContent = d.name || "Unnamed";
 
+  renderPortrait(d.imageUrl);
   renderBudget(d);
+  renderVitals(d);
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
   renderBasicSkills(d.basicSkills);
   renderCategoryGroup("weapons-container", d.categories, "weapon");
   renderCategoryGroup("magic-container", d.categories, "magic");
-  renderCategoryGroup("languages-container", d.categories, "language");
+  renderLanguages(d.languages);
   renderTraits(d.traits);
   renderInventory(d.inventory);
 
-  renderViewBasicInfo(d.basicInfo);
+  renderViewBasicInfo(d);
   renderViewAttributes(d);
   renderViewBasicSkills(d.basicSkills);
   renderViewCategoryGroup("view-weapons", d.categories, "weapon");
   renderViewMagic(d);
-  renderViewCategoryGroup("view-languages", d.categories, "language");
+  renderViewLanguages(d.languages);
   renderViewTraits(d.traits);
   renderViewInventory(d.inventory);
+
+  const magicPresent = R.hasMagic(d);
+  document.getElementById("mana-vital").style.display = magicPresent ? "" : "none";
+  document.getElementById("view-magic-section").style.display = magicPresent ? "" : "none";
 }
+
+// ---- Portrait ----
+
+function renderPortrait(url) {
+  const img = document.getElementById("portrait-img");
+  const placeholder = document.getElementById("portrait-placeholder");
+  const input = document.getElementById("image-url-input");
+  if (document.activeElement !== input) input.value = url || "";
+
+  if (url) {
+    img.src = url;
+    img.style.display = "";
+    placeholder.style.display = "none";
+  } else {
+    img.style.display = "none";
+    placeholder.style.display = "";
+  }
+}
+
+document.getElementById("image-url-input").addEventListener("change", (e) => {
+  saveField({ imageUrl: e.target.value.trim() });
+});
+
+document.getElementById("portrait-img").addEventListener("error", () => {
+  document.getElementById("portrait-img").style.display = "none";
+  document.getElementById("portrait-placeholder").style.display = "";
+});
 
 // ---- Points budget ----
 
@@ -176,6 +224,56 @@ function renderBudget(d) {
 
 document.getElementById("points-granted-input").addEventListener("change", (e) => {
   saveField({ pointsGranted: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
+// ---- Vitals: HP / Mana — always visible & editable in both View and Edit ----
+
+function renderVitals(d) {
+  const maxHP = R.hpFromPoints(d.hpPoints);
+  renderGauge("hp", d.currentHP ?? 0, maxHP);
+  renderGauge("mana", d.currentMana ?? 0, d.maxMana ?? 0);
+}
+
+function renderGauge(stat, current, max) {
+  const pct = max > 0 ? clamp((current / max) * 100, 0, 100) : 0;
+  const fill = document.getElementById(`${stat}-fill`);
+  const gauge = document.getElementById(`${stat}-gauge`);
+  fill.style.width = pct + "%";
+  gauge.classList.remove("low", "mid");
+  if (pct <= 25) gauge.classList.add("low");
+  else if (pct <= 60) gauge.classList.add("mid");
+
+  document.getElementById(`${stat}-text`).textContent = `${current} / ${max}`;
+
+  const curInput = document.getElementById(`${stat}-current-input`);
+  if (document.activeElement !== curInput) curInput.value = current;
+}
+
+document.getElementById("hp-full-btn").addEventListener("click", () => {
+  saveField({ currentHP: R.hpFromPoints(currentData.hpPoints) });
+});
+document.getElementById("mana-full-btn").addEventListener("click", () => {
+  saveField({ currentMana: currentData.maxMana ?? 0 });
+});
+
+document.querySelectorAll("button[data-stat]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const stat = btn.dataset.stat;
+    const delta = parseInt(btn.dataset.delta, 10);
+    const curField = stat === "hp" ? "currentHP" : "currentMana";
+    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
+    const newVal = clamp((currentData[curField] ?? 0) + delta, 0, max);
+    saveField({ [curField]: newVal });
+  });
+});
+
+["hp", "mana"].forEach((stat) => {
+  const curField = stat === "hp" ? "currentHP" : "currentMana";
+  document.getElementById(`${stat}-current-input`).addEventListener("change", (e) => {
+    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
+    const val = clamp(parseInt(e.target.value, 10) || 0, 0, max);
+    saveField({ [curField]: val });
+  });
 });
 
 // ---- Basic info ----
@@ -208,7 +306,8 @@ function renderBasicInfo(info) {
   });
 }
 
-function renderViewBasicInfo(info) {
+function renderViewBasicInfo(d) {
+  const info = d.basicInfo;
   const rows = BASIC_INFO_FIELDS
     .filter(([key]) => info[key])
     .map(([key, label]) => `<tr><th>${label}</th><td>${escapeHtml(info[key])}</td></tr>`)
@@ -217,7 +316,8 @@ function renderViewBasicInfo(info) {
     rows ? `<table>${rows}</table>` : `<p class="empty-state">No basic info filled in yet.</p>`;
 }
 
-// ---- Attributes: HP, Movement, Evasion (Mana rendered separately in the Magic block) ----
+// ---- Attributes: HP points/Max, Movement, Armor, Evasion ----
+// (current HP/Mana live in the always-visible Vitals card above)
 
 function renderAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
@@ -231,7 +331,8 @@ function renderAttributes(d) {
   if (document.activeElement !== movePointsInput) movePointsInput.value = d.movementPoints || 0;
   document.getElementById("move-derived").textContent = movement;
 
-  renderGauge("hp", d.currentHP ?? 0, maxHP);
+  const armorInput = document.getElementById("armor-input");
+  if (document.activeElement !== armorInput) armorInput.value = d.armor ?? 0;
 
   const evasion = R.evasionTotal(d.basicSkills, movement);
   const evLadder = R.ladder(evasion);
@@ -247,27 +348,14 @@ function renderViewAttributes(d) {
   const evLadder = R.ladder(evasion);
 
   document.getElementById("view-attributes").innerHTML = `
-    <p class="stat-line">HP: <strong>${d.currentHP ?? 0} / ${maxHP}</strong></p>
+    <p class="stat-line">Max HP: <strong>${maxHP}</strong> <span class="muted">(current HP is tracked above, in Vitals)</span></p>
     <p class="stat-line">Movement: <strong>${movement}</strong> m/s</p>
+    <p class="stat-line">Armor: <strong>${d.armor ?? 0}</strong></p>
     <p class="stat-line">Evasion: <strong>${evasion}</strong>
       <span class="muted">(Hard: ${evLadder.hard} · Extreme: ${evLadder.extreme})</span>
     </p>
+    <p class="muted">Armor and Evasion are either/or per hit (Section 4.1).</p>
   `;
-}
-
-function renderGauge(stat, current, max) {
-  const pct = max > 0 ? clamp((current / max) * 100, 0, 100) : 0;
-  const fill = document.getElementById(`${stat}-fill`);
-  const gauge = document.getElementById(`${stat}-gauge`);
-  fill.style.width = pct + "%";
-  gauge.classList.remove("low", "mid");
-  if (pct <= 25) gauge.classList.add("low");
-  else if (pct <= 60) gauge.classList.add("mid");
-
-  document.getElementById(`${stat}-text`).textContent = `${current} / ${max}`;
-
-  const curInput = document.getElementById(`${stat}-current-input`);
-  if (document.activeElement !== curInput) curInput.value = current;
 }
 
 document.getElementById("hp-points-input").addEventListener("change", (e) => {
@@ -282,38 +370,15 @@ document.getElementById("move-points-input").addEventListener("change", (e) => {
   saveField({ movementPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
+document.getElementById("armor-input").addEventListener("change", (e) => {
+  saveField({ armor: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
 document.getElementById("mana-max-input").addEventListener("change", (e) => {
   const newMax = Math.max(0, parseInt(e.target.value, 10) || 0);
   const updates = { maxMana: newMax };
   if ((currentData.currentMana ?? 0) > newMax) updates.currentMana = newMax;
   saveField(updates);
-});
-
-document.getElementById("hp-full-btn").addEventListener("click", () => {
-  saveField({ currentHP: R.hpFromPoints(currentData.hpPoints) });
-});
-document.getElementById("mana-full-btn").addEventListener("click", () => {
-  saveField({ currentMana: currentData.maxMana ?? 0 });
-});
-
-document.querySelectorAll("button[data-stat]").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const stat = btn.dataset.stat;
-    const delta = parseInt(btn.dataset.delta, 10);
-    const curField = stat === "hp" ? "currentHP" : "currentMana";
-    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
-    const newVal = clamp((currentData[curField] ?? 0) + delta, 0, max);
-    saveField({ [curField]: newVal });
-  });
-});
-
-["hp", "mana"].forEach((stat) => {
-  const curField = stat === "hp" ? "currentHP" : "currentMana";
-  document.getElementById(`${stat}-current-input`).addEventListener("change", (e) => {
-    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
-    const val = clamp(parseInt(e.target.value, 10) || 0, 0, max);
-    saveField({ [curField]: val });
-  });
 });
 
 // Name field
@@ -377,7 +442,7 @@ function renderViewBasicSkills(skills) {
   `;
 }
 
-// ---- Category groups: Weapons / Magic / Languages (edit mode) ----
+// ---- Category groups: Weapons / Magic (multiple named categories each) ----
 
 function renderCategoryGroup(containerId, allCategories, type) {
   const container = document.getElementById(containerId);
@@ -410,10 +475,12 @@ function renderCategoryGroup(containerId, allCategories, type) {
             <button class="small danger" data-action="remove-category">✕ Category</button>
           </div>
           <div class="cat-bonus">Transfer bonus: +${bonus}</div>
-          <table class="skill-table">
-            <thead><tr><th>Skill</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
-            <tbody>${skillRows}</tbody>
-          </table>
+          <div class="table-scroll">
+            <table class="skill-table">
+              <thead><tr><th>Skill</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+              <tbody>${skillRows}</tbody>
+            </table>
+          </div>
           <button class="small brass" data-action="add-skill">+ Add skill to this category</button>
         </div>
       `;
@@ -482,11 +549,6 @@ document.getElementById("add-weapon-category-btn").addEventListener("click", () 
 document.getElementById("add-magic-category-btn").addEventListener("click", () => {
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Magic Category", type: "magic", skills: [] }] });
 });
-document.getElementById("add-language-category-btn").addEventListener("click", () => {
-  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Language Category", type: "language", skills: [] }] });
-});
-
-// ---- Category groups (view mode, read-only) ----
 
 function categoryGroupHtml(categories) {
   if (categories.length === 0) return `<p class="empty-state">None yet.</p>`;
@@ -510,13 +572,83 @@ function renderViewCategoryGroup(containerId, allCategories, type) {
 
 function renderViewMagic(d) {
   const maxMana = d.maxMana ?? 0;
-  const currentMana = d.currentMana ?? 0;
-  const pct = maxMana > 0 ? clamp((currentMana / maxMana) * 100, 0, 100) : 0;
-  const gaugeClass = pct <= 25 ? "low" : pct <= 60 ? "mid" : "";
   document.getElementById("view-magic").innerHTML = `
-    <p class="stat-line">Mana: <strong>${currentMana} / ${maxMana}</strong></p>
-    <div class="gauge ${gaugeClass}"><div class="fill" style="width:${pct}%"></div></div>
-    <div style="margin-top:0.75rem;">${categoryGroupHtml(catsOfType(d.categories, "magic"))}</div>
+    <p class="muted">Current Mana is tracked above, in Vitals (Max ${maxMana}).</p>
+    ${categoryGroupHtml(catsOfType(d.categories, "magic"))}
+  `;
+}
+
+// ---- Languages: one shared pool, no sub-categories ----
+
+function renderLanguages(languages) {
+  const container = document.getElementById("languages-container");
+  const bonus = R.categoryBonus(languages);
+
+  const rows = (languages || []).map(s => {
+    const eff = R.categorySkillEffective(s, bonus);
+    const l = R.ladder(eff);
+    return `
+      <tr data-id="${s.id}">
+        <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
+        <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
+        <td class="num">${eff}</td>
+        <td class="num">${l.hard}</td>
+        <td class="num">${l.extreme}</td>
+        <td><button class="small danger" data-action="remove">✕</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+    <div class="table-scroll">
+      <table class="skill-table">
+        <thead><tr><th>Language</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" class="empty-state">No languages yet.</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+
+  if (!container.dataset.wired) {
+    container.addEventListener("change", (e) => {
+      const input = e.target.closest("input[data-field]");
+      if (!input) return;
+      const id = input.closest("tr").dataset.id;
+      const languages = currentData.languages.map(s => s.id === id
+        ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
+        : s
+      );
+      saveField({ languages });
+    });
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action='remove']");
+      if (!btn) return;
+      const id = btn.closest("tr").dataset.id;
+      saveField({ languages: currentData.languages.filter(s => s.id !== id) });
+    });
+    container.dataset.wired = "1";
+  }
+}
+
+document.getElementById("add-language-btn").addEventListener("click", () => {
+  saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
+});
+
+function renderViewLanguages(languages) {
+  const el = document.getElementById("view-languages");
+  if (!languages || languages.length === 0) {
+    el.innerHTML = `<p class="empty-state">No languages yet.</p>`;
+    return;
+  }
+  const bonus = R.categoryBonus(languages);
+  const rows = languages.map(s => {
+    const eff = R.categorySkillEffective(s, bonus);
+    const l = R.ladder(eff);
+    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+  }).join("");
+  el.innerHTML = `
+    <p class="muted" style="margin-bottom:0.15rem;">Transfer bonus: +${bonus}</p>
+    <table><thead><tr><th>Language</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 }
 

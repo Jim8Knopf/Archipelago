@@ -14,6 +14,7 @@
     <nav>
       <a href="../">Home</a>
       <a href="../gm/">GM Dashboard</a>
+      <a href="../admin/">Admin</a>
     </nav>
   </header>
 
@@ -22,18 +23,14 @@
     <!-- Shown only when no character is loaded yet -->
     <div class="card" id="loader-card">
       <h2>Open a character</h2>
-      <p class="muted">Use the link the GM gave you. Or, to start a brand-new character, enter a name below and hit Create.</p>
+      <p class="muted">Use the link the GM gave you, or type a name — it opens that character if it exists, or offers to create it.</p>
       <div class="field">
         <label for="campaign-input">Campaign ID</label>
         <input type="text" id="campaign-input" value="default-campaign">
       </div>
       <div class="field">
-        <label for="char-input">Character ID (leave blank to create new)</label>
-        <input type="text" id="char-input" placeholder="e.g. captain-rin">
-      </div>
-      <div class="field">
-        <label for="new-name-input">Character name (only used when creating new)</label>
-        <input type="text" id="new-name-input" placeholder="e.g. Captain Rin">
+        <label for="char-name-input">Character name</label>
+        <input type="text" id="char-name-input" placeholder="e.g. Captain Rin">
       </div>
       <button class="brass" id="open-btn">Open / Create</button>
       <div class="status-msg" id="loader-status"></div>
@@ -42,48 +39,90 @@
     <!-- Shown once a character doc is loaded -->
     <div id="sheet-card" style="display:none;">
 
-      <!-- Header: name, ID, and the View/Edit toggle. Always visible in both modes. -->
+      <!-- Header: portrait, name, ID, points budget, and the View/Edit toggle. -->
       <div class="card full-width">
-        <div class="row spread">
-          <div>
-            <input type="text" id="name-input" class="edit-only" style="font-size:1.3rem;font-family:'Cinzel',Georgia,serif;">
-            <h2 id="name-display" class="view-only" style="margin:0;"></h2>
-            <p class="muted" style="margin:0.3rem 0 0 0;">Character ID: <span class="char-link" id="char-id-display"></span></p>
+        <div class="header-flex">
+          <div class="portrait-wrap">
+            <img id="portrait-img" class="portrait-img" src="" alt="Character portrait" style="display:none;">
+            <div id="portrait-placeholder" class="portrait-placeholder">⚓</div>
           </div>
-          <div class="mode-toggle">
-            <button type="button" id="view-mode-btn" class="small">View</button>
-            <button type="button" id="edit-mode-btn" class="small">Edit</button>
+          <div class="header-main">
+            <div class="row spread" style="align-items:flex-start;">
+              <div>
+                <input type="text" id="name-input" class="edit-only name-input-large">
+                <h2 id="name-display" class="view-only" style="margin:0;"></h2>
+                <p class="muted" style="margin:0.3rem 0 0 0;">Character ID: <span class="char-link" id="char-id-display"></span></p>
+              </div>
+              <div class="mode-toggle">
+                <button type="button" id="view-mode-btn" class="small" title="View mode (read-only)" aria-label="View mode">👁</button>
+                <button type="button" id="edit-mode-btn" class="small" title="Edit mode" aria-label="Edit mode">✏️</button>
+              </div>
+            </div>
+
+            <div class="field edit-only" style="margin-top:0.6rem;max-width:360px;">
+              <label for="image-url-input">Portrait image URL</label>
+              <input type="text" id="image-url-input" placeholder="https://...">
+            </div>
+
+            <div class="budget-bar" style="margin-top:0.75rem;"><div class="budget-fill" id="budget-fill"></div></div>
+            <div class="row spread">
+              <span id="budget-text" class="muted"></span>
+              <span class="row edit-only" style="gap:0.35rem;">
+                <label class="muted" style="text-transform:none;letter-spacing:0;" for="points-granted-input">Granted:</label>
+                <input type="number" id="points-granted-input" style="width:5rem;">
+              </span>
+              <span class="row view-only" style="gap:0.35rem;">
+                <span class="muted">Granted: <span id="points-granted-display"></span></span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Points budget — bar always visible; the "Granted" control only in Edit mode. -->
+      <!-- Vitals: HP / Mana quick-adjust — always visible in both View and Edit,
+           and live-synced, so damage/casting can be tracked mid-session from
+           either the player's view or the GM dashboard. -->
       <div class="card full-width">
-        <h3>Character Points</h3>
-        <div class="budget-bar"><div class="budget-fill" id="budget-fill"></div></div>
-        <div class="row spread">
-          <span id="budget-text" class="muted"></span>
-          <span class="row edit-only" style="gap:0.35rem;">
-            <label class="muted" style="text-transform:none;letter-spacing:0;" for="points-granted-input">Granted:</label>
-            <input type="number" id="points-granted-input" style="width:5rem;">
-          </span>
-          <span class="row view-only" style="gap:0.35rem;">
-            <span class="muted">Granted: <span id="points-granted-display"></span></span>
-          </span>
+        <h3>Vitals</h3>
+        <div class="vitals-row">
+          <div class="vital">
+            <h4>HP</h4>
+            <div class="gauge-label"><span>Current</span><span id="hp-text">0 / 0</span></div>
+            <div class="gauge" id="hp-gauge"><div class="fill" id="hp-fill"></div></div>
+            <div class="stat-controls">
+              <button class="small" data-stat="hp" data-delta="-5">−5</button>
+              <button class="small" data-stat="hp" data-delta="-1">−1</button>
+              <input type="number" id="hp-current-input" min="0">
+              <button class="small" data-stat="hp" data-delta="1">+1</button>
+              <button class="small" data-stat="hp" data-delta="5">+5</button>
+              <button class="small brass" id="hp-full-btn">Full heal</button>
+            </div>
+          </div>
+          <div class="vital" id="mana-vital">
+            <h4>Mana</h4>
+            <div class="gauge-label"><span>Current</span><span id="mana-text">0 / 0</span></div>
+            <div class="gauge" id="mana-gauge"><div class="fill" id="mana-fill"></div></div>
+            <div class="stat-controls">
+              <button class="small" data-stat="mana" data-delta="-10">−10</button>
+              <button class="small" data-stat="mana" data-delta="-1">−1</button>
+              <input type="number" id="mana-current-input" min="0">
+              <button class="small" data-stat="mana" data-delta="1">+1</button>
+              <button class="small" data-stat="mana" data-delta="10">+10</button>
+              <button class="small brass" id="mana-full-btn">Full restore</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- ================= EDIT MODE ================= -->
 
-      <!-- Basic info -->
+      <!-- Basic Info & Attributes — one combined element -->
       <details class="card edit-only" open>
-        <summary><h3 style="display:inline;">Basic Info</h3></summary>
-        <div class="grid-2" id="basic-info-grid"></div>
-      </details>
+        <summary><h3 style="display:inline;">Basic Info &amp; Attributes</h3></summary>
 
-      <!-- Attributes: HP, Movement, Evasion (Mana lives in the Magic block) -->
-      <details class="card edit-only" open>
-        <summary><h3 style="display:inline;">Attributes</h3></summary>
+        <div class="grid-2" id="basic-info-grid"></div>
+
+        <hr class="divider">
 
         <div class="attr-row">
           <div class="field">
@@ -91,17 +130,6 @@
             <input type="number" id="hp-points-input" min="0">
           </div>
           <div class="derived">Max HP: <strong id="hp-max-derived">0</strong></div>
-        </div>
-
-        <div class="gauge-label"><span>Current HP</span><span id="hp-text">0 / 0</span></div>
-        <div class="gauge" id="hp-gauge"><div class="fill" id="hp-fill"></div></div>
-        <div class="stat-controls">
-          <button class="small" data-stat="hp" data-delta="-5">−5</button>
-          <button class="small" data-stat="hp" data-delta="-1">−1</button>
-          <input type="number" id="hp-current-input" min="0">
-          <button class="small" data-stat="hp" data-delta="1">+1</button>
-          <button class="small" data-stat="hp" data-delta="5">+5</button>
-          <button class="small brass" id="hp-full-btn">Full heal</button>
         </div>
 
         <hr class="divider">
@@ -116,47 +144,47 @@
 
         <hr class="divider">
 
+        <div class="field">
+          <label for="armor-input">Armor (flat damage reduction, Section 4.1)</label>
+          <input type="number" id="armor-input" min="0" style="max-width:8rem;">
+        </div>
+
+        <hr class="divider">
+
         <div class="derived">Evasion total: <strong id="evasion-derived">0</strong>
           <span class="muted" id="evasion-ladder"></span>
         </div>
-        <p class="muted">= "Evasion" basic skill value + full Movement (Section 4). Add a skill named exactly "Evasion" in Basic Skills below to feed this.</p>
+        <p class="muted">= "Evasion" basic skill value + full Movement (Section 4). Add a skill named exactly "Evasion" in Basic Skills below to feed this. Armor and Evasion are either/or per hit — see Section 4.1.</p>
       </details>
 
       <!-- Basic skills -->
-      <details class="card full-width edit-only" open>
+      <details class="card edit-only" open>
         <summary><h3 style="display:inline;">Basic Skills</h3></summary>
-        <table class="skill-table">
-          <thead><tr><th>Skill</th><th>Points</th><th>Normal</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
-          <tbody id="basic-skills-body"></tbody>
-        </table>
+        <div class="table-scroll">
+          <table class="skill-table">
+            <thead><tr><th>Skill</th><th>Points</th><th>Normal</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+            <tbody id="basic-skills-body"></tbody>
+          </table>
+        </div>
         <button class="small brass" id="add-basic-skill-btn">+ Add skill</button>
       </details>
 
       <!-- Weapons -->
-      <details class="card full-width edit-only" open>
+      <details class="card edit-only" open>
         <summary><h3 style="display:inline;">Weapons</h3></summary>
         <p class="muted">Skills in the same category partially train each other — bonus = (sum of raw points in category) ÷ 10.</p>
         <div id="weapons-container"></div>
         <button class="small brass" id="add-weapon-category-btn">+ Add weapon category</button>
       </details>
 
-      <!-- Magic (Mana lives here) -->
-      <details class="card full-width edit-only" open>
-        <summary><h3 style="display:inline;">Magic</h3></summary>
+      <!-- Magic — always available to edit; the Max Mana input here is what
+           makes hasMagic() true and reveals the block in View mode. -->
+      <details class="card edit-only" open>
+        <summary><h3 style="display:inline;">Magic <span class="muted" style="font-family:'Spectral',Georgia,serif;font-size:0.8rem;">(optional — hidden in View mode until used)</span></h3></summary>
 
         <div class="field">
           <label for="mana-max-input">Max Mana (pool size — GM/player judgement call per Section 5.1)</label>
           <input type="number" id="mana-max-input" min="0" style="max-width:8rem;">
-        </div>
-        <div class="gauge-label"><span>Current Mana</span><span id="mana-text">0 / 0</span></div>
-        <div class="gauge" id="mana-gauge"><div class="fill" id="mana-fill"></div></div>
-        <div class="stat-controls">
-          <button class="small" data-stat="mana" data-delta="-10">−10</button>
-          <button class="small" data-stat="mana" data-delta="-1">−1</button>
-          <input type="number" id="mana-current-input" min="0">
-          <button class="small" data-stat="mana" data-delta="1">+1</button>
-          <button class="small" data-stat="mana" data-delta="10">+10</button>
-          <button class="small brass" id="mana-full-btn">Full restore</button>
         </div>
 
         <hr class="divider">
@@ -166,12 +194,12 @@
         <button class="small brass" id="add-magic-category-btn">+ Add magic category</button>
       </details>
 
-      <!-- Languages -->
-      <details class="card full-width edit-only" open>
+      <!-- Languages — one shared pool, no sub-categories -->
+      <details class="card edit-only" open>
         <summary><h3 style="display:inline;">Languages</h3></summary>
-        <p class="muted">Skills in the same category partially train each other — bonus = (sum of raw points in category) ÷ 10.</p>
+        <p class="muted">All languages train each other as a single pool — bonus = (sum of raw points across all languages) ÷ 10.</p>
         <div id="languages-container"></div>
-        <button class="small brass" id="add-language-category-btn">+ Add language category</button>
+        <button class="small brass" id="add-language-btn">+ Add language</button>
       </details>
 
       <!-- Traits -->
@@ -195,33 +223,31 @@
       <!-- ================= VIEW MODE ================= -->
 
       <details class="card view-only" open>
-        <summary><h3 style="display:inline;">Basic Info</h3></summary>
+        <summary><h3 style="display:inline;">Basic Info &amp; Attributes</h3></summary>
         <div class="readonly-block" id="view-basic-info"></div>
-      </details>
-
-      <details class="card view-only" open>
-        <summary><h3 style="display:inline;">Attributes</h3></summary>
+        <hr class="divider">
         <div class="readonly-block" id="view-attributes"></div>
       </details>
 
-      <details class="card full-width view-only" open>
+      <details class="card view-only" open>
         <summary><h3 style="display:inline;">Basic Skills</h3></summary>
-        <div class="readonly-block" id="view-basic-skills"></div>
+        <div class="readonly-block table-scroll" id="view-basic-skills"></div>
       </details>
 
-      <details class="card full-width view-only" open>
+      <details class="card view-only" open>
         <summary><h3 style="display:inline;">Weapons</h3></summary>
-        <div class="readonly-block" id="view-weapons"></div>
+        <div class="readonly-block table-scroll" id="view-weapons"></div>
       </details>
 
-      <details class="card full-width view-only" open>
+      <!-- Hidden by JS via hasMagic() when the character has no mana pool and no magic skills -->
+      <details class="card view-only" open id="view-magic-section">
         <summary><h3 style="display:inline;">Magic</h3></summary>
-        <div class="readonly-block" id="view-magic"></div>
+        <div class="readonly-block table-scroll" id="view-magic"></div>
       </details>
 
-      <details class="card full-width view-only" open>
+      <details class="card view-only" open>
         <summary><h3 style="display:inline;">Languages</h3></summary>
-        <div class="readonly-block" id="view-languages"></div>
+        <div class="readonly-block table-scroll" id="view-languages"></div>
       </details>
 
       <details class="card full-width view-only" open>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Archipelago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">⚓ Archipelago</div>
+    <nav>
+      <a href="../">Home</a>
+      <a href="../gm/">GM Dashboard</a>
+      <a href="../sheet/">Character Sheet</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card full-width">
+      <h2>Admin</h2>
+      <p class="muted">Every campaign and character in this Firebase project, across the whole database — not just one Campaign ID. Useful for cleanup, or finding a campaign ID you forgot.</p>
+      <p class="muted">⚠️ This page has no access control beyond the same open Firestore rules the rest of the prototype uses — anyone with the link can see and reach everything listed here. Don't share this link outside your table. See the setup guide for hardening options.</p>
+      <div class="status-msg" id="admin-status"></div>
+    </div>
+
+    <div class="card full-width" id="admin-content">
+      <p class="muted">Loading…</p>
+    </div>
+  </main>
+
+  <footer class="foot">Fair winds. ⚓</footer>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>

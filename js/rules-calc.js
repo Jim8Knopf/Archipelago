@@ -63,6 +63,7 @@ export function tierValue(tier) {
 export function pointsSpent(char) {
   let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0);
   spent += (char.basicSkills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
+  spent += (char.languages || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   (char.categories || []).forEach(cat => {
     spent += (cat.skills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   });
@@ -90,19 +91,34 @@ export function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Section 5: a character only "has magic" once they've invested in a mana
+// pool or actually put points into a magic skill — otherwise the block
+// is just empty noise on the sheet, so callers use this to hide it.
+export function hasMagic(char) {
+  const magicSkillPoints = (char.categories || [])
+    .filter(c => c.type === "magic")
+    .some(c => (c.skills || []).some(s => (Number(s.points) || 0) > 0));
+  return (Number(char.maxMana) || 0) > 0 || magicSkillPoints;
+}
+
 // Default shape for a brand-new character document.
 export function defaultCharacter(name) {
   return {
     name: name || "New Character",
+    imageUrl: "",
     basicInfo: { age: "", race: "", birthplace: "", job: "", height: "", weight: "", gender: "", fightingStyle: "" },
     pointsGranted: 800,
     hpPoints: 0,
     movementPoints: 0,
     currentHP: 0,
+    armor: 0,
     maxMana: 0,
     currentMana: 0,
     basicSkills: [{ id: makeId(), name: "Evasion", points: 0 }],
+    // Weapons and Magic can have several named categories (Sword, Fire, ...).
+    // Languages are a single shared pool per Section 3.2 — no sub-categories.
     categories: [],
+    languages: [],
     traits: [],
     inventory: []
   };
