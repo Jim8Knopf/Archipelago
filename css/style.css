@@ -368,11 +368,6 @@ details.card[open] summary::before { content: "▾ "; }
   color: var(--parchment);
 }
 
-.readonly-block { font-size: 0.9rem; }
-.readonly-block table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
-.readonly-block th, .readonly-block td { text-align: left; padding: 0.25rem 0.3rem; border-bottom: 1px dashed var(--brass-dim); }
-.readonly-block th { color: var(--ink-soft); font-size: 0.75rem; text-transform: uppercase; }
-
 #char-list {
   grid-column: 1 / -1;
   display: grid;
@@ -380,6 +375,33 @@ details.card[open] summary::before { content: "▾ "; }
   gap: 1.25rem;
   align-items: start;
 }
+
+/* ---- View / Edit mode toggle ---- */
+body[data-mode="view"] .edit-only { display: none !important; }
+body[data-mode="edit"] .view-only { display: none !important; }
+
+.mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.mode-toggle button {
+  border: none;
+  border-radius: 0;
+  background: var(--navy);
+}
+.mode-toggle button.active {
+  background: var(--brass);
+  color: var(--navy-deep);
+}
+
+.readonly-block { font-size: 0.9rem; }
+.readonly-block table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
+.readonly-block th, .readonly-block td { text-align: left; padding: 0.3rem 0.35rem; border-bottom: 1px dashed var(--brass-dim); }
+.readonly-block th { color: var(--ink-soft); font-size: 0.75rem; text-transform: uppercase; }
+.readonly-block .stat-line { font-size: 1rem; margin: 0.3rem 0; }
+.readonly-block .stat-line strong { font-size: 1.15rem; }
 
 footer.foot {
   text-align: center;

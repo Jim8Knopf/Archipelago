@@ -32,6 +32,17 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ---- View / Edit mode ----
+
+function setMode(mode) {
+  document.body.dataset.mode = mode;
+  document.getElementById("view-mode-btn").classList.toggle("active", mode === "view");
+  document.getElementById("edit-mode-btn").classList.toggle("active", mode === "edit");
+}
+document.getElementById("view-mode-btn").addEventListener("click", () => setMode("view"));
+document.getElementById("edit-mode-btn").addEventListener("click", () => setMode("edit"));
+setMode("view"); // default — a shared link opens to the read-only view
+
 // ---- Loader form ----
 
 document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
@@ -89,8 +100,7 @@ function initSheet() {
   });
 }
 
-// Fills in any fields missing from older/partial docs, so this never crashes
-// on a character created before a field existed.
+// Fills in any fields missing from older/partial docs.
 function normalize(d) {
   const def = R.defaultCharacter(d.name);
   return {
@@ -113,6 +123,8 @@ async function saveField(fields) {
   }
 }
 
+const catsOfType = (categories, type) => (categories || []).filter(c => c.type === type);
+
 // ---- Master render ----
 
 function render() {
@@ -120,14 +132,26 @@ function render() {
 
   const nameInput = document.getElementById("name-input");
   if (document.activeElement !== nameInput) nameInput.value = d.name || "";
+  document.getElementById("name-display").textContent = d.name || "Unnamed";
 
   renderBudget(d);
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
   renderBasicSkills(d.basicSkills);
-  renderCategories(d.categories);
+  renderCategoryGroup("weapons-container", d.categories, "weapon");
+  renderCategoryGroup("magic-container", d.categories, "magic");
+  renderCategoryGroup("languages-container", d.categories, "language");
   renderTraits(d.traits);
   renderInventory(d.inventory);
+
+  renderViewBasicInfo(d.basicInfo);
+  renderViewAttributes(d);
+  renderViewBasicSkills(d.basicSkills);
+  renderViewCategoryGroup("view-weapons", d.categories, "weapon");
+  renderViewMagic(d);
+  renderViewCategoryGroup("view-languages", d.categories, "language");
+  renderViewTraits(d.traits);
+  renderViewInventory(d.inventory);
 }
 
 // ---- Points budget ----
@@ -147,6 +171,7 @@ function renderBudget(d) {
 
   const grantedInput = document.getElementById("points-granted-input");
   if (document.activeElement !== grantedInput) grantedInput.value = d.pointsGranted ?? 800;
+  document.getElementById("points-granted-display").textContent = d.pointsGranted ?? 800;
 }
 
 document.getElementById("points-granted-input").addEventListener("change", (e) => {
@@ -163,7 +188,6 @@ const BASIC_INFO_FIELDS = [
 function renderBasicInfo(info) {
   const grid = document.getElementById("basic-info-grid");
   if (grid.dataset.built) {
-    // already built once — just refresh values, don't nuke focus
     BASIC_INFO_FIELDS.forEach(([key]) => {
       const input = grid.querySelector(`input[data-field="${key}"]`);
       if (input && document.activeElement !== input) input.value = info[key] || "";
@@ -184,7 +208,16 @@ function renderBasicInfo(info) {
   });
 }
 
-// ---- Attributes: HP, Movement, Mana, Evasion ----
+function renderViewBasicInfo(info) {
+  const rows = BASIC_INFO_FIELDS
+    .filter(([key]) => info[key])
+    .map(([key, label]) => `<tr><th>${label}</th><td>${escapeHtml(info[key])}</td></tr>`)
+    .join("");
+  document.getElementById("view-basic-info").innerHTML =
+    rows ? `<table>${rows}</table>` : `<p class="empty-state">No basic info filled in yet.</p>`;
+}
+
+// ---- Attributes: HP, Movement, Evasion (Mana rendered separately in the Magic block) ----
 
 function renderAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
@@ -200,15 +233,26 @@ function renderAttributes(d) {
 
   renderGauge("hp", d.currentHP ?? 0, maxHP);
 
-  const manaMaxInput = document.getElementById("mana-max-input");
-  if (document.activeElement !== manaMaxInput) manaMaxInput.value = d.maxMana ?? 0;
-  renderGauge("mana", d.currentMana ?? 0, d.maxMana ?? 0);
-
   const evasion = R.evasionTotal(d.basicSkills, movement);
   const evLadder = R.ladder(evasion);
   document.getElementById("evasion-derived").textContent = evasion;
   document.getElementById("evasion-ladder").textContent =
     ` (Hard: ${evLadder.hard} · Extreme: ${evLadder.extreme})`;
+}
+
+function renderViewAttributes(d) {
+  const maxHP = R.hpFromPoints(d.hpPoints);
+  const movement = R.movementFromPoints(d.movementPoints);
+  const evasion = R.evasionTotal(d.basicSkills, movement);
+  const evLadder = R.ladder(evasion);
+
+  document.getElementById("view-attributes").innerHTML = `
+    <p class="stat-line">HP: <strong>${d.currentHP ?? 0} / ${maxHP}</strong></p>
+    <p class="stat-line">Movement: <strong>${movement}</strong> m/s</p>
+    <p class="stat-line">Evasion: <strong>${evasion}</strong>
+      <span class="muted">(Hard: ${evLadder.hard} · Extreme: ${evLadder.extreme})</span>
+    </p>
+  `;
 }
 
 function renderGauge(stat, current, max) {
@@ -319,108 +363,162 @@ document.getElementById("add-basic-skill-btn").addEventListener("click", () => {
   saveField({ basicSkills: [...currentData.basicSkills, { id: R.makeId(), name: "New Skill", points: 0 }] });
 });
 
-// ---- Categories (weapons / magic / languages) ----
-
-function renderCategories(categories) {
-  const container = document.getElementById("categories-container");
-  if (categories.length === 0) {
-    container.innerHTML = `<p class="empty-state">No categories yet — add Sword, Fire, Common, etc.</p>`;
+function renderViewBasicSkills(skills) {
+  if (!skills.length) {
+    document.getElementById("view-basic-skills").innerHTML = `<p class="empty-state">No basic skills yet.</p>`;
     return;
   }
-  container.innerHTML = categories.map(cat => {
-    const bonus = R.categoryBonus(cat.skills);
-    const skillRows = (cat.skills || []).map(s => {
-      const eff = R.categorySkillEffective(s, bonus);
-      const l = R.ladder(eff);
+  const rows = skills.map(s => {
+    const l = R.ladder(s.points);
+    return `<tr><td>${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+  }).join("");
+  document.getElementById("view-basic-skills").innerHTML = `
+    <table><thead><tr><th>Skill</th><th>Normal</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+}
+
+// ---- Category groups: Weapons / Magic / Languages (edit mode) ----
+
+function renderCategoryGroup(containerId, allCategories, type) {
+  const container = document.getElementById(containerId);
+  const categories = catsOfType(allCategories, type);
+
+  if (categories.length === 0) {
+    container.innerHTML = `<p class="empty-state">No categories yet.</p>`;
+  } else {
+    container.innerHTML = categories.map(cat => {
+      const bonus = R.categoryBonus(cat.skills);
+      const skillRows = (cat.skills || []).map(s => {
+        const eff = R.categorySkillEffective(s, bonus);
+        const l = R.ladder(eff);
+        return `
+          <tr data-cat="${cat.id}" data-id="${s.id}">
+            <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
+            <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
+            <td class="num">${eff}</td>
+            <td class="num">${l.hard}</td>
+            <td class="num">${l.extreme}</td>
+            <td><button class="small danger" data-action="remove-skill">✕</button></td>
+          </tr>
+        `;
+      }).join("");
+
       return `
-        <tr data-cat="${cat.id}" data-id="${s.id}">
-          <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-          <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-          <td class="num">${eff}</td>
-          <td class="num">${l.hard}</td>
-          <td class="num">${l.extreme}</td>
-          <td><button class="small danger" data-action="remove-skill">✕</button></td>
-        </tr>
+        <div class="category-card" data-cat="${cat.id}">
+          <div class="cat-header">
+            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}">
+            <button class="small danger" data-action="remove-category">✕ Category</button>
+          </div>
+          <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+          <table class="skill-table">
+            <thead><tr><th>Skill</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+            <tbody>${skillRows}</tbody>
+          </table>
+          <button class="small brass" data-action="add-skill">+ Add skill to this category</button>
+        </div>
       `;
     }).join("");
+  }
 
+  if (!container.dataset.wired) {
+    wireCategoryContainer(container);
+    container.dataset.wired = "1";
+  }
+}
+
+function wireCategoryContainer(container) {
+  container.addEventListener("change", (e) => {
+    const input = e.target.closest("input[data-field]");
+    if (!input) return;
+    const catId = input.closest("[data-cat]").dataset.cat;
+    const row = input.closest("tr");
+
+    const categories = currentData.categories.map(cat => {
+      if (cat.id !== catId) return cat;
+      if (row) {
+        const skillId = row.dataset.id;
+        return {
+          ...cat,
+          skills: cat.skills.map(s => s.id === skillId
+            ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
+            : s
+          )
+        };
+      }
+      return { ...cat, [input.dataset.field]: input.value };
+    });
+    saveField({ categories });
+  });
+
+  container.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const catId = btn.closest("[data-cat]").dataset.cat;
+
+    if (btn.dataset.action === "remove-category") {
+      saveField({ categories: currentData.categories.filter(c => c.id !== catId) });
+    }
+    if (btn.dataset.action === "add-skill") {
+      const categories = currentData.categories.map(cat => cat.id === catId
+        ? { ...cat, skills: [...(cat.skills || []), { id: R.makeId(), name: "New Skill", points: 0 }] }
+        : cat
+      );
+      saveField({ categories });
+    }
+    if (btn.dataset.action === "remove-skill") {
+      const skillId = btn.closest("tr").dataset.id;
+      const categories = currentData.categories.map(cat => cat.id === catId
+        ? { ...cat, skills: cat.skills.filter(s => s.id !== skillId) }
+        : cat
+      );
+      saveField({ categories });
+    }
+  });
+}
+
+document.getElementById("add-weapon-category-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Weapon Category", type: "weapon", skills: [] }] });
+});
+document.getElementById("add-magic-category-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Magic Category", type: "magic", skills: [] }] });
+});
+document.getElementById("add-language-category-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Language Category", type: "language", skills: [] }] });
+});
+
+// ---- Category groups (view mode, read-only) ----
+
+function categoryGroupHtml(categories) {
+  if (categories.length === 0) return `<p class="empty-state">None yet.</p>`;
+  return categories.map(cat => {
+    const bonus = R.categoryBonus(cat.skills);
+    const rows = (cat.skills || []).map(s => {
+      const eff = R.categorySkillEffective(s, bonus);
+      const l = R.ladder(eff);
+      return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+    }).join("");
     return `
-      <div class="category-card" data-cat="${cat.id}">
-        <div class="cat-header">
-          <input type="text" data-field="name" placeholder="Category name (e.g. Sword)" value="${escapeHtml(cat.name)}">
-          <select data-field="type">
-            <option value="weapon" ${cat.type === "weapon" ? "selected" : ""}>Weapon</option>
-            <option value="magic" ${cat.type === "magic" ? "selected" : ""}>Magic</option>
-            <option value="language" ${cat.type === "language" ? "selected" : ""}>Language</option>
-          </select>
-          <button class="small danger" data-action="remove-category">✕ Category</button>
-        </div>
-        <div class="cat-bonus">Transfer bonus: +${bonus}</div>
-        <table class="skill-table">
-          <thead><tr><th>Skill</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
-          <tbody>${skillRows}</tbody>
-        </table>
-        <button class="small brass" data-action="add-skill">+ Add skill to this category</button>
-      </div>
+      <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
+      <table><thead><tr><th>Skill</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
     `;
   }).join("");
 }
 
-document.getElementById("categories-container").addEventListener("change", (e) => {
-  const input = e.target.closest("input[data-field], select[data-field]");
-  if (!input) return;
-  const catId = input.closest("[data-cat]").dataset.cat;
-  const row = input.closest("tr");
+function renderViewCategoryGroup(containerId, allCategories, type) {
+  document.getElementById(containerId).innerHTML = categoryGroupHtml(catsOfType(allCategories, type));
+}
 
-  const categories = currentData.categories.map(cat => {
-    if (cat.id !== catId) return cat;
-    if (row) {
-      // editing a skill within the category
-      const skillId = row.dataset.id;
-      return {
-        ...cat,
-        skills: cat.skills.map(s => s.id === skillId
-          ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
-          : s
-        )
-      };
-    }
-    // editing the category itself (name/type)
-    return { ...cat, [input.dataset.field]: input.value };
-  });
-  saveField({ categories });
-});
-
-document.getElementById("categories-container").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
-  const catId = btn.closest("[data-cat]").dataset.cat;
-
-  if (btn.dataset.action === "remove-category") {
-    saveField({ categories: currentData.categories.filter(c => c.id !== catId) });
-  }
-  if (btn.dataset.action === "add-skill") {
-    const categories = currentData.categories.map(cat => cat.id === catId
-      ? { ...cat, skills: [...(cat.skills || []), { id: R.makeId(), name: "New Skill", points: 0 }] }
-      : cat
-    );
-    saveField({ categories });
-  }
-  if (btn.dataset.action === "remove-skill") {
-    const skillId = btn.closest("tr").dataset.id;
-    const categories = currentData.categories.map(cat => cat.id === catId
-      ? { ...cat, skills: cat.skills.filter(s => s.id !== skillId) }
-      : cat
-    );
-    saveField({ categories });
-  }
-});
-
-document.getElementById("add-category-btn").addEventListener("click", () => {
-  saveField({
-    categories: [...currentData.categories, { id: R.makeId(), name: "New Category", type: "weapon", skills: [] }]
-  });
-});
+function renderViewMagic(d) {
+  const maxMana = d.maxMana ?? 0;
+  const currentMana = d.currentMana ?? 0;
+  const pct = maxMana > 0 ? clamp((currentMana / maxMana) * 100, 0, 100) : 0;
+  const gaugeClass = pct <= 25 ? "low" : pct <= 60 ? "mid" : "";
+  document.getElementById("view-magic").innerHTML = `
+    <p class="stat-line">Mana: <strong>${currentMana} / ${maxMana}</strong></p>
+    <div class="gauge ${gaugeClass}"><div class="fill" style="width:${pct}%"></div></div>
+    <div style="margin-top:0.75rem;">${categoryGroupHtml(catsOfType(d.categories, "magic"))}</div>
+  `;
+}
 
 // ---- Traits ----
 
@@ -471,6 +569,19 @@ document.getElementById("add-trait-btn").addEventListener("click", () => {
   });
 });
 
+function renderViewTraits(traits) {
+  if (!traits.length) {
+    document.getElementById("view-traits").innerHTML = `<p class="empty-state">No traits yet.</p>`;
+    return;
+  }
+  const rows = traits.map(t =>
+    `<tr><td>${escapeHtml(t.name)}</td><td>${t.type}</td><td>${t.tier} (${R.tierValue(t.tier)})</td><td>${escapeHtml(t.description || "")}</td></tr>`
+  ).join("");
+  document.getElementById("view-traits").innerHTML = `
+    <table><thead><tr><th>Name</th><th>Type</th><th>Tier</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+}
+
 // ---- Inventory ----
 
 function renderInventory(items) {
@@ -512,5 +623,14 @@ document.getElementById("inventory-list").addEventListener("click", (e) => {
   if (btn.dataset.action === "remove") inventory.splice(i, 1);
   saveField({ inventory });
 });
+
+function renderViewInventory(items) {
+  if (!items.length) {
+    document.getElementById("view-inventory").innerHTML = `<p class="empty-state">The hold is empty.</p>`;
+    return;
+  }
+  const rows = items.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>×${item.qty}</td></tr>`).join("");
+  document.getElementById("view-inventory").innerHTML = `<table><tbody>${rows}</tbody></table>`;
+}
 
 initSheet();
