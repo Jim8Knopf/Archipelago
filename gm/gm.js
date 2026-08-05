@@ -1,5 +1,5 @@
 import {
-  collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot
+  collection, addDoc, deleteDoc, doc, updateDoc, writeBatch, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db, getCampaignId } from "../js/firebase-init.js";
 import * as R from "../js/rules-calc.js";
@@ -72,7 +72,6 @@ function vitalControlsHtml(id, stat, deltas) {
   return `
     <div class="stat-controls">
       ${deltas.map(d => `<button class="small" data-action="adjust" data-id="${id}" data-stat="${stat}" data-delta="${d}">${d > 0 ? "+" : "−"}${Math.abs(d)}</button>`).join("")}
-      <button class="small brass" data-action="full" data-id="${id}" data-stat="${stat}">Full</button>
     </div>
   `;
 }
@@ -233,14 +232,28 @@ charList.addEventListener("click", async (e) => {
     const newVal = Math.max(0, Math.min(max, (data[curField] ?? 0) + delta));
     await updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal });
   }
+});
 
-  if (action === "full") {
-    const stat = btn.dataset.stat;
-    if (stat === "hp") {
-      await updateDoc(doc(db, "campaigns", campaign, "characters", id), { currentHP: R.hpFromPoints(data.hpPoints) });
-    } else {
-      await updateDoc(doc(db, "campaigns", campaign, "characters", id), { currentMana: data.maxMana ?? 0 });
-    }
+document.getElementById("new-island-btn").addEventListener("click", async () => {
+  const ids = Object.keys(charsById);
+  if (ids.length === 0) { flash("No characters in this campaign yet."); return; }
+  if (!confirm(`Start a new island? This fully restores HP and Mana for all ${ids.length} character(s) in "${campaign}".`)) return;
+
+  try {
+    const batch = writeBatch(db);
+    ids.forEach(id => {
+      const data = charsById[id];
+      const maxHP = R.hpFromPoints(data.hpPoints);
+      batch.update(doc(db, "campaigns", campaign, "characters", id), {
+        currentHP: maxHP,
+        currentMana: data.maxMana ?? 0
+      });
+    });
+    await batch.commit();
+    flash("New island — everyone fully restored.");
+  } catch (err) {
+    console.error(err);
+    flash("Couldn't reach the database — check firestore.rules.");
   }
 });
 

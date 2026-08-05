@@ -91,6 +91,24 @@ export function makeId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Section 6.1: Short Rest — recover 1/10 of max (round down, minimum 1).
+export function shortRestRecover(current, max) {
+  const m = Number(max) || 0;
+  if (m <= 0) return Number(current) || 0;
+  const gain = Math.max(1, Math.floor(m / 10));
+  return Math.min(m, (Number(current) || 0) + gain);
+}
+
+// Section 6.2: Long Rest — recover half of what's missing (round up).
+export function longRestRecover(current, max) {
+  const m = Number(max) || 0;
+  const c = Number(current) || 0;
+  const missing = m - c;
+  if (missing <= 0) return c;
+  const gain = Math.ceil(missing / 2);
+  return Math.min(m, c + gain);
+}
+
 // Section 5: a character only "has magic" once they've invested in a mana
 // pool or actually put points into a magic skill — otherwise the block
 // is just empty noise on the sheet, so callers use this to hide it.

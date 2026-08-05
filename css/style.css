@@ -438,13 +438,24 @@ body[data-mode="edit"] .view-only { display: none !important; }
 .table-scroll { overflow-x: auto; }
 .table-scroll .skill-table { min-width: 420px; }
 
-/* ---- Icon mode toggle ---- */
+/* ---- Icon mode toggle (SVG icons, not emoji, for consistent rendering) ---- */
 .mode-toggle button {
-  font-family: inherit;
-  font-size: 1.1rem;
-  line-height: 1;
-  padding: 0.5rem 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.65rem;
 }
+.mode-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; display: block; }
+
+/* ---- "Used this session" toggle — click a skill/weapon/spell/language name
+   to fatten it as a reminder for post-session improvement rolls (Section 11.2).
+   In-memory only, resets when the browser tab/session ends. ---- */
+.skill-name-clickable { cursor: pointer; }
+.skill-name-clickable:hover { text-decoration: underline; }
+.used-skill { font-weight: 700; color: var(--danger); }
+
+/* ---- Rest buttons ---- */
+.rest-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 
 /* ---- Vitals (HP/Mana quick tracker — always visible, both modes) ---- */
 .vitals-row {

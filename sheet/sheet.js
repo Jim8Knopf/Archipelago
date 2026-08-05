@@ -32,6 +32,31 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ---- "Used this session" toggle ----
+// In-memory only, keyed by skill id — resets when the tab/browser session
+// ends. Click a skill/weapon/spell/language name in View mode to fatten it,
+// as a reminder for post-session improvement rolls (Section 11.2).
+
+const usedThisSession = new Set();
+
+function usedClass(id) {
+  return usedThisSession.has(id) ? "used-skill" : "";
+}
+
+function wireUsedToggle(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || el.dataset.usedWired) return;
+  el.addEventListener("click", (e) => {
+    const cell = e.target.closest("[data-skill-id]");
+    if (!cell) return;
+    const id = cell.dataset.skillId;
+    if (usedThisSession.has(id)) usedThisSession.delete(id); else usedThisSession.add(id);
+    cell.classList.toggle("used-skill");
+  });
+  el.dataset.usedWired = "1";
+}
+["view-basic-skills", "view-weapons", "view-magic", "view-languages"].forEach(wireUsedToggle);
+
 // ---- View / Edit mode ----
 
 function setMode(mode) {
@@ -48,7 +73,6 @@ setMode("view"); // default — a shared link opens to the read-only view
 
 document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
 if (params.get("char")) {
-  // Deep link already specifies a character — nothing to type, initSheet() below handles it.
   document.getElementById("loader-card").style.display = "none";
 }
 
@@ -154,24 +178,24 @@ function render() {
   renderVitals(d);
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
+  renderLanguages(d.languages);
   renderBasicSkills(d.basicSkills);
   renderCategoryGroup("weapons-container", d.categories, "weapon");
   renderCategoryGroup("magic-container", d.categories, "magic");
-  renderLanguages(d.languages);
   renderTraits(d.traits);
   renderInventory(d.inventory);
 
   renderViewBasicInfo(d);
   renderViewAttributes(d);
+  renderViewLanguages(d.languages);
   renderViewBasicSkills(d.basicSkills);
   renderViewCategoryGroup("view-weapons", d.categories, "weapon");
+  renderViewMagicVitals(d);
   renderViewMagic(d);
-  renderViewLanguages(d.languages);
   renderViewTraits(d.traits);
   renderViewInventory(d.inventory);
 
   const magicPresent = R.hasMagic(d);
-  document.getElementById("mana-vital").style.display = magicPresent ? "" : "none";
   document.getElementById("view-magic-section").style.display = magicPresent ? "" : "none";
 }
 
@@ -226,12 +250,11 @@ document.getElementById("points-granted-input").addEventListener("change", (e) =
   saveField({ pointsGranted: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
-// ---- Vitals: HP / Mana — always visible & editable in both View and Edit ----
+// ---- Vitals: HP + Rest — always visible & editable in both View and Edit ----
 
 function renderVitals(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
   renderGauge("hp", d.currentHP ?? 0, maxHP);
-  renderGauge("mana", d.currentMana ?? 0, d.maxMana ?? 0);
 }
 
 function renderGauge(stat, current, max) {
@@ -246,14 +269,25 @@ function renderGauge(stat, current, max) {
   document.getElementById(`${stat}-text`).textContent = `${current} / ${max}`;
 
   const curInput = document.getElementById(`${stat}-current-input`);
-  if (document.activeElement !== curInput) curInput.value = current;
+  if (curInput && document.activeElement !== curInput) curInput.value = current;
 }
 
-document.getElementById("hp-full-btn").addEventListener("click", () => {
-  saveField({ currentHP: R.hpFromPoints(currentData.hpPoints) });
+document.getElementById("short-rest-btn").addEventListener("click", () => {
+  const maxHP = R.hpFromPoints(currentData.hpPoints);
+  const updates = { currentHP: R.shortRestRecover(currentData.currentHP ?? 0, maxHP) };
+  if (R.hasMagic(currentData)) {
+    updates.currentMana = R.shortRestRecover(currentData.currentMana ?? 0, currentData.maxMana ?? 0);
+  }
+  saveField(updates);
 });
-document.getElementById("mana-full-btn").addEventListener("click", () => {
-  saveField({ currentMana: currentData.maxMana ?? 0 });
+
+document.getElementById("long-rest-btn").addEventListener("click", () => {
+  const maxHP = R.hpFromPoints(currentData.hpPoints);
+  const updates = { currentHP: R.longRestRecover(currentData.currentHP ?? 0, maxHP) };
+  if (R.hasMagic(currentData)) {
+    updates.currentMana = R.longRestRecover(currentData.currentMana ?? 0, currentData.maxMana ?? 0);
+  }
+  saveField(updates);
 });
 
 document.querySelectorAll("button[data-stat]").forEach((btn) => {
@@ -269,11 +303,29 @@ document.querySelectorAll("button[data-stat]").forEach((btn) => {
 
 ["hp", "mana"].forEach((stat) => {
   const curField = stat === "hp" ? "currentHP" : "currentMana";
-  document.getElementById(`${stat}-current-input`).addEventListener("change", (e) => {
+  const input = document.getElementById(`${stat}-current-input`);
+  if (!input) return;
+  input.addEventListener("change", (e) => {
     const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
     const val = clamp(parseInt(e.target.value, 10) || 0, 0, max);
     saveField({ [curField]: val });
   });
+});
+
+// View-mode Mana quick-adjust (buttons only, no free-typed input — the view
+// widget is rebuilt on every render, so a persistent input would lose focus).
+document.getElementById("view-magic-section").addEventListener("click", (e) => {
+  const btn = e.target.closest('button[data-action="view-mana-adjust"]');
+  if (!btn) return;
+  const delta = parseInt(btn.dataset.delta, 10);
+  const max = currentData.maxMana ?? 0;
+  const newVal = clamp((currentData.currentMana ?? 0) + delta, 0, max);
+  saveField({ currentMana: newVal });
+});
+
+// Name field
+document.getElementById("name-input").addEventListener("change", (e) => {
+  saveField({ name: e.target.value.trim() || "Unnamed" });
 });
 
 // ---- Basic info ----
@@ -317,7 +369,7 @@ function renderViewBasicInfo(d) {
 }
 
 // ---- Attributes: HP points/Max, Movement, Armor, Evasion ----
-// (current HP/Mana live in the always-visible Vitals card above)
+// (current HP lives in the always-visible Vitals card; current Mana in the Magic block)
 
 function renderAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
@@ -338,7 +390,7 @@ function renderAttributes(d) {
   const evLadder = R.ladder(evasion);
   document.getElementById("evasion-derived").textContent = evasion;
   document.getElementById("evasion-ladder").textContent =
-    ` (Hard: ${evLadder.hard} · Extreme: ${evLadder.extreme})`;
+    ` (Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})`;
 }
 
 function renderViewAttributes(d) {
@@ -348,11 +400,12 @@ function renderViewAttributes(d) {
   const evLadder = R.ladder(evasion);
 
   document.getElementById("view-attributes").innerHTML = `
-    <p class="stat-line">Max HP: <strong>${maxHP}</strong> <span class="muted">(current HP is tracked above, in Vitals)</span></p>
-    <p class="stat-line">Movement: <strong>${movement}</strong> m/s</p>
+    <p class="stat-line">HP points invested: <strong>${d.hpPoints ?? 0}</strong> → Max HP <strong>${maxHP}</strong>
+      <span class="muted">(current HP tracked above, in Vitals)</span></p>
+    <p class="stat-line">Movement points invested: <strong>${d.movementPoints ?? 0}</strong> → <strong>${movement}</strong> m/s</p>
     <p class="stat-line">Armor: <strong>${d.armor ?? 0}</strong></p>
-    <p class="stat-line">Evasion: <strong>${evasion}</strong>
-      <span class="muted">(Hard: ${evLadder.hard} · Extreme: ${evLadder.extreme})</span>
+    <p class="stat-line">Evasion — Normal: <strong>${evasion}</strong>
+      <span class="muted">(Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})</span>
     </p>
     <p class="muted">Armor and Evasion are either/or per hit (Section 4.1).</p>
   `;
@@ -381,10 +434,79 @@ document.getElementById("mana-max-input").addEventListener("change", (e) => {
   saveField(updates);
 });
 
-// Name field
-document.getElementById("name-input").addEventListener("change", (e) => {
-  saveField({ name: e.target.value.trim() || "Unnamed" });
+// ---- Languages: one shared pool, no sub-categories (lives at the end of Basic Info & Attributes) ----
+
+function renderLanguages(languages) {
+  const container = document.getElementById("languages-container");
+  const bonus = R.categoryBonus(languages);
+
+  const rows = (languages || []).map(s => {
+    const eff = R.categorySkillEffective(s, bonus);
+    const l = R.ladder(eff);
+    return `
+      <tr data-id="${s.id}">
+        <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
+        <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
+        <td class="num">${eff}</td>
+        <td class="num">${l.hard}</td>
+        <td class="num">${l.extreme}</td>
+        <td><button class="small danger" data-action="remove">✕</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+    <div class="table-scroll">
+      <table class="skill-table">
+        <thead><tr><th>Language</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="6" class="empty-state">No languages yet.</td></tr>`}</tbody>
+      </table>
+    </div>
+  `;
+
+  if (!container.dataset.wired) {
+    container.addEventListener("change", (e) => {
+      const input = e.target.closest("input[data-field]");
+      if (!input) return;
+      const id = input.closest("tr").dataset.id;
+      const languages = currentData.languages.map(s => s.id === id
+        ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
+        : s
+      );
+      saveField({ languages });
+    });
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action='remove']");
+      if (!btn) return;
+      const id = btn.closest("tr").dataset.id;
+      saveField({ languages: currentData.languages.filter(s => s.id !== id) });
+    });
+    container.dataset.wired = "1";
+  }
+}
+
+document.getElementById("add-language-btn").addEventListener("click", () => {
+  saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
 });
+
+function renderViewLanguages(languages) {
+  const el = document.getElementById("view-languages");
+  if (!languages || languages.length === 0) {
+    el.innerHTML = `<p class="empty-state">No languages yet.</p>`;
+    return;
+  }
+  const bonus = R.categoryBonus(languages);
+  const rows = languages.map(s => {
+    const eff = R.categorySkillEffective(s, bonus);
+    const l = R.ladder(eff);
+    return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+  }).join("");
+  el.innerHTML = `
+    <p class="muted" style="margin-bottom:0.15rem;">Transfer bonus: +${bonus}</p>
+    <table><thead><tr><th>Language</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+}
 
 // ---- Basic skills ----
 
@@ -435,7 +557,7 @@ function renderViewBasicSkills(skills) {
   }
   const rows = skills.map(s => {
     const l = R.ladder(s.points);
-    return `<tr><td>${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+    return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
   }).join("");
   document.getElementById("view-basic-skills").innerHTML = `
     <table><thead><tr><th>Skill</th><th>Normal</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
@@ -557,7 +679,7 @@ function categoryGroupHtml(categories) {
     const rows = (cat.skills || []).map(s => {
       const eff = R.categorySkillEffective(s, bonus);
       const l = R.ladder(eff);
-      return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+      return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
     }).join("");
     return `
       <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
@@ -570,86 +692,25 @@ function renderViewCategoryGroup(containerId, allCategories, type) {
   document.getElementById(containerId).innerHTML = categoryGroupHtml(catsOfType(allCategories, type));
 }
 
-function renderViewMagic(d) {
+function renderViewMagicVitals(d) {
   const maxMana = d.maxMana ?? 0;
-  document.getElementById("view-magic").innerHTML = `
-    <p class="muted">Current Mana is tracked above, in Vitals (Max ${maxMana}).</p>
-    ${categoryGroupHtml(catsOfType(d.categories, "magic"))}
-  `;
-}
-
-// ---- Languages: one shared pool, no sub-categories ----
-
-function renderLanguages(languages) {
-  const container = document.getElementById("languages-container");
-  const bonus = R.categoryBonus(languages);
-
-  const rows = (languages || []).map(s => {
-    const eff = R.categorySkillEffective(s, bonus);
-    const l = R.ladder(eff);
-    return `
-      <tr data-id="${s.id}">
-        <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-        <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-        <td class="num">${eff}</td>
-        <td class="num">${l.hard}</td>
-        <td class="num">${l.extreme}</td>
-        <td><button class="small danger" data-action="remove">✕</button></td>
-      </tr>
-    `;
-  }).join("");
-
-  container.innerHTML = `
-    <div class="cat-bonus">Transfer bonus: +${bonus}</div>
-    <div class="table-scroll">
-      <table class="skill-table">
-        <thead><tr><th>Language</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="6" class="empty-state">No languages yet.</td></tr>`}</tbody>
-      </table>
+  const currentMana = d.currentMana ?? 0;
+  const pct = maxMana > 0 ? clamp((currentMana / maxMana) * 100, 0, 100) : 0;
+  const gaugeClass = pct <= 25 ? "low" : pct <= 60 ? "mid" : "";
+  document.getElementById("view-magic-vitals").innerHTML = `
+    <div class="gauge-label"><span>Current Mana</span><span>${currentMana} / ${maxMana}</span></div>
+    <div class="gauge ${gaugeClass}"><div class="fill" style="width:${pct}%"></div></div>
+    <div class="stat-controls">
+      <button class="small" data-action="view-mana-adjust" data-delta="-10">−10</button>
+      <button class="small" data-action="view-mana-adjust" data-delta="-1">−1</button>
+      <button class="small" data-action="view-mana-adjust" data-delta="1">+1</button>
+      <button class="small" data-action="view-mana-adjust" data-delta="10">+10</button>
     </div>
   `;
-
-  if (!container.dataset.wired) {
-    container.addEventListener("change", (e) => {
-      const input = e.target.closest("input[data-field]");
-      if (!input) return;
-      const id = input.closest("tr").dataset.id;
-      const languages = currentData.languages.map(s => s.id === id
-        ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
-        : s
-      );
-      saveField({ languages });
-    });
-    container.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-action='remove']");
-      if (!btn) return;
-      const id = btn.closest("tr").dataset.id;
-      saveField({ languages: currentData.languages.filter(s => s.id !== id) });
-    });
-    container.dataset.wired = "1";
-  }
 }
 
-document.getElementById("add-language-btn").addEventListener("click", () => {
-  saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
-});
-
-function renderViewLanguages(languages) {
-  const el = document.getElementById("view-languages");
-  if (!languages || languages.length === 0) {
-    el.innerHTML = `<p class="empty-state">No languages yet.</p>`;
-    return;
-  }
-  const bonus = R.categoryBonus(languages);
-  const rows = languages.map(s => {
-    const eff = R.categorySkillEffective(s, bonus);
-    const l = R.ladder(eff);
-    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
-  }).join("");
-  el.innerHTML = `
-    <p class="muted" style="margin-bottom:0.15rem;">Transfer bonus: +${bonus}</p>
-    <table><thead><tr><th>Language</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
-  `;
+function renderViewMagic(d) {
+  document.getElementById("view-magic").innerHTML = categoryGroupHtml(catsOfType(d.categories, "magic"));
 }
 
 // ---- Traits ----
