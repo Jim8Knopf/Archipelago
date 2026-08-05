@@ -75,9 +75,25 @@ header.top nav a {
 }
 
 main {
-  max-width: 720px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 1.5rem 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Cards with tables or long lists want the full row width even on desktop;
+   compact form-style cards (basic info, attributes) are free to sit side by side. */
+.full-width { grid-column: 1 / -1; }
+
+#loader-card { max-width: 480px; margin: 0 auto; }
+
+/* Phones in portrait: force a single column regardless of the minmax above,
+   so nothing gets squeezed narrower than is comfortable to tap/read. */
+@media (max-width: 640px) {
+  main { grid-template-columns: 1fr; }
 }
 
 .card {
@@ -85,7 +101,7 @@ main {
   color: var(--ink);
   border-radius: var(--radius);
   padding: 1.25rem;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
   box-shadow: var(--shadow);
   border: 1px solid var(--brass-dim);
 }
@@ -356,6 +372,14 @@ details.card[open] summary::before { content: "▾ "; }
 .readonly-block table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
 .readonly-block th, .readonly-block td { text-align: left; padding: 0.25rem 0.3rem; border-bottom: 1px dashed var(--brass-dim); }
 .readonly-block th { color: var(--ink-soft); font-size: 0.75rem; text-transform: uppercase; }
+
+#char-list {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
 
 footer.foot {
   text-align: center;

@@ -23,25 +23,26 @@ function round1(n) {
 
 // Section 1: the normal/hard/extreme ladder, reused everywhere.
 // effective value -> the three roll-under thresholds.
+// Floored to whole numbers — you can't roll a fractional d100 threshold.
 export function ladder(effective) {
   const eff = Number(effective) || 0;
   return {
-    normal: round1(eff),
-    hard: round1(eff / 2),
-    extreme: round1(eff / 5)
+    normal: Math.floor(eff),
+    hard: Math.floor(eff / 2),
+    extreme: Math.floor(eff / 5)
   };
 }
 
 // Section 3.2: category transfer bonus = (sum of RAW points in category) / 10
-// Exact division, not floored — matches the ruleset's own worked examples.
+// Floored to a whole number for a clean, roll-able stat.
 export function categoryBonus(skills) {
   const sum = (skills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
-  return round1(sum / 10);
+  return Math.floor(sum / 10);
 }
 
 // Effective value of a skill within a cross-training category.
 export function categorySkillEffective(skill, bonus) {
-  return round1((Number(skill.points) || 0) + bonus);
+  return Math.floor((Number(skill.points) || 0) + bonus);
 }
 
 // Section 4: Evasion = evasion basic skill (raw, no cross-training) + full Movement.

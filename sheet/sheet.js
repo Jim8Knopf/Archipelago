@@ -81,7 +81,7 @@ function initSheet() {
     }
     currentData = normalize(snap.data());
     loaderCard.style.display = "none";
-    sheetCard.style.display = "";
+    sheetCard.style.display = "contents";
     render();
   }, (err) => {
     console.error(err);
