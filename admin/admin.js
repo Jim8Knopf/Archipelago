@@ -45,7 +45,7 @@ function render(byCampaign) {
       const maxHP = R.hpFromPoints(data.hpPoints);
       return `
         <div class="admin-char-row" data-campaign="${escapeHtml(campaignId)}" data-char="${id}">
-          <span>${escapeHtml(data.name || "Unnamed")} <span class="muted">— HP ${data.currentHP ?? 0}/${maxHP}${R.hasMagic(data) ? `, Mana ${data.currentMana ?? 0}/${data.maxMana ?? 0}` : ""}</span></span>
+          <span>${escapeHtml(data.name || "Unnamed")} <span class="muted">— HP ${data.currentHP ?? 0}/${maxHP}${R.hasMagic(data) ? `, Mana ${data.currentMana ?? 0}/${R.manaPoolFromPoints(data.manaPoints, data.categories)}` : ""}</span></span>
           <span class="links">
             <a href="${sheetUrl(campaignId, id)}" target="_blank">Open sheet</a>
             <a href="#" data-action="delete-char">Delete</a>

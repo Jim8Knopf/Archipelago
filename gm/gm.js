@@ -32,18 +32,19 @@ campaignInput.addEventListener("change", () => {
 document.getElementById("add-char-btn").addEventListener("click", async () => {
   const name = document.getElementById("new-char-name").value.trim();
   const maxHP = Math.max(0, parseInt(document.getElementById("new-char-hp").value, 10) || 0);
-  const maxMana = Math.max(0, parseInt(document.getElementById("new-char-mana").value, 10) || 0);
   if (!name) { flash("Give the character a name first."); return; }
 
   try {
     const base = R.defaultCharacter(name);
-    // Convert the quick "Max HP / Max Mana" inputs into invested points so the
-    // full sheet's derived formulas stay consistent — find the smallest point
-    // investment that yields at least the requested max.
+    // Convert the quick "Max HP" input into invested points so the full
+    // sheet's derived formula stays consistent — find the smallest point
+    // investment that yields at least the requested max. (Mana now depends
+    // on Mana Modifier points × Magic category bonus, so it's set up on the
+    // sheet itself once the character has a magic category — not here.)
     let hpPoints = 0;
     while (R.hpFromPoints(hpPoints) < maxHP) hpPoints++;
     await addDoc(collection(db, "campaigns", campaign, "characters"), {
-      ...base, hpPoints, currentHP: R.hpFromPoints(hpPoints), maxMana, currentMana: maxMana
+      ...base, hpPoints, currentHP: R.hpFromPoints(hpPoints)
     });
     document.getElementById("new-char-name").value = "";
     flash(`Created "${name}" — link is on their card below.`);
@@ -85,14 +86,16 @@ function renderCharacters(docs) {
 
   docs.forEach(({ id, data }) => {
     const maxHP = R.hpFromPoints(data.hpPoints);
+    const maxMana = R.manaPoolFromPoints(data.manaPoints, data.categories);
     const movement = R.movementFromPoints(data.movementPoints);
     const evasion = R.evasionTotal(data.basicSkills, movement);
     const hpPct = maxHP > 0 ? Math.min(100, ((data.currentHP ?? 0) / maxHP) * 100) : 0;
-    const manaPct = data.maxMana > 0 ? Math.min(100, ((data.currentMana ?? 0) / data.maxMana) * 100) : 0;
+    const manaPct = maxMana > 0 ? Math.min(100, ((data.currentMana ?? 0) / maxMana) * 100) : 0;
     const inv = data.inventory || [];
     const spent = R.pointsSpent(data);
     const available = R.pointsAvailable(data);
     const showMana = R.hasMagic(data);
+    const usedCount = (data.usedSkillIds || []).length;
 
     const card = document.createElement("div");
     card.className = "card";
@@ -107,8 +110,8 @@ function renderCharacters(docs) {
       ${vitalControlsHtml(id, "hp", [-5, -1, 1, 5])}
 
       ${showMana ? `
-        <div class="gauge-label" style="margin-top:0.5rem;"><span>Mana</span><span>${data.currentMana ?? 0} / ${data.maxMana ?? 0}</span></div>
-        <div class="gauge ${gaugeClass(data.currentMana, data.maxMana)}"><div class="fill" style="width:${manaPct}%"></div></div>
+        <div class="gauge-label" style="margin-top:0.5rem;"><span>Mana</span><span>${data.currentMana ?? 0} / ${maxMana}</span></div>
+        <div class="gauge ${gaugeClass(data.currentMana, maxMana)}"><div class="fill" style="width:${manaPct}%"></div></div>
         ${vitalControlsHtml(id, "mana", [-10, -1, 1, 10])}
       ` : ""}
 
@@ -127,6 +130,11 @@ function renderCharacters(docs) {
         <summary style="cursor:pointer;color:var(--ink-soft);">Full sheet</summary>
         <div class="readonly-block">${buildFullDetails(data)}</div>
       </details>
+
+      <div class="row spread" style="margin-top:0.75rem;">
+        <span class="muted">Used this session: ${usedCount}</span>
+        <button class="small" data-action="reset-used" data-id="${id}" ${usedCount === 0 ? "disabled" : ""}>Reset used skills</button>
+      </div>
 
       <p class="muted" style="margin-top:0.75rem;">Player link:</p>
       <div class="row">
@@ -150,7 +158,7 @@ function buildFullDetails(data) {
   }).join("");
 
   const weaponBlocks = (data.categories || []).filter(c => c.type === "weapon").map(cat => categoryBlockHtml(cat)).join("");
-  const magicBlocks = (data.categories || []).filter(c => c.type === "magic").map(cat => categoryBlockHtml(cat)).join("");
+  const magicBlocks = (data.categories || []).filter(c => c.type === "magic").map(cat => magicCategoryBlockHtml(cat)).join("");
 
   const langBonus = R.categoryBonus(data.languages);
   const langRows = (data.languages || []).map(s => {
@@ -189,6 +197,21 @@ function categoryBlockHtml(cat) {
   `;
 }
 
+function magicCategoryBlockHtml(cat) {
+  const bonus = R.categoryBonus(cat.skills);
+  const rows = (cat.skills || []).map(s => {
+    const eff = R.categorySkillEffective(s, bonus);
+    const l = R.ladder(eff);
+    const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
+    const cost = R.castingCost(magnitude);
+    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td><td>Mag ${magnitude}</td><td>${cost.normal}/${cost.hard}/${cost.extreme}</td></tr>`;
+  }).join("");
+  return `
+    <p class="muted" style="margin-bottom:0.15rem;">${escapeHtml(cat.name)} — bonus +${bonus}</p>
+    <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th><th>Cost N/H/E</th></tr></thead><tbody>${rows}</tbody></table>
+  `;
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str ?? "";
@@ -219,34 +242,46 @@ charList.addEventListener("click", async (e) => {
     return;
   }
 
-  // Live HP/Mana adjustment — writes straight to Firestore, so it appears
-  // on the player's sheet within a second or two via their own listener.
   const data = charsById[id];
   if (!data) return;
 
+  // Live HP/Mana adjustment — writes straight to Firestore, so it appears
+  // on the player's sheet within a second or two via their own listener.
   if (action === "adjust") {
     const stat = btn.dataset.stat;
     const delta = parseInt(btn.dataset.delta, 10);
     const curField = stat === "hp" ? "currentHP" : "currentMana";
-    const max = stat === "hp" ? R.hpFromPoints(data.hpPoints) : (data.maxMana ?? 0);
+    const max = stat === "hp" ? R.hpFromPoints(data.hpPoints) : R.manaPoolFromPoints(data.manaPoints, data.categories);
     const newVal = Math.max(0, Math.min(max, (data[curField] ?? 0) + delta));
     await updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal });
+  }
+
+  if (action === "reset-used") {
+    try {
+      await updateDoc(doc(db, "campaigns", campaign, "characters", id), { usedSkillIds: [] });
+      flash("Used-skill markers reset.");
+    } catch (err) {
+      console.error(err);
+      flash("Couldn't reset — check firestore.rules.");
+    }
   }
 });
 
 document.getElementById("new-island-btn").addEventListener("click", async () => {
   const ids = Object.keys(charsById);
   if (ids.length === 0) { flash("No characters in this campaign yet."); return; }
-  if (!confirm(`Start a new island? This fully restores HP and Mana for all ${ids.length} character(s) in "${campaign}".`)) return;
+  if (!confirm(`Start a new island? This fully restores HP and Mana, and clears used-skill markers, for all ${ids.length} character(s) in "${campaign}".`)) return;
 
   try {
     const batch = writeBatch(db);
     ids.forEach(id => {
       const data = charsById[id];
       const maxHP = R.hpFromPoints(data.hpPoints);
+      const maxMana = R.manaPoolFromPoints(data.manaPoints, data.categories);
       batch.update(doc(db, "campaigns", campaign, "characters", id), {
         currentHP: maxHP,
-        currentMana: data.maxMana ?? 0
+        currentMana: maxMana,
+        usedSkillIds: []
       });
     });
     await batch.commit();

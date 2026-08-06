@@ -17,10 +17,6 @@ export function movementFromPoints(points) {
   return Math.floor(Math.sqrt(p));
 }
 
-function round1(n) {
-  return Math.round(n * 10) / 10;
-}
-
 // Section 1: the normal/hard/extreme ladder, reused everywhere.
 // effective value -> the three roll-under thresholds.
 // Floored to whole numbers — you can't roll a fractional d100 threshold.
@@ -45,6 +41,10 @@ export function categorySkillEffective(skill, bonus) {
   return Math.floor((Number(skill.points) || 0) + bonus);
 }
 
+export function categoriesOfType(categories, type) {
+  return (categories || []).filter(c => c.type === type);
+}
+
 // Section 4: Evasion = evasion basic skill (raw, no cross-training) + full Movement.
 // Looks for a basic skill literally named "Evasion" (case-insensitive).
 export function evasionTotal(basicSkills, movement) {
@@ -61,7 +61,7 @@ export function tierValue(tier) {
 // Section 7/8: 800-point character creation budget, adjusted by Island Reset
 // grants (pointsGranted) and Flaw bonus points.
 export function pointsSpent(char) {
-  let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0);
+  let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0) + (Number(char.manaPoints) || 0);
   spent += (char.basicSkills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   spent += (char.languages || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   (char.categories || []).forEach(cat => {
@@ -109,14 +109,39 @@ export function longRestRecover(current, max) {
   return Math.min(m, c + gain);
 }
 
+// Mana pool = (Mana Modifier points invested) × (sum of all Magic category
+// transfer bonuses). E.g. 15 Mana Modifier points with a Fire category bonus
+// of +10 gives a pool of 150. With multiple magic categories, their bonuses
+// add together, since there's still just one shared pool (Section 5.1).
+export function magicBonusTotal(categories) {
+  return categoriesOfType(categories, "magic")
+    .reduce((sum, cat) => sum + categoryBonus(cat.skills), 0);
+}
+
+export function manaPoolFromPoints(manaPoints, categories) {
+  return (Number(manaPoints) || 0) * magicBonusTotal(categories);
+}
+
+// Section 5.3: casting cost — doubling base cost per magnitude, with
+// Normal/Hard/Extreme-or-Fail multipliers from the table.
+export function castingCost(magnitude) {
+  const mag = Math.max(1, Math.min(8, Number(magnitude) || 1));
+  const base = Math.pow(2, mag - 1); // 1,2,4,8,16,32,64,128
+  return {
+    base,
+    normal: base * 5,
+    hard: Math.ceil(base * 2.5),
+    extreme: base
+  };
+}
+
 // Section 5: a character only "has magic" once they've invested in a mana
 // pool or actually put points into a magic skill — otherwise the block
 // is just empty noise on the sheet, so callers use this to hide it.
 export function hasMagic(char) {
-  const magicSkillPoints = (char.categories || [])
-    .filter(c => c.type === "magic")
+  const magicSkillPoints = categoriesOfType(char.categories, "magic")
     .some(c => (c.skills || []).some(s => (Number(s.points) || 0) > 0));
-  return (Number(char.maxMana) || 0) > 0 || magicSkillPoints;
+  return manaPoolFromPoints(char.manaPoints, char.categories) > 0 || magicSkillPoints;
 }
 
 // Default shape for a brand-new character document.
@@ -130,7 +155,7 @@ export function defaultCharacter(name) {
     movementPoints: 0,
     currentHP: 0,
     armor: 0,
-    maxMana: 0,
+    manaPoints: 0,
     currentMana: 0,
     basicSkills: [{ id: makeId(), name: "Evasion", points: 0 }],
     // Weapons and Magic can have several named categories (Sword, Fire, ...).
@@ -138,6 +163,10 @@ export function defaultCharacter(name) {
     categories: [],
     languages: [],
     traits: [],
-    inventory: []
+    inventory: [],
+    // "Used this session" markers — one-way toggle set from the sheet, only
+    // clearable from the GM dashboard. Lives in Firestore (not just local
+    // browser memory) specifically so a GM reset can reach every device.
+    usedSkillIds: []
   };
 }

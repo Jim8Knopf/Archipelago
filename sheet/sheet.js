@@ -14,6 +14,7 @@ let currentData = null;
 let charRef = null;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const getMaxMana = (d) => R.manaPoolFromPoints(d.manaPoints, d.categories);
 
 function slugify(str) {
   return str.toLowerCase().trim()
@@ -32,15 +33,12 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---- "Used this session" toggle ----
-// In-memory only, keyed by skill id — resets when the tab/browser session
-// ends. Click a skill/weapon/spell/language name in View mode to fatten it,
-// as a reminder for post-session improvement rolls (Section 11.2).
+// ---- "Used this session" — one-way toggle, stored in Firestore (not just
+// local memory) specifically so it can be reset from the GM dashboard on
+// any device. Clicking an already-used skill does nothing further. ----
 
-const usedThisSession = new Set();
-
-function usedClass(id) {
-  return usedThisSession.has(id) ? "used-skill" : "";
+function usedClass(d, id) {
+  return (d.usedSkillIds || []).includes(id) ? "used-skill" : "";
 }
 
 function wireUsedToggle(containerId) {
@@ -48,10 +46,12 @@ function wireUsedToggle(containerId) {
   if (!el || el.dataset.usedWired) return;
   el.addEventListener("click", (e) => {
     const cell = e.target.closest("[data-skill-id]");
-    if (!cell) return;
+    if (!cell || !currentData) return;
     const id = cell.dataset.skillId;
-    if (usedThisSession.has(id)) usedThisSession.delete(id); else usedThisSession.add(id);
-    cell.classList.toggle("used-skill");
+    const used = currentData.usedSkillIds || [];
+    if (used.includes(id)) return; // one-way — already marked, clicking again is a no-op
+    cell.classList.add("used-skill"); // immediate feedback while the write round-trips
+    saveField({ usedSkillIds: [...used, id] });
   });
   el.dataset.usedWired = "1";
 }
@@ -130,7 +130,7 @@ function initSheet() {
 }
 
 // Fills in any fields missing from older/partial docs. Also migrates any
-// legacy "language" type categories into the flat `languages` array.
+// legacy "language" type categories, and the old flat maxMana field.
 function normalize(d) {
   const def = R.defaultCharacter(d.name);
   const rawCategories = d.categories || [];
@@ -149,7 +149,9 @@ function normalize(d) {
     traits: d.traits || [],
     inventory: d.inventory || [],
     armor: d.armor ?? 0,
-    imageUrl: d.imageUrl || ""
+    imageUrl: d.imageUrl || "",
+    manaPoints: d.manaPoints ?? 0,
+    usedSkillIds: d.usedSkillIds || []
   };
 }
 
@@ -175,21 +177,22 @@ function render() {
 
   renderPortrait(d.imageUrl);
   renderBudget(d);
-  renderVitals(d);
+  renderHP(d);
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
   renderLanguages(d.languages);
   renderBasicSkills(d.basicSkills);
   renderCategoryGroup("weapons-container", d.categories, "weapon");
-  renderCategoryGroup("magic-container", d.categories, "magic");
+  renderMagicStats(d);
+  renderMagicCategories(d);
   renderTraits(d.traits);
   renderInventory(d.inventory);
 
   renderViewBasicInfo(d);
   renderViewAttributes(d);
-  renderViewLanguages(d.languages);
-  renderViewBasicSkills(d.basicSkills);
-  renderViewCategoryGroup("view-weapons", d.categories, "weapon");
+  renderViewLanguages(d);
+  renderViewBasicSkills(d);
+  renderViewCategoryGroup("view-weapons", d);
   renderViewMagicVitals(d);
   renderViewMagic(d);
   renderViewTraits(d.traits);
@@ -250,9 +253,9 @@ document.getElementById("points-granted-input").addEventListener("change", (e) =
   saveField({ pointsGranted: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
-// ---- Vitals: HP + Rest — always visible & editable in both View and Edit ----
+// ---- HP (header) + Rest — always visible & editable in both View and Edit ----
 
-function renderVitals(d) {
+function renderHP(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
   renderGauge("hp", d.currentHP ?? 0, maxHP);
 }
@@ -276,7 +279,7 @@ document.getElementById("short-rest-btn").addEventListener("click", () => {
   const maxHP = R.hpFromPoints(currentData.hpPoints);
   const updates = { currentHP: R.shortRestRecover(currentData.currentHP ?? 0, maxHP) };
   if (R.hasMagic(currentData)) {
-    updates.currentMana = R.shortRestRecover(currentData.currentMana ?? 0, currentData.maxMana ?? 0);
+    updates.currentMana = R.shortRestRecover(currentData.currentMana ?? 0, getMaxMana(currentData));
   }
   saveField(updates);
 });
@@ -285,7 +288,7 @@ document.getElementById("long-rest-btn").addEventListener("click", () => {
   const maxHP = R.hpFromPoints(currentData.hpPoints);
   const updates = { currentHP: R.longRestRecover(currentData.currentHP ?? 0, maxHP) };
   if (R.hasMagic(currentData)) {
-    updates.currentMana = R.longRestRecover(currentData.currentMana ?? 0, currentData.maxMana ?? 0);
+    updates.currentMana = R.longRestRecover(currentData.currentMana ?? 0, getMaxMana(currentData));
   }
   saveField(updates);
 });
@@ -295,7 +298,7 @@ document.querySelectorAll("button[data-stat]").forEach((btn) => {
     const stat = btn.dataset.stat;
     const delta = parseInt(btn.dataset.delta, 10);
     const curField = stat === "hp" ? "currentHP" : "currentMana";
-    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
+    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : getMaxMana(currentData);
     const newVal = clamp((currentData[curField] ?? 0) + delta, 0, max);
     saveField({ [curField]: newVal });
   });
@@ -306,21 +309,30 @@ document.querySelectorAll("button[data-stat]").forEach((btn) => {
   const input = document.getElementById(`${stat}-current-input`);
   if (!input) return;
   input.addEventListener("change", (e) => {
-    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : (currentData.maxMana ?? 0);
+    const max = stat === "hp" ? R.hpFromPoints(currentData.hpPoints) : getMaxMana(currentData);
     const val = clamp(parseInt(e.target.value, 10) || 0, 0, max);
     saveField({ [curField]: val });
   });
 });
 
-// View-mode Mana quick-adjust (buttons only, no free-typed input — the view
-// widget is rebuilt on every render, so a persistent input would lose focus).
+// View-mode Mana quick-adjust and spell-cast buttons (event delegation on the
+// stable #view-magic-section, since its content is rebuilt every render).
 document.getElementById("view-magic-section").addEventListener("click", (e) => {
-  const btn = e.target.closest('button[data-action="view-mana-adjust"]');
-  if (!btn) return;
-  const delta = parseInt(btn.dataset.delta, 10);
-  const max = currentData.maxMana ?? 0;
-  const newVal = clamp((currentData.currentMana ?? 0) + delta, 0, max);
-  saveField({ currentMana: newVal });
+  const adjustBtn = e.target.closest('button[data-action="view-mana-adjust"]');
+  if (adjustBtn) {
+    const delta = parseInt(adjustBtn.dataset.delta, 10);
+    const max = getMaxMana(currentData);
+    const newVal = clamp((currentData.currentMana ?? 0) + delta, 0, max);
+    saveField({ currentMana: newVal });
+    return;
+  }
+  const castBtn = e.target.closest('button[data-action="cast"]');
+  if (castBtn) {
+    const cost = parseInt(castBtn.dataset.cost, 10);
+    const max = getMaxMana(currentData);
+    const newVal = clamp((currentData.currentMana ?? 0) - cost, 0, max);
+    saveField({ currentMana: newVal });
+  }
 });
 
 // Name field
@@ -369,7 +381,6 @@ function renderViewBasicInfo(d) {
 }
 
 // ---- Attributes: HP points/Max, Movement, Armor, Evasion ----
-// (current HP lives in the always-visible Vitals card; current Mana in the Magic block)
 
 function renderAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
@@ -401,7 +412,7 @@ function renderViewAttributes(d) {
 
   document.getElementById("view-attributes").innerHTML = `
     <p class="stat-line">HP points invested: <strong>${d.hpPoints ?? 0}</strong> → Max HP <strong>${maxHP}</strong>
-      <span class="muted">(current HP tracked above, in Vitals)</span></p>
+      <span class="muted">(current HP tracked in the header)</span></p>
     <p class="stat-line">Movement points invested: <strong>${d.movementPoints ?? 0}</strong> → <strong>${movement}</strong> m/s</p>
     <p class="stat-line">Armor: <strong>${d.armor ?? 0}</strong></p>
     <p class="stat-line">Evasion — Normal: <strong>${evasion}</strong>
@@ -427,12 +438,23 @@ document.getElementById("armor-input").addEventListener("change", (e) => {
   saveField({ armor: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
-document.getElementById("mana-max-input").addEventListener("change", (e) => {
-  const newMax = Math.max(0, parseInt(e.target.value, 10) || 0);
-  const updates = { maxMana: newMax };
+document.getElementById("mana-points-input").addEventListener("change", (e) => {
+  const newPoints = Math.max(0, parseInt(e.target.value, 10) || 0);
+  const updates = { manaPoints: newPoints };
+  const newMax = R.manaPoolFromPoints(newPoints, currentData.categories);
   if ((currentData.currentMana ?? 0) > newMax) updates.currentMana = newMax;
   saveField(updates);
 });
+
+function renderMagicStats(d) {
+  const manaPointsInput = document.getElementById("mana-points-input");
+  if (document.activeElement !== manaPointsInput) manaPointsInput.value = d.manaPoints || 0;
+  const maxMana = getMaxMana(d);
+  document.getElementById("mana-max-derived").textContent = maxMana;
+  const bonusTotal = R.magicBonusTotal(d.categories);
+  document.getElementById("mana-formula-note").textContent = ` (= ${d.manaPoints || 0} points × +${bonusTotal} magic bonus)`;
+  renderGauge("mana", d.currentMana ?? 0, maxMana);
+}
 
 // ---- Languages: one shared pool, no sub-categories (lives at the end of Basic Info & Attributes) ----
 
@@ -490,7 +512,8 @@ document.getElementById("add-language-btn").addEventListener("click", () => {
   saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
 });
 
-function renderViewLanguages(languages) {
+function renderViewLanguages(d) {
+  const languages = d.languages;
   const el = document.getElementById("view-languages");
   if (!languages || languages.length === 0) {
     el.innerHTML = `<p class="empty-state">No languages yet.</p>`;
@@ -500,7 +523,7 @@ function renderViewLanguages(languages) {
   const rows = languages.map(s => {
     const eff = R.categorySkillEffective(s, bonus);
     const l = R.ladder(eff);
-    return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+    return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
   }).join("");
   el.innerHTML = `
     <p class="muted" style="margin-bottom:0.15rem;">Transfer bonus: +${bonus}</p>
@@ -550,21 +573,22 @@ document.getElementById("add-basic-skill-btn").addEventListener("click", () => {
   saveField({ basicSkills: [...currentData.basicSkills, { id: R.makeId(), name: "New Skill", points: 0 }] });
 });
 
-function renderViewBasicSkills(skills) {
+function renderViewBasicSkills(d) {
+  const skills = d.basicSkills;
   if (!skills.length) {
     document.getElementById("view-basic-skills").innerHTML = `<p class="empty-state">No basic skills yet.</p>`;
     return;
   }
   const rows = skills.map(s => {
     const l = R.ladder(s.points);
-    return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+    return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
   }).join("");
   document.getElementById("view-basic-skills").innerHTML = `
     <table><thead><tr><th>Skill</th><th>Normal</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 }
 
-// ---- Category groups: Weapons / Magic (multiple named categories each) ----
+// ---- Weapons: multiple named categories, no magnitude/cost (that's magic-only) ----
 
 function renderCategoryGroup(containerId, allCategories, type) {
   const container = document.getElementById(containerId);
@@ -610,33 +634,87 @@ function renderCategoryGroup(containerId, allCategories, type) {
   }
 
   if (!container.dataset.wired) {
-    wireCategoryContainer(container);
+    wireCategoryContainer(container, "categories");
     container.dataset.wired = "1";
   }
 }
 
-function wireCategoryContainer(container) {
+// ---- Magic: same category structure, plus a Magnitude field per spell that
+// drives its casting cost (Section 5.3). ----
+
+function renderMagicCategories(d) {
+  const container = document.getElementById("magic-container");
+  const categories = catsOfType(d.categories, "magic");
+
+  if (categories.length === 0) {
+    container.innerHTML = `<p class="empty-state">No categories yet.</p>`;
+  } else {
+    container.innerHTML = categories.map(cat => {
+      const bonus = R.categoryBonus(cat.skills);
+      const skillRows = (cat.skills || []).map(s => {
+        const eff = R.categorySkillEffective(s, bonus);
+        const l = R.ladder(eff);
+        const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
+        return `
+          <tr data-cat="${cat.id}" data-id="${s.id}">
+            <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
+            <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
+            <td><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>
+            <td class="num">${eff}</td>
+            <td class="num">${l.hard}</td>
+            <td class="num">${l.extreme}</td>
+            <td><button class="small danger" data-action="remove-skill">✕</button></td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <div class="category-card" data-cat="${cat.id}">
+          <div class="cat-header">
+            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}">
+            <button class="small danger" data-action="remove-category">✕ Category</button>
+          </div>
+          <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+          <div class="table-scroll">
+            <table class="skill-table">
+              <thead><tr><th>Spell</th><th>Points</th><th>Magnitude</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+              <tbody>${skillRows}</tbody>
+            </table>
+          </div>
+          <button class="small brass" data-action="add-skill">+ Add spell to this category</button>
+        </div>
+      `;
+    }).join("");
+  }
+
+  if (!container.dataset.wired) {
+    wireCategoryContainer(container, "categories");
+    container.dataset.wired = "1";
+  }
+}
+
+function wireCategoryContainer(container, dataKey) {
   container.addEventListener("change", (e) => {
     const input = e.target.closest("input[data-field]");
     if (!input) return;
     const catId = input.closest("[data-cat]").dataset.cat;
     const row = input.closest("tr");
 
-    const categories = currentData.categories.map(cat => {
+    const updatedList = currentData[dataKey].map(cat => {
       if (cat.id !== catId) return cat;
       if (row) {
         const skillId = row.dataset.id;
         return {
           ...cat,
           skills: cat.skills.map(s => s.id === skillId
-            ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
+            ? { ...s, [input.dataset.field]: input.dataset.field === "name" ? input.value : (parseFloat(input.value) || 0) }
             : s
           )
         };
       }
       return { ...cat, [input.dataset.field]: input.value };
     });
-    saveField({ categories });
+    saveField({ [dataKey]: updatedList });
   });
 
   container.addEventListener("click", (e) => {
@@ -645,22 +723,22 @@ function wireCategoryContainer(container) {
     const catId = btn.closest("[data-cat]").dataset.cat;
 
     if (btn.dataset.action === "remove-category") {
-      saveField({ categories: currentData.categories.filter(c => c.id !== catId) });
+      saveField({ [dataKey]: currentData[dataKey].filter(c => c.id !== catId) });
     }
     if (btn.dataset.action === "add-skill") {
-      const categories = currentData.categories.map(cat => cat.id === catId
-        ? { ...cat, skills: [...(cat.skills || []), { id: R.makeId(), name: "New Skill", points: 0 }] }
+      const updatedList = currentData[dataKey].map(cat => cat.id === catId
+        ? { ...cat, skills: [...(cat.skills || []), { id: R.makeId(), name: "New Skill", points: 0, magnitude: 1 }] }
         : cat
       );
-      saveField({ categories });
+      saveField({ [dataKey]: updatedList });
     }
     if (btn.dataset.action === "remove-skill") {
       const skillId = btn.closest("tr").dataset.id;
-      const categories = currentData.categories.map(cat => cat.id === catId
+      const updatedList = currentData[dataKey].map(cat => cat.id === catId
         ? { ...cat, skills: cat.skills.filter(s => s.id !== skillId) }
         : cat
       );
-      saveField({ categories });
+      saveField({ [dataKey]: updatedList });
     }
   });
 }
@@ -672,14 +750,14 @@ document.getElementById("add-magic-category-btn").addEventListener("click", () =
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Magic Category", type: "magic", skills: [] }] });
 });
 
-function categoryGroupHtml(categories) {
+function categoryGroupHtml(d, categories) {
   if (categories.length === 0) return `<p class="empty-state">None yet.</p>`;
   return categories.map(cat => {
     const bonus = R.categoryBonus(cat.skills);
     const rows = (cat.skills || []).map(s => {
       const eff = R.categorySkillEffective(s, bonus);
       const l = R.ladder(eff);
-      return `<tr><td class="skill-name-clickable ${usedClass(s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
+      return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
     }).join("");
     return `
       <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
@@ -688,12 +766,12 @@ function categoryGroupHtml(categories) {
   }).join("");
 }
 
-function renderViewCategoryGroup(containerId, allCategories, type) {
-  document.getElementById(containerId).innerHTML = categoryGroupHtml(catsOfType(allCategories, type));
+function renderViewCategoryGroup(containerId, d) {
+  document.getElementById(containerId).innerHTML = categoryGroupHtml(d, catsOfType(d.categories, "weapon"));
 }
 
 function renderViewMagicVitals(d) {
-  const maxMana = d.maxMana ?? 0;
+  const maxMana = getMaxMana(d);
   const currentMana = d.currentMana ?? 0;
   const pct = maxMana > 0 ? clamp((currentMana / maxMana) * 100, 0, 100) : 0;
   const gaugeClass = pct <= 25 ? "low" : pct <= 60 ? "mid" : "";
@@ -710,7 +788,37 @@ function renderViewMagicVitals(d) {
 }
 
 function renderViewMagic(d) {
-  document.getElementById("view-magic").innerHTML = categoryGroupHtml(catsOfType(d.categories, "magic"));
+  const categories = catsOfType(d.categories, "magic");
+  if (categories.length === 0) {
+    document.getElementById("view-magic").innerHTML = `<p class="empty-state">No spells yet.</p>`;
+    return;
+  }
+  document.getElementById("view-magic").innerHTML = categories.map(cat => {
+    const bonus = R.categoryBonus(cat.skills);
+    const rows = (cat.skills || []).map(s => {
+      const eff = R.categorySkillEffective(s, bonus);
+      const l = R.ladder(eff);
+      const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
+      const cost = R.castingCost(magnitude);
+      return `
+        <tr>
+          <td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td>
+          <td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td>
+          <td>Mag ${magnitude}</td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.normal}" title="Cast at Normal success">${cost.normal}</button></td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.hard}" title="Cast at Hard success">${cost.hard}</button></td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.extreme}" title="Cast at Extreme success / Fail">${cost.extreme}</button></td>
+        </tr>
+      `;
+    }).join("");
+    return `
+      <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
+      <table>
+        <thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th><th>Cost N</th><th>Cost H</th><th>Cost E/F</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }).join("");
 }
 
 // ---- Traits ----
