@@ -5,6 +5,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/fireba
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig } from "../js/firebase-config.js";
 
+function validateFirebaseConfig(config) {
+  const requiredKeys = [
+    "apiKey",
+    "authDomain",
+    "projectId",
+    "storageBucket",
+    "messagingSenderId",
+    "appId"
+  ];
+
+  const invalidKeys = requiredKeys.filter(key => {
+    const value = config[key];
+    return !value || typeof value !== "string" || !value.trim() || value.includes("${{") || value.includes("}});
+  });
+
+  if (invalidKeys.length > 0) {
+    throw new Error(
+      `Firebase config is not set correctly. Edit js/firebase-config.js and paste your Firebase web app settings from the Firebase console. Invalid fields: ${invalidKeys.join(", ")}`
+    );
+  }
+}
+
+validateFirebaseConfig(firebaseConfig);
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
