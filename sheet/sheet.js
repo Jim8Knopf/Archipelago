@@ -344,7 +344,7 @@ document.getElementById("name-input").addEventListener("change", (e) => {
 
 const BASIC_INFO_FIELDS = [
   ["age", "Age"], ["race", "Race"], ["birthplace", "Birthplace"], ["job", "Job"],
-  ["height", "Height"], ["weight", "Weight"], ["gender", "Gender"], ["fightingStyle", "Fighting style"]
+  ["height", "Height"], ["weight", "Weight"], ["gender", "Gender"]
 ];
 
 function renderBasicInfo(info) {

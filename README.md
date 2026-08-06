@@ -112,7 +112,7 @@ just the rules file and a small amount of added auth-init code.
 ```
 campaigns/{campaignId}/characters/{characterId}
   name:           string
-  basicInfo:      { age, race, birthplace, job, height, weight, gender, fightingStyle }
+  basicInfo:      { age, race, birthplace, job, height, weight, gender }
   pointsGranted:  number   — 800 by default; bump this after an Island Reset
   hpPoints:       number   — invested points; Max HP is derived, not stored
   movementPoints: number   — invested points; Movement (m/s) is derived

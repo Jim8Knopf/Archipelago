@@ -148,7 +148,7 @@ function renderCharacters(docs) {
 
 function buildFullDetails(data) {
   const info = data.basicInfo || {};
-  const infoRows = ["age", "race", "birthplace", "job", "height", "weight", "gender", "fightingStyle"]
+  const infoRows = ["age", "race", "birthplace", "job", "height", "weight", "gender"]
     .filter(k => info[k])
     .map(k => `<tr><th>${k}</th><td>${escapeHtml(info[k])}</td></tr>`).join("");
 

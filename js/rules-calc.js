@@ -149,7 +149,7 @@ export function defaultCharacter(name) {
   return {
     name: name || "New Character",
     imageUrl: "",
-    basicInfo: { age: "", race: "", birthplace: "", job: "", height: "", weight: "", gender: "", fightingStyle: "" },
+    basicInfo: { age: "", race: "", birthplace: "", job: "", height: "", weight: "", gender: "" },
     pointsGranted: 800,
     hpPoints: 0,
     movementPoints: 0,
