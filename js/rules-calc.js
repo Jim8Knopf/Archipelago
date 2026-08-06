@@ -47,10 +47,10 @@ export function categoriesOfType(categories, type) {
 
 // Section 4: Evasion = evasion basic skill (raw, no cross-training) + full Movement.
 // Looks for a basic skill literally named "Evasion" (case-insensitive).
-export function evasionTotal(basicSkills, movement) {
+export function evasionTotal(basicSkills, movement, extra = 0) {
   const skill = (basicSkills || []).find(s => (s.name || "").trim().toLowerCase() === "evasion");
   const skillVal = skill ? (Number(skill.points) || 0) : 0;
-  return skillVal + (Number(movement) || 0);
+  return skillVal + (Number(movement) || 0) + (Number(extra) || 0);
 }
 
 // Section 8: Trait tier point values.
@@ -155,9 +155,10 @@ export function defaultCharacter(name) {
     movementPoints: 0,
     currentHP: 0,
     armor: 0,
+    evasionPoints: 0,
     manaPoints: 0,
     currentMana: 0,
-    basicSkills: [{ id: makeId(), name: "Evasion", points: 0 }],
+    basicSkills: [],
     // Weapons and Magic can have several named categories (Sword, Fire, ...).
     // Languages are a single shared pool per Section 3.2 — no sub-categories.
     categories: [],
