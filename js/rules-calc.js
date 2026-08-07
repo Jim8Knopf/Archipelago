@@ -10,11 +10,32 @@ export function hpFromPoints(points) {
   return Math.floor((Math.sqrt(8 * p + 1) - 1) / 2);
 }
 
+// How many more points (from where you are now) it takes to raise Max HP by 1.
+// The triangular curve means this cost keeps rising — going from HP n to n+1
+// always costs (n+1) points, regardless of how the points already invested
+// were "spent" getting there.
+export function pointsToNextHP(hpPoints) {
+  const p = Number(hpPoints) || 0;
+  const currentHP = hpFromPoints(p);
+  const nextThreshold = ((currentHP + 1) * (currentHP + 2)) / 2;
+  return nextThreshold - p;
+}
+
 // Section 2: Movement — INT(SQRT(points invested))
 export function movementFromPoints(points) {
   const p = Number(points) || 0;
   if (p <= 0) return 0;
   return Math.floor(Math.sqrt(p));
+}
+
+// How many more points it takes to raise Movement by 1 — the sqrt curve means
+// this varies a lot (sometimes 1 point, sometimes a dozen) depending on how
+// close the current investment is to the next perfect square.
+export function pointsToNextMovement(movementPoints) {
+  const p = Number(movementPoints) || 0;
+  const currentMove = movementFromPoints(p);
+  const nextThreshold = Math.pow(currentMove + 1, 2);
+  return nextThreshold - p;
 }
 
 // Section 1: the normal/hard/extreme ladder, reused everywhere.
@@ -45,12 +66,10 @@ export function categoriesOfType(categories, type) {
   return (categories || []).filter(c => c.type === type);
 }
 
-// Section 4: Evasion = evasion basic skill (raw, no cross-training) + full Movement.
-// Looks for a basic skill literally named "Evasion" (case-insensitive).
-export function evasionTotal(basicSkills, movement, extra = 0) {
-  const skill = (basicSkills || []).find(s => (s.name || "").trim().toLowerCase() === "evasion");
-  const skillVal = skill ? (Number(skill.points) || 0) : 0;
-  return skillVal + (Number(movement) || 0) + (Number(extra) || 0);
+// Section 4: Evasion = Evasion points invested + full Movement. Evasion has
+// its own dedicated field now, rather than being a Basic Skill found by name.
+export function evasionTotal(evasionPoints, movement) {
+  return (Number(evasionPoints) || 0) + (Number(movement) || 0);
 }
 
 // Section 8: Trait tier point values.
@@ -61,7 +80,8 @@ export function tierValue(tier) {
 // Section 7/8: 800-point character creation budget, adjusted by Island Reset
 // grants (pointsGranted) and Flaw bonus points.
 export function pointsSpent(char) {
-  let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0) + (Number(char.manaPoints) || 0);
+  let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0)
+    + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0);
   spent += (char.basicSkills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   spent += (char.languages || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   (char.categories || []).forEach(cat => {
@@ -135,6 +155,18 @@ export function castingCost(magnitude) {
   };
 }
 
+// Armor is custom bonus (natural armor, traits, etc.) plus the sum of every
+// inventory item that's type "armor" and currently marked worn.
+export function armorFromInventory(inventory) {
+  return (inventory || [])
+    .filter(item => item.type === "armor" && item.worn)
+    .reduce((sum, item) => sum + (Number(item.armorValue) || 0), 0);
+}
+
+export function totalArmor(char) {
+  return (Number(char.armorCustom) || 0) + armorFromInventory(char.inventory);
+}
+
 // Section 5: a character only "has magic" once they've invested in a mana
 // pool or actually put points into a magic skill — otherwise the block
 // is just empty noise on the sheet, so callers use this to hide it.
@@ -149,13 +181,13 @@ export function defaultCharacter(name) {
   return {
     name: name || "New Character",
     imageUrl: "",
-    basicInfo: { age: "", race: "", birthplace: "", job: "", height: "", weight: "", gender: "" },
+    basicInfo: { age: "", race: "", birthplace: "", job: "", height: "", weight: "", gender: "", fightingStyle: "" },
     pointsGranted: 800,
     hpPoints: 0,
     movementPoints: 0,
     currentHP: 0,
-    armor: 0,
     evasionPoints: 0,
+    armorCustom: 0,
     manaPoints: 0,
     currentMana: 0,
     basicSkills: [],
@@ -164,6 +196,8 @@ export function defaultCharacter(name) {
     categories: [],
     languages: [],
     traits: [],
+    // Inventory items are typed: "item" (name, qty), "armor" (name,
+    // armorValue, worn), "weapon" (name, woundDice).
     inventory: [],
     // "Used this session" markers — one-way toggle set from the sheet, only
     // clearable from the GM dashboard. Lives in Firestore (not just local

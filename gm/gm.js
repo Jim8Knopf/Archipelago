@@ -88,7 +88,7 @@ function renderCharacters(docs) {
     const maxHP = R.hpFromPoints(data.hpPoints);
     const maxMana = R.manaPoolFromPoints(data.manaPoints, data.categories);
     const movement = R.movementFromPoints(data.movementPoints);
-    const evasion = R.evasionTotal(data.basicSkills, movement);
+    const evasion = R.evasionTotal(data.evasionPoints, movement);
     const hpPct = maxHP > 0 ? Math.min(100, ((data.currentHP ?? 0) / maxHP) * 100) : 0;
     const manaPct = maxMana > 0 ? Math.min(100, ((data.currentMana ?? 0) / maxMana) * 100) : 0;
     const inv = data.inventory || [];
@@ -116,13 +116,13 @@ function renderCharacters(docs) {
       ` : ""}
 
       <p class="muted" style="margin-top:0.5rem;">
-        Movement ${movement} m/s · Armor ${data.armor ?? 0} · Evasion ${evasion} · Points ${spent}/${available}
+        Movement ${movement} m/s · Armor ${R.totalArmor(data)} · Evasion ${evasion} · Points ${spent}/${available}
       </p>
 
       ${inv.length ? `
         <p class="muted" style="margin-top:0.5rem;margin-bottom:0.25rem;">Inventory</p>
         <ul class="inventory-list">
-          ${inv.map(item => `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="item-qty">×${item.qty}</span></li>`).join("")}
+          ${inv.map(item => inventoryLineHtml(item)).join("")}
         </ul>
       ` : `<p class="muted" style="margin-top:0.5rem;">Inventory empty.</p>`}
 
@@ -148,7 +148,7 @@ function renderCharacters(docs) {
 
 function buildFullDetails(data) {
   const info = data.basicInfo || {};
-  const infoRows = ["age", "race", "birthplace", "job", "height", "weight", "gender"]
+  const infoRows = ["age", "race", "birthplace", "job", "height", "weight", "gender", "fightingStyle"]
     .filter(k => info[k])
     .map(k => `<tr><th>${k}</th><td>${escapeHtml(info[k])}</td></tr>`).join("");
 
@@ -203,13 +203,22 @@ function magicCategoryBlockHtml(cat) {
     const eff = R.categorySkillEffective(s, bonus);
     const l = R.ladder(eff);
     const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
-    const cost = R.castingCost(magnitude);
-    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td><td>Mag ${magnitude}</td><td>${cost.normal}/${cost.hard}/${cost.extreme}</td></tr>`;
+    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td><td>Mag ${magnitude}</td></tr>`;
   }).join("");
   return `
     <p class="muted" style="margin-bottom:0.15rem;">${escapeHtml(cat.name)} — bonus +${bonus}</p>
-    <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th><th>Cost N/H/E</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th></tr></thead><tbody>${rows}</tbody></table>
   `;
+}
+
+function inventoryLineHtml(item) {
+  if (item.type === "armor") {
+    return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="muted">Armor ${item.armorValue ?? 0}${item.worn ? " · Worn" : ""}</span></li>`;
+  }
+  if (item.type === "weapon") {
+    return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="muted">${escapeHtml(item.woundDice || "")}</span></li>`;
+  }
+  return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="item-qty">×${item.qty}</span></li>`;
 }
 
 function escapeHtml(str) {

@@ -33,9 +33,8 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---- "Used this session" — one-way toggle, stored in Firestore (not just
-// local memory) specifically so it can be reset from the GM dashboard on
-// any device. Clicking an already-used skill does nothing further. ----
+// ---- "Used this session" — one-way toggle, stored in Firestore so a GM
+// reset can reach every device. Clicking an already-used skill is a no-op. ----
 
 function usedClass(d, id) {
   return (d.usedSkillIds || []).includes(id) ? "used-skill" : "";
@@ -49,8 +48,8 @@ function wireUsedToggle(containerId) {
     if (!cell || !currentData) return;
     const id = cell.dataset.skillId;
     const used = currentData.usedSkillIds || [];
-    if (used.includes(id)) return; // one-way — already marked, clicking again is a no-op
-    cell.classList.add("used-skill"); // immediate feedback while the write round-trips
+    if (used.includes(id)) return;
+    cell.classList.add("used-skill");
     saveField({ usedSkillIds: [...used, id] });
   });
   el.dataset.usedWired = "1";
@@ -66,10 +65,9 @@ function setMode(mode) {
 }
 document.getElementById("view-mode-btn").addEventListener("click", () => setMode("view"));
 document.getElementById("edit-mode-btn").addEventListener("click", () => setMode("edit"));
-setMode("view"); // default — a shared link opens to the read-only view
+setMode("view");
 
-// ---- Loader form: one name field. Opens the character if it exists,
-// otherwise asks to create it. ----
+// ---- Loader form ----
 
 document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
 if (params.get("char")) {
@@ -110,8 +108,6 @@ function initSheet() {
   charRef = doc(db, "campaigns", campaign, "characters", charId);
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
 
-  // onSnapshot keeps this live — any change from this tab, another player's
-  // tab, or the GM dashboard appears here within a second or two, no reload.
   onSnapshot(charRef, (snap) => {
     if (!snap.exists()) {
       loaderCard.style.display = "";
@@ -129,8 +125,11 @@ function initSheet() {
   });
 }
 
-// Fills in any fields missing from older/partial docs. Also migrates any
-// legacy "language" type categories, and the old flat maxMana field.
+// Fills in missing fields from older/partial docs, and migrates legacy shapes:
+// - "language" type categories -> flat `languages` array
+// - a Basic Skill literally named "Evasion" -> `evasionPoints`
+// - old flat `armor` number -> `armorCustom`
+// - inventory items without a `type` -> type "item"
 function normalize(d) {
   const def = R.defaultCharacter(d.name);
   const rawCategories = d.categories || [];
@@ -139,24 +138,24 @@ function normalize(d) {
     .filter(c => c.type === "language")
     .flatMap(c => c.skills || []);
 
+  const rawBasicSkills = d.basicSkills || def.basicSkills;
+  const legacyEvasionSkill = rawBasicSkills.find(s => (s.name || "").trim().toLowerCase() === "evasion");
+  const basicSkills = rawBasicSkills.filter(s => s !== legacyEvasionSkill);
+  const evasionPoints = d.evasionPoints ?? (legacyEvasionSkill ? legacyEvasionSkill.points : 0);
+
+  const inventory = (d.inventory || []).map(item => item.type ? item : { ...item, type: "item" });
+
   return {
     ...def,
     ...d,
     basicInfo: { ...def.basicInfo, ...(d.basicInfo || {}) },
-    basicSkills: d.basicSkills || def.basicSkills,
+    basicSkills,
     categories,
     languages: d.languages && d.languages.length ? d.languages : legacyLangSkills,
     traits: d.traits || [],
-    inventory: (d.inventory || []).map(item => ({
-      type: item.type || "item",
-      name: item.name || "",
-      qty: item.qty || 1,
-      armorValue: item.armorValue ?? 0,
-      woundDice: item.woundDice || "",
-      worn: !!item.worn
-    })),
-    armor: d.armor ?? 0,
-    evasionPoints: d.evasionPoints ?? 0,
+    inventory,
+    armorCustom: d.armorCustom ?? d.armor ?? 0,
+    evasionPoints,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
     usedSkillIds: d.usedSkillIds || []
@@ -194,7 +193,7 @@ function render() {
   renderMagicStats(d);
   renderMagicCategories(d);
   renderTraits(d.traits);
-  renderInventory(d.inventory);
+  renderInventoryEdit(d.inventory);
 
   renderViewBasicInfo(d);
   renderViewAttributes(d);
@@ -203,14 +202,13 @@ function render() {
   renderViewCategoryGroup("view-weapons", d);
   renderViewMagicVitals(d);
   renderViewMagic(d);
-  renderViewTraits(d.traits);
-  renderViewInventory(d.inventory);
+  renderViewTraits(d);
+  renderViewInventory(d);
 
-  const magicPresent = R.hasMagic(d);
-  document.getElementById("view-magic-section").style.display = magicPresent ? "" : "none";
-  document.getElementById("view-weapons-section").style.display = catsOfType(d.categories, "weapon").some(c => (c.skills || []).length > 0) ? "" : "none";
-  document.getElementById("view-traits-section").style.display = d.traits && d.traits.length ? "" : "none";
-  document.getElementById("view-inventory-section").style.display = d.inventory && d.inventory.length ? "" : "none";
+  document.getElementById("view-magic-section").style.display = R.hasMagic(d) ? "" : "none";
+  document.getElementById("view-weapons-section").style.display = catsOfType(d.categories, "weapon").length ? "" : "none";
+  document.getElementById("view-traits-section").style.display = d.traits.length ? "" : "none";
+  document.getElementById("view-inventory-section").style.display = d.inventory.length ? "" : "none";
 }
 
 // ---- Portrait ----
@@ -264,7 +262,7 @@ document.getElementById("points-granted-input").addEventListener("change", (e) =
   saveField({ pointsGranted: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
-// ---- HP (header) + Rest — always visible & editable in both View and Edit ----
+// ---- HP (header) + Rest ----
 
 function renderHP(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
@@ -326,8 +324,8 @@ document.querySelectorAll("button[data-stat]").forEach((btn) => {
   });
 });
 
-// View-mode Mana quick-adjust and spell-cast buttons (event delegation on the
-// stable #view-magic-section, since its content is rebuilt every render).
+// View-mode Mana quick-adjust and inline spell casting (event delegation on
+// the stable #view-magic-section, since its content is rebuilt every render).
 document.getElementById("view-magic-section").addEventListener("click", (e) => {
   const adjustBtn = e.target.closest('button[data-action="view-mana-adjust"]');
   if (adjustBtn) {
@@ -340,12 +338,12 @@ document.getElementById("view-magic-section").addEventListener("click", (e) => {
   const castBtn = e.target.closest('button[data-action="cast"]');
   if (castBtn) {
     const cost = parseInt(castBtn.dataset.cost, 10);
-    const currentMana = currentData.currentMana ?? 0;
-    if (currentMana < cost) {
-      flash(sheetStatus, "Not enough Mana to cast that spell.");
+    const current = currentData.currentMana ?? 0;
+    if (cost > current) {
+      flash(sheetStatus, `Not enough Mana — this costs ${cost}, you have ${current}.`);
       return;
     }
-    saveField({ currentMana: currentMana - cost });
+    saveField({ currentMana: current - cost });
   }
 });
 
@@ -358,7 +356,7 @@ document.getElementById("name-input").addEventListener("change", (e) => {
 
 const BASIC_INFO_FIELDS = [
   ["age", "Age"], ["race", "Race"], ["birthplace", "Birthplace"], ["job", "Job"],
-  ["height", "Height"], ["weight", "Weight"], ["gender", "Gender"]
+  ["height", "Height"], ["weight", "Weight"], ["gender", "Gender"], ["fightingStyle", "Fighting style"]
 ];
 
 function renderBasicInfo(info) {
@@ -394,34 +392,30 @@ function renderViewBasicInfo(d) {
     rows ? `<table>${rows}</table>` : `<p class="empty-state">No basic info filled in yet.</p>`;
 }
 
-// ---- Attributes: HP points/Max, Movement, Armor, Evasion ----
+// ---- Attributes: HP points/Max (+cost to next), Movement (+cost to next), Armor, Evasion ----
 
 function renderAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
   const movement = R.movementFromPoints(d.movementPoints);
-  const wornArmor = R.wornArmorTotal(d.inventory);
-  const totalArmor = (d.armor || 0) + wornArmor;
-  const evasion = R.evasionTotal(d.basicSkills, movement, d.evasionPoints);
-  const evLadder = R.ladder(evasion);
 
   const hpPointsInput = document.getElementById("hp-points-input");
   if (document.activeElement !== hpPointsInput) hpPointsInput.value = d.hpPoints || 0;
   document.getElementById("hp-max-derived").textContent = maxHP;
-  document.getElementById("hp-next-cost").textContent = `Next HP point costs ${R.pointsForNextHP(d.hpPoints)} creation points.`;
+  document.getElementById("hp-next-cost").textContent = `(+1 costs ${R.pointsToNextHP(d.hpPoints)} more points)`;
 
   const movePointsInput = document.getElementById("move-points-input");
   if (document.activeElement !== movePointsInput) movePointsInput.value = d.movementPoints || 0;
   document.getElementById("move-derived").textContent = movement;
-  document.getElementById("move-next-cost").textContent = `Next speed point costs ${R.pointsForNextMovement(d.movementPoints)} creation points.`;
+  document.getElementById("move-next-cost").textContent = `(+1 costs ${R.pointsToNextMovement(d.movementPoints)} more points)`;
 
-  const armorInput = document.getElementById("armor-input");
-  if (document.activeElement !== armorInput) armorInput.value = d.armor ?? 0;
-  document.getElementById("armor-derived").textContent = wornArmor > 0
-    ? `Worn armor +${wornArmor} → Total armor ${totalArmor}`
-    : `Total armor ${totalArmor}`;
+  const armorCustomInput = document.getElementById("armor-custom-input");
+  if (document.activeElement !== armorCustomInput) armorCustomInput.value = d.armorCustom ?? 0;
+  document.getElementById("armor-derived").textContent = R.totalArmor(d);
 
-  const evasionInput = document.getElementById("evasion-points-input");
-  if (document.activeElement !== evasionInput) evasionInput.value = d.evasionPoints ?? 0;
+  const evasionPointsInput = document.getElementById("evasion-points-input");
+  if (document.activeElement !== evasionPointsInput) evasionPointsInput.value = d.evasionPoints ?? 0;
+  const evasion = R.evasionTotal(d.evasionPoints, movement);
+  const evLadder = R.ladder(evasion);
   document.getElementById("evasion-derived").textContent = evasion;
   document.getElementById("evasion-ladder").textContent =
     ` (Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})`;
@@ -430,18 +424,13 @@ function renderAttributes(d) {
 function renderViewAttributes(d) {
   const maxHP = R.hpFromPoints(d.hpPoints);
   const movement = R.movementFromPoints(d.movementPoints);
-  const wornArmor = R.wornArmorTotal(d.inventory);
-  const totalArmor = (d.armor || 0) + wornArmor;
-  const evasion = R.evasionTotal(d.basicSkills, movement, d.evasionPoints);
+  const evasion = R.evasionTotal(d.evasionPoints, movement);
   const evLadder = R.ladder(evasion);
 
   document.getElementById("view-attributes").innerHTML = `
-    <p class="stat-line">Max HP <strong>${maxHP}</strong>
-      <span class="muted">(current HP tracked in the header)</span></p>
-    <p class="stat-line">Movement <strong>${movement}</strong> m/s</p>
-    <p class="stat-line">Armor <strong>${totalArmor}</strong>
-      ${wornArmor > 0 ? `<span class="muted">(base ${d.armor || 0} + worn ${wornArmor})</span>` : ``}
-    </p>
+    <p class="stat-line">Max HP: <strong>${maxHP}</strong> <span class="muted">(current HP is tracked in the header)</span></p>
+    <p class="stat-line">Movement: <strong>${movement}</strong> m/s</p>
+    <p class="stat-line">Armor: <strong>${R.totalArmor(d)}</strong></p>
     <p class="stat-line">Evasion — Normal: <strong>${evasion}</strong>
       <span class="muted">(Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})</span>
     </p>
@@ -461,8 +450,12 @@ document.getElementById("move-points-input").addEventListener("change", (e) => {
   saveField({ movementPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
-document.getElementById("armor-input").addEventListener("change", (e) => {
-  saveField({ armor: Math.max(0, parseInt(e.target.value, 10) || 0) });
+document.getElementById("armor-custom-input").addEventListener("change", (e) => {
+  saveField({ armorCustom: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
+document.getElementById("evasion-points-input").addEventListener("change", (e) => {
+  saveField({ evasionPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
 document.getElementById("mana-points-input").addEventListener("change", (e) => {
@@ -483,7 +476,7 @@ function renderMagicStats(d) {
   renderGauge("mana", d.currentMana ?? 0, maxMana);
 }
 
-// ---- Languages: one shared pool, no sub-categories (lives at the end of Basic Info & Attributes) ----
+// ---- Languages ----
 
 function renderLanguages(languages) {
   const container = document.getElementById("languages-container");
@@ -615,7 +608,7 @@ function renderViewBasicSkills(d) {
   `;
 }
 
-// ---- Weapons: multiple named categories, no magnitude/cost (that's magic-only) ----
+// ---- Weapons: multiple named categories ----
 
 function renderCategoryGroup(containerId, allCategories, type) {
   const container = document.getElementById(containerId);
@@ -666,8 +659,7 @@ function renderCategoryGroup(containerId, allCategories, type) {
   }
 }
 
-// ---- Magic: same category structure, plus a Magnitude field per spell that
-// drives its casting cost (Section 5.3). ----
+// ---- Magic: same category structure, plus a Magnitude field per spell ----
 
 function renderMagicCategories(d) {
   const container = document.getElementById("magic-container");
@@ -777,9 +769,11 @@ document.getElementById("add-magic-category-btn").addEventListener("click", () =
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Magic Category", type: "magic", skills: [] }] });
 });
 
-function categoryGroupHtml(d, categories) {
-  if (categories.length === 0) return `<p class="empty-state">None yet.</p>`;
-  return categories.map(cat => {
+function renderViewCategoryGroup(containerId, d) {
+  const categories = catsOfType(d.categories, "weapon");
+  const el = document.getElementById(containerId);
+  if (categories.length === 0) { el.innerHTML = ""; return; }
+  el.innerHTML = categories.map(cat => {
     const bonus = R.categoryBonus(cat.skills);
     const rows = (cat.skills || []).map(s => {
       const eff = R.categorySkillEffective(s, bonus);
@@ -791,10 +785,6 @@ function categoryGroupHtml(d, categories) {
       <table><thead><tr><th>Skill</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
     `;
   }).join("");
-}
-
-function renderViewCategoryGroup(containerId, d) {
-  document.getElementById(containerId).innerHTML = categoryGroupHtml(d, catsOfType(d.categories, "weapon"));
 }
 
 function renderViewMagicVitals(d) {
@@ -814,6 +804,10 @@ function renderViewMagicVitals(d) {
   `;
 }
 
+// Eff./Hard/Extreme themselves are the cast buttons now — no separate cost
+// column. Click one to cast at that success tier; the matching Mana cost
+// (Section 5.3) is spent automatically, or you get a warning if you can't
+// afford it (nothing is deducted in that case).
 function renderViewMagic(d) {
   const categories = catsOfType(d.categories, "magic");
   if (categories.length === 0) {
@@ -830,18 +824,17 @@ function renderViewMagic(d) {
       return `
         <tr>
           <td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td>
-          <td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.normal}" title="Cast at Normal success — costs ${cost.normal} Mana">${eff}</button></td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.hard}" title="Cast at Hard success — costs ${cost.hard} Mana">${l.hard}</button></td>
+          <td><button class="cost-chip" data-action="cast" data-cost="${cost.extreme}" title="Cast at Extreme success / Fail — costs ${cost.extreme} Mana">${l.extreme}</button></td>
           <td>Mag ${magnitude}</td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.normal}">${cost.normal}</button></td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.hard}">${cost.hard}</button></td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.extreme}">${cost.extreme}</button></td>
         </tr>
       `;
     }).join("");
     return `
       <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
       <table>
-        <thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th><th>Normal</th><th>Hard</th><th>Extreme</th></tr></thead>
+        <thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
@@ -897,9 +890,10 @@ document.getElementById("add-trait-btn").addEventListener("click", () => {
   });
 });
 
-function renderViewTraits(traits) {
+function renderViewTraits(d) {
+  const traits = d.traits;
   if (!traits.length) {
-    document.getElementById("view-traits").innerHTML = `<p class="empty-state">No traits yet.</p>`;
+    document.getElementById("view-traits").innerHTML = "";
     return;
   }
   const rows = traits.map(t =>
@@ -910,136 +904,163 @@ function renderViewTraits(traits) {
   `;
 }
 
-// ---- Inventory ----
+// ---- Inventory: three typed lists (item / armor / weapon) ----
 
-function renderInventory(items) {
-  const list = document.getElementById("inventory-list");
+function renderInventoryEdit(inventory) {
+  renderInventoryItemList(inventory);
+  renderInventoryArmorList(inventory);
+  renderInventoryWeaponList(inventory);
+}
+
+function renderInventoryItemList(inventory) {
+  const items = inventory.filter(i => i.type === "item");
+  const list = document.getElementById("inventory-item-list");
   if (items.length === 0) {
-    list.innerHTML = `<li class="empty-state" style="border:none;">No items yet — the hold is empty.</li>`;
+    list.innerHTML = `<li class="empty-state" style="border:none;">No items yet.</li>`;
     return;
   }
-  list.innerHTML = items.map((item, i) => {
-    return `
-      <li data-i="${i}">
-        <div class="inventory-item-row">
-          <select data-field="type">
-            <option value="item" ${item.type === "item" ? "selected" : ""}>Item</option>
-            <option value="armor" ${item.type === "armor" ? "selected" : ""}>Armor</option>
-            <option value="weapon" ${item.type === "weapon" ? "selected" : ""}>Weapon</option>
-          </select>
-          <input type="text" data-field="name" value="${escapeHtml(item.name)}" placeholder="Name">
-          <input type="number" data-field="qty" value="${item.qty || 1}" min="1" style="width:5rem;">
-          ${item.type === "armor" ? `<input type="number" data-field="armorValue" value="${item.armorValue || 0}" min="0" placeholder="Armor" style="width:5rem;">` : ""}
-          ${item.type === "weapon" ? `<input type="text" data-field="woundDice" value="${escapeHtml(item.woundDice || "")}" placeholder="Wound dice" style="width:8rem;">` : ""}
-          ${item.type === "armor" ? `<label class="inline-checkbox"><input type="checkbox" data-field="worn" ${item.worn ? "checked" : ""}> Worn</label>` : ""}
-          <button class="small danger" data-action="remove" data-i="${i}">✕</button>
-        </div>
-      </li>
-    `;
-  }).join("");
+  list.innerHTML = items.map(item => `
+    <li data-id="${item.id}">
+      <span class="item-name">${escapeHtml(item.name)}</span>
+      <button class="small" data-action="qty-dec">−</button>
+      <span class="item-qty">${item.qty}</span>
+      <button class="small" data-action="qty-inc">+</button>
+      <button class="small danger" data-action="remove">✕</button>
+    </li>
+  `).join("");
 }
 
 document.getElementById("add-item-btn").addEventListener("click", () => {
-  const typeInput = document.getElementById("item-type-input");
   const nameInput = document.getElementById("item-name-input");
   const qtyInput = document.getElementById("item-qty-input");
-  const type = typeInput.value;
   const name = nameInput.value.trim();
   const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
   if (!name) return;
-  const newItem = { type, name, qty };
-  if (type === "armor") {
-    newItem.armorValue = 0;
-    newItem.worn = false;
-  }
-  if (type === "weapon") {
-    newItem.woundDice = "";
-  }
-  saveField({ inventory: [...currentData.inventory, newItem] });
+  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "item", name, qty }] });
   nameInput.value = "";
   qtyInput.value = "1";
   nameInput.focus();
 });
 
-document.getElementById("inventory-list").addEventListener("change", (e) => {
-  const input = e.target.closest("[data-field]");
-  if (!input) return;
-  const li = input.closest("li");
-  const i = parseInt(li.dataset.i, 10);
-  const inventory = [...currentData.inventory];
-  const item = { ...inventory[i] };
-  const field = input.dataset.field;
-
-  if (field === "qty" || field === "armorValue") {
-    item[field] = Math.max(0, parseInt(input.value, 10) || 0);
-  } else if (field === "worn") {
-    item.worn = input.checked;
-  } else if (field === "type") {
-    const newType = input.value;
-    item.type = newType;
-    if (newType === "armor") {
-      item.armorValue = item.armorValue ?? 0;
-      item.worn = item.worn ?? false;
-      delete item.woundDice;
-    } else if (newType === "weapon") {
-      item.woundDice = item.woundDice || "";
-      item.armorValue = 0;
-      item.worn = false;
-    } else {
-      item.armorValue = 0;
-      item.worn = false;
-      item.woundDice = "";
-    }
-  } else {
-    if (field === "name") item[field] = input.value.trim();
-    else item[field] = input.value;
-  }
-
-  inventory[i] = item;
-  saveField({ inventory });
-});
-
-document.getElementById("inventory-list").addEventListener("click", (e) => {
+document.getElementById("inventory-item-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
-  const i = parseInt(btn.dataset.i, 10);
-  const inventory = [...currentData.inventory];
-  if (btn.dataset.action === "remove") inventory.splice(i, 1);
+  const id = btn.closest("li").dataset.id;
+  const inventory = currentData.inventory.map(i => {
+    if (i.id !== id) return i;
+    if (btn.dataset.action === "qty-inc") return { ...i, qty: i.qty + 1 };
+    if (btn.dataset.action === "qty-dec") return { ...i, qty: Math.max(1, i.qty - 1) };
+    return i;
+  });
+  if (btn.dataset.action === "remove") {
+    saveField({ inventory: currentData.inventory.filter(i => i.id !== id) });
+  } else {
+    saveField({ inventory });
+  }
+});
+
+function renderInventoryArmorList(inventory) {
+  const items = inventory.filter(i => i.type === "armor");
+  const list = document.getElementById("inventory-armor-list");
+  if (items.length === 0) {
+    list.innerHTML = `<li class="empty-state" style="border:none;">No armor yet.</li>`;
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <li data-id="${item.id}">
+      <span class="item-name">${escapeHtml(item.name)}</span>
+      <span class="muted">Value ${item.armorValue ?? 0}</span>
+      <label class="row" style="gap:0.3rem;">
+        <input type="checkbox" data-action="toggle-worn" ${item.worn ? "checked" : ""}> Worn
+      </label>
+      <button class="small danger" data-action="remove">✕</button>
+    </li>
+  `).join("");
+}
+
+document.getElementById("add-armor-btn").addEventListener("click", () => {
+  const nameInput = document.getElementById("armor-name-input");
+  const valueInput = document.getElementById("armor-value-input");
+  const name = nameInput.value.trim();
+  const armorValue = Math.max(0, parseInt(valueInput.value, 10) || 0);
+  if (!name) return;
+  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "armor", name, armorValue, worn: false }] });
+  nameInput.value = "";
+  valueInput.value = "1";
+  nameInput.focus();
+});
+
+document.getElementById("inventory-armor-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action='remove']");
+  if (!btn) return;
+  const id = btn.closest("li").dataset.id;
+  saveField({ inventory: currentData.inventory.filter(i => i.id !== id) });
+});
+
+document.getElementById("inventory-armor-list").addEventListener("change", (e) => {
+  const checkbox = e.target.closest('input[data-action="toggle-worn"]');
+  if (!checkbox) return;
+  const id = checkbox.closest("li").dataset.id;
+  const inventory = currentData.inventory.map(i => i.id === id ? { ...i, worn: checkbox.checked } : i);
   saveField({ inventory });
 });
 
-function renderViewInventory(items) {
-  const el = document.getElementById("view-inventory");
-  if (!items.length) {
-    el.innerHTML = `<p class="empty-state">The hold is empty.</p>`;
+function renderInventoryWeaponList(inventory) {
+  const items = inventory.filter(i => i.type === "weapon");
+  const list = document.getElementById("inventory-weapon-list");
+  if (items.length === 0) {
+    list.innerHTML = `<li class="empty-state" style="border:none;">No weapons yet.</li>`;
     return;
   }
+  list.innerHTML = items.map(item => `
+    <li data-id="${item.id}">
+      <span class="item-name">${escapeHtml(item.name)}</span>
+      <span class="muted">${escapeHtml(item.woundDice || "")}</span>
+      <button class="small danger" data-action="remove">✕</button>
+    </li>
+  `).join("");
+}
 
-  const armorItems = items.filter(item => item.type === "armor");
-  const weaponItems = items.filter(item => item.type === "weapon");
-  const genericItems = items.filter(item => item.type !== "armor" && item.type !== "weapon");
+document.getElementById("add-weapon-item-btn").addEventListener("click", () => {
+  const nameInput = document.getElementById("weapon-name-input");
+  const diceInput = document.getElementById("weapon-dice-input");
+  const name = nameInput.value.trim();
+  const woundDice = diceInput.value.trim();
+  if (!name) return;
+  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "weapon", name, woundDice }] });
+  nameInput.value = "";
+  diceInput.value = "";
+  nameInput.focus();
+});
 
-  const sections = [];
-  if (armorItems.length) {
-    sections.push(`
-      <tr><th colspan="2">Armor</th></tr>
-      ${armorItems.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>+${item.armorValue}${item.worn ? " (worn)" : ""}</td></tr>`).join("")}
-    `);
-  }
-  if (weaponItems.length) {
-    sections.push(`
-      <tr><th colspan="2">Weapons</th></tr>
-      ${weaponItems.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.woundDice || "")}</td></tr>`).join("")}
-    `);
-  }
-  if (genericItems.length) {
-    sections.push(`
-      <tr><th colspan="2">Items</th></tr>
-      ${genericItems.map(item => `<tr><td>${escapeHtml(item.name)}</td><td>×${item.qty}</td></tr>`).join("")}
-    `);
-  }
+document.getElementById("inventory-weapon-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action='remove']");
+  if (!btn) return;
+  const id = btn.closest("li").dataset.id;
+  saveField({ inventory: currentData.inventory.filter(i => i.id !== id) });
+});
 
-  el.innerHTML = `<table>${sections.join("")}</table>`;
+function renderViewInventory(d) {
+  const inventory = d.inventory;
+  if (!inventory.length) {
+    document.getElementById("view-inventory").innerHTML = "";
+    return;
+  }
+  const items = inventory.filter(i => i.type === "item");
+  const armor = inventory.filter(i => i.type === "armor");
+  const weapons = inventory.filter(i => i.type === "weapon");
+
+  const itemRows = items.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>×${i.qty}</td></tr>`).join("");
+  const armorRows = armor.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${i.armorValue ?? 0}</td><td>${i.worn ? "Worn" : "—"}</td></tr>`).join("");
+  const weaponRows = weapons.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.woundDice || "")}</td></tr>`).join("");
+
+  document.getElementById("view-inventory").innerHTML = `
+    ${itemRows ? `<table><tbody>${itemRows}</tbody></table>` : ""}
+    ${armorRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Armor</strong></p>
+      <table><thead><tr><th>Name</th><th>Value</th><th>Worn</th></tr></thead><tbody>${armorRows}</tbody></table>` : ""}
+    ${weaponRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Weapons</strong></p>
+      <table><thead><tr><th>Name</th><th>Wound dice</th></tr></thead><tbody>${weaponRows}</tbody></table>` : ""}
+  `;
 }
 
 initSheet();
