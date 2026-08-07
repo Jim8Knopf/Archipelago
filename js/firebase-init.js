@@ -17,7 +17,7 @@ function validateFirebaseConfig(config) {
 
   const invalidKeys = requiredKeys.filter(key => {
     const value = config[key];
-    return !value || typeof value !== "string" || !value.trim() || value.includes("${{") || value.includes("}});
+    return !value || typeof value !== "string" || !value.trim() || value.includes("${{") || value.includes("}}");
   });
 
   if (invalidKeys.length > 0) {
