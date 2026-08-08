@@ -2,6 +2,7 @@ import {
   doc, getDoc, setDoc, updateDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db, getCampaignId } from "../js/firebase-init.js";
+import { escapeHtml, flash, clamp, toRoman, slugify } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -13,37 +14,82 @@ const sheetStatus = document.getElementById("sheet-status");
 let currentData = null;
 let charRef = null;
 
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+// The single source of truth for which mode we're in. Every render()
+// function reads this directly (rather than checking body.dataset.mode
+// mid-template) so a mode switch is just "set this, then render() again".
+let currentMode = "view";
+
 const getMaxMana = (d) => R.manaPoolFromPoints(d.manaPoints, d.categories);
+const catsOfType = (categories, type) => (categories || []).filter(c => c.type === type);
 
-function slugify(str) {
-  return str.toLowerCase().trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "") || "char-" + Math.random().toString(36).slice(2, 7);
-}
-
-function flash(el, msg) {
-  el.textContent = msg;
-  setTimeout(() => { if (el.textContent === msg) el.textContent = ""; }, 2500);
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
-}
-
-// ---- "Used this session" — one-way toggle, stored in Firestore so a GM
-// reset can reach every device. Clicking an already-used skill is a no-op. ----
+// ============================================================
+// One DOM, two modes.
+//
+// Every field on the sheet is rendered exactly once. What changes between
+// View and Edit is:
+//   - Fields tagged [data-edit-control="true"] (raw point inputs, add/remove
+//     buttons, the raw quantity/worn controls, ...) are hidden entirely in
+//     View mode via CSS — see css/style.css.
+//   - "Name"-type fields (character name, skill/spell/language/category
+//     names, trait name & description) are plain <input>/<textarea>
+//     elements that get a `readonly` attribute in View mode instead of a
+//     disabled one, so they stay clickable/selectable — clicking one marks
+//     that skill "used" for the session (Section 11.2 tracking).
+// No section renders a separate read-only copy of itself.
+// ============================================================
 
 function usedClass(d, id) {
   return (d.usedSkillIds || []).includes(id) ? "used-skill" : "";
 }
 
+// ---- Shared skill/spell/language table row ----
+//
+// Builds one <tr> that works in both modes from the same markup:
+//  - Name is an <input> — editable in Edit mode, `readonly` in View mode
+//    (where tapping it marks the skill "used").
+//  - Points, and for spells Magnitude, are edit-only inputs — hidden in
+//    View mode.
+//  - The success-tier values are plain clickable cells, not buttons, same
+//    click-to-mark-used behaviour as the name. Pass `castCosts` (same order
+//    as `tiers`) for spells so tapping a value also casts at that tier and
+//    spends the matching Mana; omit it for every other table.
+//  - Pass `magnitude` for spells — shown as a roman-numeral prefix on the
+//    name, always visible in both modes, plus its own edit-only number
+//    input for changing it.
+function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
+  const ro = currentMode === "view" ? "readonly" : "";
+  const clickable = currentMode === "view" ? "skill-name-clickable" : "";
+  const used = usedClass(d, skill.id);
+  const catAttr = catId ? ` data-cat="${catId}"` : "";
+
+  const magnitudeTag = magnitude != null
+    ? `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>`
+    : "";
+  const nameCell = `
+    <td>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
+      ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}"></td>`;
+  const pointsCell = `<td data-edit-control="true"><input type="number" data-field="points" value="${skill.points || 0}" min="0"></td>`;
+  const magnitudeCell = magnitude != null
+    ? `<td data-edit-control="true"><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>`
+    : "";
+  const valueCells = tiers.map((val, i) => {
+    const cost = castCosts ? castCosts[i] : null;
+    const castAttrs = cost != null ? ` data-action="cast" data-cost="${cost}" title="Costs ${cost} Mana"` : "";
+    return `<td class="num ${clickable} ${used}" data-skill-id="${skill.id}"${castAttrs}>${val}</td>`;
+  }).join("");
+  const removeCell = `<td data-edit-control="true"><button class="small danger" data-action="remove-skill">✕</button></td>`;
+
+  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>`;
+}
+
+// Marks a skill "used" when its name or any of its value cells is tapped —
+// wired once per container, gated to View mode so it never fires while
+// someone is simply clicking into the (editable) name field in Edit mode.
 function wireUsedToggle(containerId) {
   const el = document.getElementById(containerId);
   if (!el || el.dataset.usedWired) return;
   el.addEventListener("click", (e) => {
+    if (currentMode !== "view") return;
     const cell = e.target.closest("[data-skill-id]");
     if (!cell || !currentData) return;
     const id = cell.dataset.skillId;
@@ -54,14 +100,18 @@ function wireUsedToggle(containerId) {
   });
   el.dataset.usedWired = "1";
 }
-["view-basic-skills", "view-weapons", "view-magic", "view-languages"].forEach(wireUsedToggle);
+["basic-skills-body", "languages-container", "weapons-container", "magic-container"].forEach(wireUsedToggle);
 
 // ---- View / Edit mode ----
 
 function setMode(mode) {
+  currentMode = mode;
   document.body.dataset.mode = mode;
   document.getElementById("view-mode-btn").classList.toggle("active", mode === "view");
   document.getElementById("edit-mode-btn").classList.toggle("active", mode === "edit");
+  // Every render() call bakes the current mode's `readonly`/table-column
+  // markup into the templates, so switching modes just re-renders.
+  if (currentData) render();
 }
 document.getElementById("view-mode-btn").addEventListener("click", () => setMode("view"));
 document.getElementById("edit-mode-btn").addEventListener("click", () => setMode("edit"));
@@ -171,17 +221,12 @@ async function saveField(fields) {
   }
 }
 
-const catsOfType = (categories, type) => (categories || []).filter(c => c.type === type);
-
 // ---- Master render ----
 
 function render() {
   const d = currentData;
 
-  const nameInput = document.getElementById("name-input");
-  if (document.activeElement !== nameInput) nameInput.value = d.name || "";
-  document.getElementById("name-display").textContent = d.name || "Unnamed";
-
+  renderName(d);
   renderPortrait(d.imageUrl);
   renderBudget(d);
   renderHP(d);
@@ -193,23 +238,31 @@ function render() {
   renderMagicStats(d);
   renderMagicCategories(d);
   renderTraits(d.traits);
-  renderInventoryEdit(d.inventory);
+  renderInventory(d.inventory);
 
-  renderViewBasicInfo(d);
-  renderViewAttributes(d);
-  renderViewLanguages(d);
-  renderViewBasicSkills(d);
-  renderViewCategoryGroup("view-weapons", d);
-  renderViewMagicVitals(d);
-  renderViewMagic(d);
-  renderViewTraits(d);
-  renderViewInventory(d);
-
-  document.getElementById("view-magic-section").style.display = R.hasMagic(d) ? "" : "none";
-  document.getElementById("view-weapons-section").style.display = catsOfType(d.categories, "weapon").length ? "" : "none";
-  document.getElementById("view-traits-section").style.display = d.traits.length ? "" : "none";
-  document.getElementById("view-inventory-section").style.display = d.inventory.length ? "" : "none";
+  // Auto-hide sections with nothing in them — View mode only, so Edit mode
+  // always shows every section (you need to see an empty one to add its
+  // first entry).
+  const hideWhenEmpty = (id, isEmpty) => {
+    document.getElementById(id).style.display = (currentMode === "view" && isEmpty) ? "none" : "";
+  };
+  hideWhenEmpty("weapons-section", catsOfType(d.categories, "weapon").length === 0);
+  hideWhenEmpty("magic-section", !R.hasMagic(d));
+  hideWhenEmpty("traits-section", d.traits.length === 0);
+  hideWhenEmpty("inventory-section", d.inventory.length === 0);
 }
+
+// ---- Character name ----
+
+function renderName(d) {
+  const input = document.getElementById("name-input");
+  if (document.activeElement !== input) input.value = d.name || "";
+  input.readOnly = currentMode === "view";
+}
+
+document.getElementById("name-input").addEventListener("change", (e) => {
+  saveField({ name: e.target.value.trim() || "Unnamed" });
+});
 
 // ---- Portrait ----
 
@@ -302,6 +355,11 @@ document.getElementById("long-rest-btn").addEventListener("click", () => {
   saveField(updates);
 });
 
+// Shared +/- and manual-entry wiring for both HP and Mana — one set of
+// controls each, used in both modes (the raw number field just becomes
+// less prominent in View mode via its own data-edit-control if desired;
+// here it stays available since adjusting a live resource isn't a
+// "character build" action).
 document.querySelectorAll("button[data-stat]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const stat = btn.dataset.stat;
@@ -324,32 +382,22 @@ document.querySelectorAll("button[data-stat]").forEach((btn) => {
   });
 });
 
-// View-mode Mana quick-adjust and inline spell casting (event delegation on
-// the stable #view-magic-section, since its content is rebuilt every render).
-document.getElementById("view-magic-section").addEventListener("click", (e) => {
-  const adjustBtn = e.target.closest('button[data-action="view-mana-adjust"]');
-  if (adjustBtn) {
-    const delta = parseInt(adjustBtn.dataset.delta, 10);
-    const max = getMaxMana(currentData);
-    const newVal = clamp((currentData.currentMana ?? 0) + delta, 0, max);
-    saveField({ currentMana: newVal });
+// Casting — Eff./Hard/Extreme cells in the Magic table carry
+// data-action="cast" (wired in skillRowHtml). Delegated on the stable
+// #magic-section wrapper since #magic-container's contents are rebuilt
+// every render. Gated to View mode so tapping a value while editing a
+// character never accidentally spends Mana.
+document.getElementById("magic-section").addEventListener("click", (e) => {
+  if (currentMode !== "view") return;
+  const castEl = e.target.closest('[data-action="cast"]');
+  if (!castEl) return;
+  const cost = parseInt(castEl.dataset.cost, 10);
+  const current = currentData.currentMana ?? 0;
+  if (cost > current) {
+    flash(sheetStatus, `Not enough Mana — this costs ${cost}, you have ${current}.`);
     return;
   }
-  const castBtn = e.target.closest('button[data-action="cast"]');
-  if (castBtn) {
-    const cost = parseInt(castBtn.dataset.cost, 10);
-    const current = currentData.currentMana ?? 0;
-    if (cost > current) {
-      flash(sheetStatus, `Not enough Mana — this costs ${cost}, you have ${current}.`);
-      return;
-    }
-    saveField({ currentMana: current - cost });
-  }
-});
-
-// Name field
-document.getElementById("name-input").addEventListener("change", (e) => {
-  saveField({ name: e.target.value.trim() || "Unnamed" });
+  saveField({ currentMana: current - cost });
 });
 
 // ---- Basic info ----
@@ -361,35 +409,33 @@ const BASIC_INFO_FIELDS = [
 
 function renderBasicInfo(info) {
   const grid = document.getElementById("basic-info-grid");
-  if (grid.dataset.built) {
+
+  // Rebuilding (which bakes in the mode-dependent `readonly` attribute)
+  // only needs to happen when the mode actually changed; otherwise we just
+  // patch values in place so focus/typing elsewhere isn't disturbed.
+  if (grid.dataset.mode !== currentMode) {
+    const ro = currentMode === "view" ? "readonly" : "";
+    grid.innerHTML = BASIC_INFO_FIELDS.map(([key, label]) => `
+      <div class="field">
+        <label>${label}</label>
+        <input type="text" data-field="${key}" value="${escapeHtml(info[key] || "")}" ${ro}>
+      </div>
+    `).join("");
+    grid.dataset.mode = currentMode;
+    if (!grid.dataset.wired) {
+      grid.addEventListener("change", (e) => {
+        const input = e.target.closest("input[data-field]");
+        if (!input) return;
+        saveField({ [`basicInfo.${input.dataset.field}`]: input.value.trim() });
+      });
+      grid.dataset.wired = "1";
+    }
+  } else {
     BASIC_INFO_FIELDS.forEach(([key]) => {
       const input = grid.querySelector(`input[data-field="${key}"]`);
       if (input && document.activeElement !== input) input.value = info[key] || "";
     });
-    return;
   }
-  grid.innerHTML = BASIC_INFO_FIELDS.map(([key, label]) => `
-    <div class="field">
-      <label>${label}</label>
-      <input type="text" data-field="${key}" value="${escapeHtml(info[key] || "")}">
-    </div>
-  `).join("");
-  grid.dataset.built = "1";
-  grid.addEventListener("change", (e) => {
-    const input = e.target.closest("input[data-field]");
-    if (!input) return;
-    saveField({ [`basicInfo.${input.dataset.field}`]: input.value.trim() });
-  });
-}
-
-function renderViewBasicInfo(d) {
-  const info = d.basicInfo;
-  const rows = BASIC_INFO_FIELDS
-    .filter(([key]) => info[key])
-    .map(([key, label]) => `<tr><th>${label}</th><td>${escapeHtml(info[key])}</td></tr>`)
-    .join("");
-  document.getElementById("view-basic-info").innerHTML =
-    rows ? `<table>${rows}</table>` : `<p class="empty-state">No basic info filled in yet.</p>`;
 }
 
 // ---- Attributes: HP points/Max (+cost to next), Movement (+cost to next), Armor, Evasion ----
@@ -419,23 +465,6 @@ function renderAttributes(d) {
   document.getElementById("evasion-derived").textContent = evasion;
   document.getElementById("evasion-ladder").textContent =
     ` (Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})`;
-}
-
-function renderViewAttributes(d) {
-  const maxHP = R.hpFromPoints(d.hpPoints);
-  const movement = R.movementFromPoints(d.movementPoints);
-  const evasion = R.evasionTotal(d.evasionPoints, movement);
-  const evLadder = R.ladder(evasion);
-
-  document.getElementById("view-attributes").innerHTML = `
-    <p class="stat-line">Max HP: <strong>${maxHP}</strong> <span class="muted">(current HP is tracked in the header)</span></p>
-    <p class="stat-line">Movement: <strong>${movement}</strong> m/s</p>
-    <p class="stat-line">Armor: <strong>${R.totalArmor(d)}</strong></p>
-    <p class="stat-line">Evasion — Normal: <strong>${evasion}</strong>
-      <span class="muted">(Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})</span>
-    </p>
-    <p class="muted">Armor and Evasion are either/or per hit (Section 4.1).</p>
-  `;
 }
 
 document.getElementById("hp-points-input").addEventListener("change", (e) => {
@@ -476,7 +505,7 @@ function renderMagicStats(d) {
   renderGauge("mana", d.currentMana ?? 0, maxMana);
 }
 
-// ---- Languages ----
+// ---- Languages (single shared pool, no sub-categories — Section 3.2) ----
 
 function renderLanguages(languages) {
   const container = document.getElementById("languages-container");
@@ -485,24 +514,19 @@ function renderLanguages(languages) {
   const rows = (languages || []).map(s => {
     const eff = R.categorySkillEffective(s, bonus);
     const l = R.ladder(eff);
-    return `
-      <tr data-id="${s.id}">
-        <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-        <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-        <td class="num">${eff}</td>
-        <td class="num">${l.hard}</td>
-        <td class="num">${l.extreme}</td>
-        <td><button class="small danger" data-action="remove">✕</button></td>
-      </tr>
-    `;
+    return skillRowHtml(currentData, s, { tiers: [eff, l.hard, l.extreme] });
   }).join("");
+
+  const emptyRow = currentMode === "edit"
+    ? `<tr><td colspan="6" class="empty-state">No languages yet.</td></tr>`
+    : "";
 
   container.innerHTML = `
     <div class="cat-bonus">Transfer bonus: +${bonus}</div>
     <div class="table-scroll">
       <table class="skill-table">
-        <thead><tr><th>Language</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="6" class="empty-state">No languages yet.</td></tr>`}</tbody>
+        <thead><tr><th>Language</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
+        <tbody>${rows || emptyRow}</tbody>
       </table>
     </div>
   `;
@@ -519,7 +543,7 @@ function renderLanguages(languages) {
       saveField({ languages });
     });
     container.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-action='remove']");
+      const btn = e.target.closest("button[data-action='remove-skill']");
       if (!btn) return;
       const id = btn.closest("tr").dataset.id;
       saveField({ languages: currentData.languages.filter(s => s.id !== id) });
@@ -532,42 +556,17 @@ document.getElementById("add-language-btn").addEventListener("click", () => {
   saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
 });
 
-function renderViewLanguages(d) {
-  const languages = d.languages;
-  const el = document.getElementById("view-languages");
-  if (!languages || languages.length === 0) {
-    el.innerHTML = `<p class="empty-state">No languages yet.</p>`;
-    return;
-  }
-  const bonus = R.categoryBonus(languages);
-  const rows = languages.map(s => {
-    const eff = R.categorySkillEffective(s, bonus);
-    const l = R.ladder(eff);
-    return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
-  }).join("");
-  el.innerHTML = `
-    <p class="muted" style="margin-bottom:0.15rem;">Transfer bonus: +${bonus}</p>
-    <table><thead><tr><th>Language</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
-  `;
-}
-
 // ---- Basic skills ----
 
 function renderBasicSkills(skills) {
   const tbody = document.getElementById("basic-skills-body");
-  tbody.innerHTML = skills.map(s => {
+  const rows = skills.map(s => {
     const l = R.ladder(s.points);
-    return `
-      <tr data-id="${s.id}">
-        <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-        <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-        <td class="num">${l.normal}</td>
-        <td class="num">${l.hard}</td>
-        <td class="num">${l.extreme}</td>
-        <td><button class="small danger" data-action="remove">✕</button></td>
-      </tr>
-    `;
+    return skillRowHtml(currentData, s, { tiers: [l.normal, l.hard, l.extreme] });
   }).join("");
+  tbody.innerHTML = rows || (currentMode === "edit"
+    ? `<tr><td colspan="6" class="empty-state">No basic skills yet.</td></tr>`
+    : "");
 }
 
 document.getElementById("basic-skills-body").addEventListener("change", (e) => {
@@ -583,7 +582,7 @@ document.getElementById("basic-skills-body").addEventListener("change", (e) => {
 });
 
 document.getElementById("basic-skills-body").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-action='remove']");
+  const btn = e.target.closest("button[data-action='remove-skill']");
   if (!btn) return;
   const id = btn.closest("tr").dataset.id;
   saveField({ basicSkills: currentData.basicSkills.filter(s => s.id !== id) });
@@ -593,21 +592,6 @@ document.getElementById("add-basic-skill-btn").addEventListener("click", () => {
   saveField({ basicSkills: [...currentData.basicSkills, { id: R.makeId(), name: "New Skill", points: 0 }] });
 });
 
-function renderViewBasicSkills(d) {
-  const skills = d.basicSkills;
-  if (!skills.length) {
-    document.getElementById("view-basic-skills").innerHTML = `<p class="empty-state">No basic skills yet.</p>`;
-    return;
-  }
-  const rows = skills.map(s => {
-    const l = R.ladder(s.points);
-    return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${l.normal}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
-  }).join("");
-  document.getElementById("view-basic-skills").innerHTML = `
-    <table><thead><tr><th>Skill</th><th>Normal</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
-  `;
-}
-
 // ---- Weapons: multiple named categories ----
 
 function renderCategoryGroup(containerId, allCategories, type) {
@@ -615,39 +599,31 @@ function renderCategoryGroup(containerId, allCategories, type) {
   const categories = catsOfType(allCategories, type);
 
   if (categories.length === 0) {
-    container.innerHTML = `<p class="empty-state">No categories yet.</p>`;
+    container.innerHTML = currentMode === "edit" ? `<p class="empty-state">No categories yet.</p>` : "";
   } else {
+    const ro = currentMode === "view" ? "readonly" : "";
     container.innerHTML = categories.map(cat => {
       const bonus = R.categoryBonus(cat.skills);
       const skillRows = (cat.skills || []).map(s => {
         const eff = R.categorySkillEffective(s, bonus);
         const l = R.ladder(eff);
-        return `
-          <tr data-cat="${cat.id}" data-id="${s.id}">
-            <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-            <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-            <td class="num">${eff}</td>
-            <td class="num">${l.hard}</td>
-            <td class="num">${l.extreme}</td>
-            <td><button class="small danger" data-action="remove-skill">✕</button></td>
-          </tr>
-        `;
+        return skillRowHtml(currentData, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id });
       }).join("");
 
       return `
         <div class="category-card" data-cat="${cat.id}">
           <div class="cat-header">
-            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}">
-            <button class="small danger" data-action="remove-category">✕ Category</button>
+            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}" ${ro}>
+            <button class="small danger" data-action="remove-category" data-edit-control="true">✕ Category</button>
           </div>
           <div class="cat-bonus">Transfer bonus: +${bonus}</div>
           <div class="table-scroll">
             <table class="skill-table">
-              <thead><tr><th>Skill</th><th>Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+              <thead><tr><th>Skill</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
               <tbody>${skillRows}</tbody>
             </table>
           </div>
-          <button class="small brass" data-action="add-skill">+ Add skill to this category</button>
+          <button class="small brass" data-action="add-skill" data-edit-control="true">+ Add skill to this category</button>
         </div>
       `;
     }).join("");
@@ -666,41 +642,38 @@ function renderMagicCategories(d) {
   const categories = catsOfType(d.categories, "magic");
 
   if (categories.length === 0) {
-    container.innerHTML = `<p class="empty-state">No categories yet.</p>`;
+    container.innerHTML = currentMode === "edit" ? `<p class="empty-state">No categories yet.</p>` : "";
   } else {
+    const ro = currentMode === "view" ? "readonly" : "";
     container.innerHTML = categories.map(cat => {
       const bonus = R.categoryBonus(cat.skills);
       const skillRows = (cat.skills || []).map(s => {
         const eff = R.categorySkillEffective(s, bonus);
         const l = R.ladder(eff);
-        const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
-        return `
-          <tr data-cat="${cat.id}" data-id="${s.id}">
-            <td><input type="text" data-field="name" value="${escapeHtml(s.name)}"></td>
-            <td><input type="number" data-field="points" value="${s.points || 0}" min="0"></td>
-            <td><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>
-            <td class="num">${eff}</td>
-            <td class="num">${l.hard}</td>
-            <td class="num">${l.extreme}</td>
-            <td><button class="small danger" data-action="remove-skill">✕</button></td>
-          </tr>
-        `;
+        const magnitude = R.magnitudeOf(s);
+        const cost = R.castingCost(magnitude);
+        return skillRowHtml(d, s, {
+          tiers: [eff, l.hard, l.extreme],
+          castCosts: [cost.normal, cost.hard, cost.extreme],
+          magnitude,
+          catId: cat.id
+        });
       }).join("");
 
       return `
         <div class="category-card" data-cat="${cat.id}">
           <div class="cat-header">
-            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}">
-            <button class="small danger" data-action="remove-category">✕ Category</button>
+            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}" ${ro}>
+            <button class="small danger" data-action="remove-category" data-edit-control="true">✕ Category</button>
           </div>
           <div class="cat-bonus">Transfer bonus: +${bonus}</div>
           <div class="table-scroll">
             <table class="skill-table">
-              <thead><tr><th>Spell</th><th>Points</th><th>Magnitude</th><th>Effective</th><th>Hard</th><th>Extreme</th><th></th></tr></thead>
+              <thead><tr><th>Spell</th><th data-edit-control="true">Points</th><th data-edit-control="true">Magnitude</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
               <tbody>${skillRows}</tbody>
             </table>
           </div>
-          <button class="small brass" data-action="add-skill">+ Add spell to this category</button>
+          <button class="small brass" data-action="add-skill" data-edit-control="true">+ Add spell to this category</button>
         </div>
       `;
     }).join("");
@@ -769,102 +742,32 @@ document.getElementById("add-magic-category-btn").addEventListener("click", () =
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Magic Category", type: "magic", skills: [] }] });
 });
 
-function renderViewCategoryGroup(containerId, d) {
-  const categories = catsOfType(d.categories, "weapon");
-  const el = document.getElementById(containerId);
-  if (categories.length === 0) { el.innerHTML = ""; return; }
-  el.innerHTML = categories.map(cat => {
-    const bonus = R.categoryBonus(cat.skills);
-    const rows = (cat.skills || []).map(s => {
-      const eff = R.categorySkillEffective(s, bonus);
-      const l = R.ladder(eff);
-      return `<tr><td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
-    }).join("");
-    return `
-      <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
-      <table><thead><tr><th>Skill</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
-    `;
-  }).join("");
-}
-
-function renderViewMagicVitals(d) {
-  const maxMana = getMaxMana(d);
-  const currentMana = d.currentMana ?? 0;
-  const pct = maxMana > 0 ? clamp((currentMana / maxMana) * 100, 0, 100) : 0;
-  const gaugeClass = pct <= 25 ? "low" : pct <= 60 ? "mid" : "";
-  document.getElementById("view-magic-vitals").innerHTML = `
-    <div class="gauge-label"><span>Current Mana</span><span>${currentMana} / ${maxMana}</span></div>
-    <div class="gauge ${gaugeClass}"><div class="fill" style="width:${pct}%"></div></div>
-    <div class="stat-controls">
-      <button class="small" data-action="view-mana-adjust" data-delta="-10">−10</button>
-      <button class="small" data-action="view-mana-adjust" data-delta="-1">−1</button>
-      <button class="small" data-action="view-mana-adjust" data-delta="1">+1</button>
-      <button class="small" data-action="view-mana-adjust" data-delta="10">+10</button>
-    </div>
-  `;
-}
-
-// Eff./Hard/Extreme themselves are the cast buttons now — no separate cost
-// column. Click one to cast at that success tier; the matching Mana cost
-// (Section 5.3) is spent automatically, or you get a warning if you can't
-// afford it (nothing is deducted in that case).
-function renderViewMagic(d) {
-  const categories = catsOfType(d.categories, "magic");
-  if (categories.length === 0) {
-    document.getElementById("view-magic").innerHTML = `<p class="empty-state">No spells yet.</p>`;
-    return;
-  }
-  document.getElementById("view-magic").innerHTML = categories.map(cat => {
-    const bonus = R.categoryBonus(cat.skills);
-    const rows = (cat.skills || []).map(s => {
-      const eff = R.categorySkillEffective(s, bonus);
-      const l = R.ladder(eff);
-      const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
-      const cost = R.castingCost(magnitude);
-      return `
-        <tr>
-          <td class="skill-name-clickable ${usedClass(d, s.id)}" data-skill-id="${s.id}">${escapeHtml(s.name)}</td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.normal}" title="Cast at Normal success — costs ${cost.normal} Mana">${eff}</button></td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.hard}" title="Cast at Hard success — costs ${cost.hard} Mana">${l.hard}</button></td>
-          <td><button class="cost-chip" data-action="cast" data-cost="${cost.extreme}" title="Cast at Extreme success / Fail — costs ${cost.extreme} Mana">${l.extreme}</button></td>
-          <td>Mag ${magnitude}</td>
-        </tr>
-      `;
-    }).join("");
-    return `
-      <p class="muted" style="margin-bottom:0.15rem;"><strong>${escapeHtml(cat.name)}</strong> — bonus +${bonus}</p>
-      <table>
-        <thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }).join("");
-}
-
 // ---- Traits ----
 
 function renderTraits(traits) {
   const container = document.getElementById("traits-container");
   if (traits.length === 0) {
-    container.innerHTML = `<p class="empty-state">No traits yet.</p>`;
+    container.innerHTML = currentMode === "edit" ? `<p class="empty-state">No traits yet.</p>` : "";
     return;
   }
+  const ro = currentMode === "view" ? "readonly" : "";
+  const disabled = currentMode === "view" ? "disabled" : "";
   container.innerHTML = traits.map(t => `
     <div class="trait-card ${t.type}" data-id="${t.id}">
       <div class="trait-header">
-        <input type="text" data-field="name" placeholder="Trait name" value="${escapeHtml(t.name)}">
-        <select data-field="type">
+        <input type="text" data-field="name" placeholder="Trait name" value="${escapeHtml(t.name)}" ${ro}>
+        <select data-field="type" ${disabled}>
           <option value="advantage" ${t.type === "advantage" ? "selected" : ""}>Advantage</option>
           <option value="flaw" ${t.type === "flaw" ? "selected" : ""}>Flaw</option>
         </select>
-        <select data-field="tier">
+        <select data-field="tier" ${disabled}>
           <option value="minor" ${t.tier === "minor" ? "selected" : ""}>Minor (15)</option>
           <option value="moderate" ${t.tier === "moderate" ? "selected" : ""}>Moderate (30)</option>
           <option value="major" ${t.tier === "major" ? "selected" : ""}>Major (50)</option>
         </select>
-        <button class="small danger" data-action="remove-trait">✕</button>
+        <button class="small danger" data-action="remove-trait" data-edit-control="true">✕</button>
       </div>
-      <textarea data-field="description" placeholder="Description / compel notes">${escapeHtml(t.description)}</textarea>
+      <textarea data-field="description" ${ro} placeholder="Description / compel notes">${escapeHtml(t.description)}</textarea>
     </div>
   `).join("");
 }
@@ -890,42 +793,30 @@ document.getElementById("add-trait-btn").addEventListener("click", () => {
   });
 });
 
-function renderViewTraits(d) {
-  const traits = d.traits;
-  if (!traits.length) {
-    document.getElementById("view-traits").innerHTML = "";
-    return;
-  }
-  const rows = traits.map(t =>
-    `<tr><td>${escapeHtml(t.name)}</td><td>${t.type}</td><td>${t.tier} (${R.tierValue(t.tier)})</td><td>${escapeHtml(t.description || "")}</td></tr>`
-  ).join("");
-  document.getElementById("view-traits").innerHTML = `
-    <table><thead><tr><th>Name</th><th>Type</th><th>Tier</th><th>Notes</th></tr></thead><tbody>${rows}</tbody></table>
-  `;
-}
-
 // ---- Inventory: three typed lists (item / armor / weapon) ----
 
-function renderInventoryEdit(inventory) {
-  renderInventoryItemList(inventory);
-  renderInventoryArmorList(inventory);
-  renderInventoryWeaponList(inventory);
+function renderInventory(inventory) {
+  renderInventoryItems(inventory);
+  renderInventoryArmor(inventory);
+  renderInventoryWeapons(inventory);
 }
 
-function renderInventoryItemList(inventory) {
+function renderInventoryItems(inventory) {
   const items = inventory.filter(i => i.type === "item");
   const list = document.getElementById("inventory-item-list");
   if (items.length === 0) {
-    list.innerHTML = `<li class="empty-state" style="border:none;">No items yet.</li>`;
+    list.innerHTML = currentMode === "edit" ? `<li class="empty-state" style="border:none;">No items yet.</li>` : "";
     return;
   }
   list.innerHTML = items.map(item => `
     <li data-id="${item.id}">
       <span class="item-name">${escapeHtml(item.name)}</span>
-      <button class="small" data-action="qty-dec">−</button>
-      <span class="item-qty">${item.qty}</span>
-      <button class="small" data-action="qty-inc">+</button>
-      <button class="small danger" data-action="remove">✕</button>
+      <span class="item-qty">×${item.qty}</span>
+      <span class="row" data-edit-control="true" style="gap:0.3rem;display:inline-flex;">
+        <button class="small" data-action="qty-dec">−</button>
+        <button class="small" data-action="qty-inc">+</button>
+        <button class="small danger" data-action="remove">✕</button>
+      </span>
     </li>
   `).join("");
 }
@@ -959,21 +850,25 @@ document.getElementById("inventory-item-list").addEventListener("click", (e) => 
   }
 });
 
-function renderInventoryArmorList(inventory) {
+function renderInventoryArmor(inventory) {
   const items = inventory.filter(i => i.type === "armor");
   const list = document.getElementById("inventory-armor-list");
   if (items.length === 0) {
-    list.innerHTML = `<li class="empty-state" style="border:none;">No armor yet.</li>`;
+    list.innerHTML = currentMode === "edit" ? `<li class="empty-state" style="border:none;">No armor yet.</li>` : "";
     return;
   }
+  // The "Worn" checkbox itself doubles as the View-mode display — disabled
+  // (not hidden) so its checked state still reads clearly, just can't be
+  // toggled outside Edit mode.
+  const disabled = currentMode === "view" ? "disabled" : "";
   list.innerHTML = items.map(item => `
     <li data-id="${item.id}">
       <span class="item-name">${escapeHtml(item.name)}</span>
       <span class="muted">Value ${item.armorValue ?? 0}</span>
       <label class="row" style="gap:0.3rem;">
-        <input type="checkbox" data-action="toggle-worn" ${item.worn ? "checked" : ""}> Worn
+        <input type="checkbox" data-action="toggle-worn" ${item.worn ? "checked" : ""} ${disabled}> Worn
       </label>
-      <button class="small danger" data-action="remove">✕</button>
+      <span data-edit-control="true"><button class="small danger" data-action="remove">✕</button></span>
     </li>
   `).join("");
 }
@@ -1005,18 +900,18 @@ document.getElementById("inventory-armor-list").addEventListener("change", (e) =
   saveField({ inventory });
 });
 
-function renderInventoryWeaponList(inventory) {
+function renderInventoryWeapons(inventory) {
   const items = inventory.filter(i => i.type === "weapon");
   const list = document.getElementById("inventory-weapon-list");
   if (items.length === 0) {
-    list.innerHTML = `<li class="empty-state" style="border:none;">No weapons yet.</li>`;
+    list.innerHTML = currentMode === "edit" ? `<li class="empty-state" style="border:none;">No weapons yet.</li>` : "";
     return;
   }
   list.innerHTML = items.map(item => `
     <li data-id="${item.id}">
       <span class="item-name">${escapeHtml(item.name)}</span>
       <span class="muted">${escapeHtml(item.woundDice || "")}</span>
-      <button class="small danger" data-action="remove">✕</button>
+      <span data-edit-control="true"><button class="small danger" data-action="remove">✕</button></span>
     </li>
   `).join("");
 }
@@ -1039,28 +934,5 @@ document.getElementById("inventory-weapon-list").addEventListener("click", (e) =
   const id = btn.closest("li").dataset.id;
   saveField({ inventory: currentData.inventory.filter(i => i.id !== id) });
 });
-
-function renderViewInventory(d) {
-  const inventory = d.inventory;
-  if (!inventory.length) {
-    document.getElementById("view-inventory").innerHTML = "";
-    return;
-  }
-  const items = inventory.filter(i => i.type === "item");
-  const armor = inventory.filter(i => i.type === "armor");
-  const weapons = inventory.filter(i => i.type === "weapon");
-
-  const itemRows = items.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>×${i.qty}</td></tr>`).join("");
-  const armorRows = armor.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${i.armorValue ?? 0}</td><td>${i.worn ? "Worn" : "—"}</td></tr>`).join("");
-  const weaponRows = weapons.map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.woundDice || "")}</td></tr>`).join("");
-
-  document.getElementById("view-inventory").innerHTML = `
-    ${itemRows ? `<table><tbody>${itemRows}</tbody></table>` : ""}
-    ${armorRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Armor</strong></p>
-      <table><thead><tr><th>Name</th><th>Value</th><th>Worn</th></tr></thead><tbody>${armorRows}</tbody></table>` : ""}
-    ${weaponRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Weapons</strong></p>
-      <table><thead><tr><th>Name</th><th>Wound dice</th></tr></thead><tbody>${weaponRows}</tbody></table>` : ""}
-  `;
-}
 
 initSheet();
