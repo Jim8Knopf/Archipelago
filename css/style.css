@@ -409,9 +409,23 @@ details.card[open] summary::before { content: "▾ "; }
   align-items: start;
 }
 
-/* ---- View / Edit mode toggle ---- */
-body[data-mode="view"] .edit-only { display: none !important; }
-body[data-mode="edit"] .view-only { display: none !important; }
+/* ---- View / Edit mode toggle ----
+   The sheet uses one DOM for both modes now: elements marked
+   data-edit-control="true" (raw point inputs, add/remove buttons, the
+   worn/quantity edit controls, ...) are hidden entirely in View mode. */
+body[data-mode="view"] [data-edit-control="true"] { display: none !important; }
+
+/* Name-type fields (character/skill/spell/language/category names, trait
+   name & description) are real <input>/<textarea> elements that pick up a
+   `readonly` attribute in View mode instead of being swapped for separate
+   display markup — this is what makes them look like plain text instead of
+   an editable box, while staying clickable. */
+input[readonly], textarea[readonly] {
+  border: none;
+  background: transparent;
+  padding: 0.3rem 0.2rem;
+}
+input[readonly][data-skill-id] { cursor: pointer; }
 
 .mode-toggle {
   display: inline-flex;
@@ -435,6 +449,9 @@ body[data-mode="edit"] .view-only { display: none !important; }
 }
 .mode-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; display: block; }
 
+/* Still used by the GM dashboard's "Full sheet" read-only detail view
+   (gm/gm.js) — the character sheet itself no longer renders a separate
+   read-only block, since it reuses its normal fields in readonly mode. */
 .readonly-block { font-size: 0.9rem; }
 .readonly-block table { width: 100%; border-collapse: collapse; margin-bottom: 0.6rem; }
 .readonly-block th, .readonly-block td { text-align: left; padding: 0.3rem 0.35rem; border-bottom: 1px dashed var(--brass-dim); }
