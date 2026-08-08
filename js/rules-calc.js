@@ -142,6 +142,13 @@ export function manaPoolFromPoints(manaPoints, categories) {
   return (Number(manaPoints) || 0) * magicBonusTotal(categories);
 }
 
+// Section 5.2: a spell's magnitude, clamped to the valid 1-8 range. Pulled
+// out into its own helper because sheet.js and gm.js both need this same
+// clamp wherever a spell's magnitude is read.
+export function magnitudeOf(skill) {
+  return Math.max(1, Math.min(8, Number(skill?.magnitude) || 1));
+}
+
 // Section 5.3: casting cost — doubling base cost per magnitude, with
 // Normal/Hard/Extreme-or-Fail multipliers from the table.
 export function castingCost(magnitude) {

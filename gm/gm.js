@@ -2,6 +2,7 @@ import {
   collection, addDoc, deleteDoc, doc, updateDoc, writeBatch, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db, getCampaignId } from "../js/firebase-init.js";
+import { escapeHtml, flash as flashEl, toRoman } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 
 const campaignInput = document.getElementById("campaign-input");
@@ -15,9 +16,11 @@ campaignInput.value = campaign;
 // values to compute deltas from, without needing a separate read per click.
 let charsById = {};
 
+// Thin wrapper so call sites keep the short flash(msg) form — the shared
+// helper needs to know *which* element to write into, since gm.js only
+// ever flashes messages into #gm-status.
 function flash(msg) {
-  gmStatus.textContent = msg;
-  setTimeout(() => { if (gmStatus.textContent === msg) gmStatus.textContent = ""; }, 2500);
+  flashEl(gmStatus, msg);
 }
 
 // Switching campaign ID updates the URL (so the choice is bookmarkable/shareable)
@@ -202,12 +205,13 @@ function magicCategoryBlockHtml(cat) {
   const rows = (cat.skills || []).map(s => {
     const eff = R.categorySkillEffective(s, bonus);
     const l = R.ladder(eff);
-    const magnitude = Math.max(1, Math.min(8, Number(s.magnitude) || 1));
-    return `<tr><td>${escapeHtml(s.name)}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td><td>Mag ${magnitude}</td></tr>`;
+    const magnitude = R.magnitudeOf(s);
+    const name = `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>${escapeHtml(s.name)}`;
+    return `<tr><td>${name}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
   }).join("");
   return `
     <p class="muted" style="margin-bottom:0.15rem;">${escapeHtml(cat.name)} — bonus +${bonus}</p>
-    <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th><th>Mag</th></tr></thead><tbody>${rows}</tbody></table>
+    <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 }
 
@@ -219,12 +223,6 @@ function inventoryLineHtml(item) {
     return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="muted">${escapeHtml(item.woundDice || "")}</span></li>`;
   }
   return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="item-qty">×${item.qty}</span></li>`;
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
 }
 
 charList.addEventListener("click", async (e) => {

@@ -74,6 +74,16 @@ header.top nav a {
   border-bottom: 1px dotted var(--brass-dim);
 }
 
+/* The page you're currently on — same spacing as a link, but rendered as
+   inert text with a solid brass underline instead of a clickable dotted one. */
+header.top nav .nav-current {
+  margin-left: 1rem;
+  font-size: 0.95rem;
+  color: var(--brass);
+  border-bottom: 1px solid var(--brass);
+  padding-bottom: 1px;
+}
+
 /* ---- Layout: CSS multi-column ("masonry") instead of a row-based grid.
    A row-based grid forces every card in a row to the height of the tallest
    one, wasting space when e.g. Magic is much shorter than Skills. Columns
@@ -476,16 +486,20 @@ body[data-mode="edit"] .view-only { display: none !important; }
 /* ---- Rest buttons (now in the header, next to the mode toggle) ---- */
 .rest-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
-/* ---- Casting cost chips — click to deduct that amount from current Mana ---- */
-.cost-chip {
-  padding: 0.15rem 0.45rem;
+/* ---- Magnitude tag — small roman-numeral badge in front of a spell's name
+   (Section 5.2), instead of a separate "Mag" column. ---- */
+.magnitude-tag {
+  display: inline-block;
+  min-width: 1.5em;
+  text-align: center;
+  font-family: 'Cinzel', Georgia, serif;
   font-size: 0.75rem;
-  font-family: 'Spectral', Georgia, serif;
-  background: var(--navy-light);
-  color: var(--brass-light);
-  border-radius: 4px;
+  color: var(--ink-soft);
+  border: 1px solid var(--brass-dim);
+  border-radius: 3px;
+  padding: 0 0.3em;
+  margin-right: 0.4em;
 }
-.cost-chip:hover { background: var(--navy); }
 
 /* ---- Admin panel ---- */
 .campaign-block {
