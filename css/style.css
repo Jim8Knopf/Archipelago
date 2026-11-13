@@ -1,8 +1,4 @@
-/* ============================================================
-   Pirate TTRPG — shared theme
-   "Ship's ledger" aesthetic: deep navy hull, brass fittings,
-   parchment log-pages. Gauges styled like brass depth-gauges.
-   ============================================================ */
+/* ============================================================Pirate TTRPG — shared theme"Ship's ledger" aesthetic: deep navy hull, brass fittings,parchment log-pages. Gauges styled like brass depth-gauges.============================================================ */
 
 :root {
   --navy-deep:   #0a1820;
@@ -24,32 +20,43 @@
   --shadow: 0 2px 10px rgba(0,0,0,0.35);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
+  min-height: 100vh;
   margin: 0;
   padding: 0;
   background: var(--navy-deep);
   color: var(--parchment);
   font-family: 'Spectral', Georgia, serif;
-  min-height: 100vh;
 }
 
 body {
-  background-image:
-    radial-gradient(ellipse at top, var(--navy-light) 0%, var(--navy-deep) 70%);
+  background-image: radial-gradient(ellipse at top, var(--navy-light) 0%, var(--navy-deep) 70%);
   padding-bottom: 3rem;
 }
 
-h1, h2, h3, .display {
-  font-family: 'Cinzel', Georgia, serif;
-  letter-spacing: 0.03em;
+h1,
+h2,
+h3,
+.display {
+  margin: 0 0 .5em;
   color: var(--brass-light);
-  margin: 0 0 0.5em 0;
+  font: inherit;
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: .03em;
 }
 
-a { color: var(--brass-light); }
-a:visited { color: var(--brass); }
+a {
+  color: var(--brass-light);
+}
+
+a:visited {
+  color: var(--brass);
+}
 
 header.top {
   padding: 1.5rem 1.25rem 1rem;
@@ -58,37 +65,33 @@ header.top {
   align-items: baseline;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: .5rem;
 }
 
 header.top .brand {
-  font-family: 'Cinzel', Georgia, serif;
-  font-size: 1.3rem;
   color: var(--brass-light);
+  font: 1.3rem 'Cinzel', Georgia, serif;
 }
 
-header.top nav a {
+header.top nav a,
+header.top nav .nav-current {
   margin-left: 1rem;
+  font-size: .95rem;
+}
+
+/* The page you're currently on — same spacing as a link, but rendered asinert text with a solid brass underline instead of a clickable dotted one. */
+header.top nav a {
   text-decoration: none;
-  font-size: 0.95rem;
   border-bottom: 1px dotted var(--brass-dim);
 }
 
-/* The page you're currently on — same spacing as a link, but rendered as
-   inert text with a solid brass underline instead of a clickable dotted one. */
 header.top nav .nav-current {
-  margin-left: 1rem;
-  font-size: 0.95rem;
   color: var(--brass);
   border-bottom: 1px solid var(--brass);
   padding-bottom: 1px;
 }
 
-/* ---- Layout: CSS multi-column ("masonry") instead of a row-based grid.
-   A row-based grid forces every card in a row to the height of the tallest
-   one, wasting space when e.g. Magic is much shorter than Skills. Columns
-   let shorter cards pack into the gaps naturally, and collapse to a single
-   column on narrow/phone widths automatically (no media query needed). ---- */
+/* ---- Layout: CSS multi-column ("masonry") instead of a row-based grid.A row-based grid forces every card in a row to the height of the tallestone, wasting space when e.g. Magic is much shorter than Skills. Columnslet shorter cards pack into the gaps naturally, and collapse to a singlecolumn on narrow/phone widths automatically (no media query needed). ---- */
 main {
   max-width: 1300px;
   margin: 0 auto;
@@ -97,21 +100,26 @@ main {
   column-gap: 1.25rem;
 }
 
-.card, details.card {
+.card,
+details.card {
   display: inline-block;
   width: 100%;
   vertical-align: top;
   break-inside: avoid;
   -webkit-column-break-inside: avoid;
   page-break-inside: avoid;
-  margin: 0 0 1.25rem 0;
+  margin: 0 0 1.25rem;
 }
 
-/* Only the header spans the full width — every other section is a normal
-   packed tile now, including Traits and Inventory. */
-.full-width { column-span: all; }
+/* Only the header spans the full width — every other section is a normalpacked tile now, including Traits and Inventory. */
+.full-width {
+  column-span: all;
+}
 
-#loader-card { max-width: 480px; margin: 0 auto; }
+#loader-card {
+  max-width: 480px;
+  margin: 0 auto;
+}
 
 .card {
   background: var(--parchment);
@@ -122,14 +130,21 @@ main {
   border: 1px solid var(--brass-dim);
 }
 
-.card h2, .card h3 { color: var(--ink); }
-.card .muted { color: var(--ink-soft); font-size: 0.9rem; }
+.card h2,
+.card h3 {
+  color: var(--ink);
+}
+
+.card .muted {
+  color: var(--ink-soft);
+  font-size: .9rem;
+}
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: 0.9rem;
+  gap: .25rem;
+  margin-bottom: .9rem;
 }
 
 .field label {
@@ -139,10 +154,12 @@ main {
   color: var(--ink-soft);
 }
 
-input[type="text"], input[type="number"], textarea {
+input[type="text"],
+input[type="number"],
+textarea {
   font-family: 'Spectral', Georgia, serif;
   font-size: 1rem;
-  padding: 0.5rem 0.6rem;
+  padding: .5rem 0.6rem;
   border: 1px solid var(--brass-dim);
   border-radius: var(--radius);
   background: #fffaf0;
@@ -150,45 +167,62 @@ input[type="text"], input[type="number"], textarea {
 }
 
 button {
-  font-family: 'Cinzel', Georgia, serif;
-  font-size: 0.85rem;
-  letter-spacing: 0.03em;
-  padding: 0.55rem 0.9rem;
-  border-radius: var(--radius);
+  padding: .55rem .9rem;
   border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
   background: var(--navy);
   color: var(--brass-light);
+  font: .85rem 'Cinzel', Georgia, serif;
+  letter-spacing: .03em;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.05s ease;
+  transition: background .15s ease, transform .05s ease;
 }
 
-button:hover { background: var(--navy-light); }
-button:active { transform: translateY(1px); }
+button:hover {
+  background: var(--navy-light);
+}
+
+button:active {
+  transform: translateY(1px);
+}
 
 button.brass {
   background: var(--brass);
   color: var(--navy-deep);
   border-color: var(--brass-light);
 }
-button.brass:hover { background: var(--brass-light); }
+
+button.brass:hover {
+  background: var(--brass-light);
+}
 
 button.danger {
   background: var(--danger);
   color: var(--parchment);
   border-color: var(--danger-light);
 }
-button.danger:hover { background: var(--danger-light); }
+
+button.danger:hover {
+  background: var(--danger-light);
+}
 
 button.small {
   padding: 0.3rem 0.55rem;
-  font-size: 0.75rem;
+  font-size: .75rem;
 }
 
-.row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-.row.spread { justify-content: space-between; }
+.row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
 
-/* ---- Gauge: the signature element. A brass-rimmed depth gauge
-   used for HP and Mana, colour shifts with fill level. ---- */
+.row.spread {
+  justify-content: space-between;
+}
+
+/* ---- Gauge: the signature element. A brass-rimmed depth gaugeused for HP and Mana, colour shifts with fill level. ---- */
 .gauge {
   border: 2px solid var(--brass-dim);
   border-radius: 999px;
@@ -198,13 +232,21 @@ button.small {
   overflow: hidden;
   margin: 0.35rem 0;
 }
+
 .gauge .fill {
   height: 100%;
-  transition: width 0.25s ease, background 0.25s ease;
+  transition: width .25s ease, background .25s ease;
   background: var(--success);
 }
-.gauge.low .fill { background: var(--danger); }
-.gauge.mid .fill { background: var(--brass); }
+
+.gauge.low .fill {
+  background: var(--danger);
+}
+
+.gauge.mid .fill {
+  background: var(--brass);
+}
+
 .gauge-label {
   display: flex;
   justify-content: space-between;
@@ -219,35 +261,54 @@ button.small {
   margin-top: 0.4rem;
   flex-wrap: wrap;
 }
-.stat-controls input[type="number"] { width: 4.5rem; text-align: center; }
 
-.inventory-list { list-style: none; margin: 0; padding: 0; }
+.stat-controls input[type="number"] {
+  width: 4.5rem;
+  text-align: center;
+}
+
+.inventory-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
 .inventory-list li {
   padding: 0.4rem 0;
   border-bottom: 1px dashed var(--brass-dim);
 }
-.inventory-list li:last-child { border-bottom: none; }
+
+.inventory-list li:last-child {
+  border-bottom: none;
+}
+
 .inventory-item-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-  gap: 0.5rem;
+  gap: .5rem;
   align-items: center;
 }
+
 .inventory-item-row select,
 .inventory-item-row input[type="text"],
 .inventory-item-row input[type="number"] {
   min-width: 0;
 }
+
 .inventory-item-row .inline-checkbox {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: .25rem;
   font-size: 0.8rem;
 }
+
 .inventory-item-row button {
   justify-self: end;
 }
-.inventory-list .empty-state { border:none; }
+
+.inventory-list .empty-state {
+  border: none;
+}
 
 .char-link {
   font-family: monospace;
@@ -280,21 +341,35 @@ details.card summary {
   padding: 1.25rem;
   border-bottom: 1px solid var(--brass-dim);
 }
-details.card:not([open]) summary { margin-bottom: -1.25rem; border-bottom: none; }
-details.card summary::-webkit-details-marker { display: none; }
+
+details.card:not([open]) summary {
+  margin-bottom: -1.25rem;
+  border-bottom: none;
+}
+
+details.card summary::-webkit-details-marker {
+  display: none;
+}
+
 details.card summary::before {
   content: "▸ ";
   color: var(--brass-dim);
 }
-details.card[open] summary::before { content: "▾ "; }
+
+details.card[open] summary::before {
+  content: "▾ ";
+}
 
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+  gap: .75rem;
 }
+
 @media (max-width: 480px) {
-  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .attr-row {
@@ -304,11 +379,16 @@ details.card[open] summary::before { content: "▾ "; }
   gap: 1rem;
   flex-wrap: wrap;
 }
+
 .derived {
   font-size: 0.95rem;
   color: var(--ink-soft);
 }
-.derived strong { color: var(--ink); font-size: 1.1rem; }
+
+.derived strong {
+  color: var(--ink);
+  font-size: 1.1rem;
+}
 
 .divider {
   border: none;
@@ -324,75 +404,130 @@ details.card[open] summary::before { content: "▾ "; }
   overflow: hidden;
   margin-bottom: 0.4rem;
 }
+
 .budget-fill {
   height: 100%;
   background: var(--brass);
-  transition: width 0.25s ease, background 0.25s ease;
+  transition: width .25s ease, background .25s ease;
 }
-.budget-fill.over { background: var(--danger); }
+
+.budget-fill.over {
+  background: var(--danger);
+}
 
 .skill-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
-  margin-bottom: 0.75rem;
+  font-size: .9rem;
+  margin-bottom: .75rem;
 }
+
 .skill-table th {
   text-align: left;
-  font-size: 0.75rem;
+  font-size: .75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ink-soft);
   border-bottom: 1px solid var(--brass-dim);
   padding: 0.3rem 0.3rem;
 }
+
 .skill-table td {
   padding: 0.3rem 0.3rem;
   border-bottom: 1px dashed var(--brass-dim);
   vertical-align: middle;
 }
-.skill-table input[type="text"] { width: 100%; min-width: 5rem; }
-.skill-table input[type="number"] { width: 3.5rem; text-align: center; }
-.skill-table td.num { text-align: center; color: var(--ink-soft); }
+
+.skill-table input[type="text"] {
+  width: 100%;
+  min-width: 5rem;
+}
+
+.skill-table input[type="number"] {
+  width: 3.5rem;
+  text-align: center;
+}
+
+.skill-table td.num {
+  text-align: center;
+  color: var(--ink-soft);
+}
 
 .category-card {
   border: 1px solid var(--brass-dim);
   border-radius: var(--radius);
   padding: 0.85rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: .9rem;
   background: #fbf3de;
 }
+
 .category-card .cat-header {
   display: flex;
-  gap: 0.5rem;
+  gap: .5rem;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem;
   flex-wrap: wrap;
 }
-.category-card .cat-header input[type="text"] { flex: 2; }
-.category-card select { padding: 0.5rem; border-radius: var(--radius); border: 1px solid var(--brass-dim); font-family: 'Spectral', Georgia, serif; }
-.category-card .cat-bonus { font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.5rem; }
+
+.category-card .cat-header input[type="text"] {
+  flex: 2;
+}
+
+.category-card select {
+  padding: .5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--brass-dim);
+  font-family: 'Spectral', Georgia, serif;
+}
+
+.category-card .cat-bonus {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: .5rem;
+}
 
 .trait-card {
   border-radius: var(--radius);
-  padding: 0.75rem;
-  margin-bottom: 0.75rem;
+  padding: .75rem;
+  margin-bottom: .75rem;
   border: 1px solid var(--brass-dim);
 }
-.trait-card.advantage { background: #e8f0e8; }
-.trait-card.flaw { background: #f3e4de; }
+
+.trait-card.advantage {
+  background: #e8f0e8;
+}
+
+.trait-card.flaw {
+  background: #f3e4de;
+}
+
 .trait-card .trait-header {
   display: flex;
-  gap: 0.5rem;
+  gap: .5rem;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 0.5rem;
+  margin-bottom: .5rem;
 }
-.trait-card .trait-header input[type="text"] { flex: 2; }
-.trait-card select { padding: 0.4rem; border-radius: var(--radius); border: 1px solid var(--brass-dim); font-family: 'Spectral', Georgia, serif; }
-.trait-card textarea { width: 100%; min-height: 2.5rem; resize: vertical; }
+
+.trait-card .trait-header input[type="text"] {
+  flex: 2;
+}
+
+.trait-card select {
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--brass-dim);
+  font-family: 'Spectral', Georgia, serif;
+}
+
+.trait-card textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  resize: vertical;
+}
+
 .trait-tag {
-  font-size: 0.75rem;
+  font-size: .75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.1rem 0.4rem;
@@ -434,6 +569,7 @@ input[readonly][data-skill-id] { cursor: pointer; }
   overflow: hidden;
   flex: 0 0 auto;
 }
+
 .mode-toggle button {
   border: none;
   border-radius: 0;
@@ -441,13 +577,21 @@ input[readonly][data-skill-id] { cursor: pointer; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 0.65rem;
+  padding: .5rem 0.65rem;
 }
+
 .mode-toggle button.active {
   background: var(--brass);
   color: var(--navy-deep);
 }
-.mode-toggle svg { width: 18px; height: 18px; stroke: currentColor; fill: none; display: block; }
+
+.mode-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  display: block;
+}
 
 /* Still used by the GM dashboard's "Full sheet" read-only detail view
    (gm/gm.js) — the character sheet itself no longer renders a separate
@@ -466,6 +610,7 @@ input[readonly][data-skill-id] { cursor: pointer; }
   align-items: flex-start;
   flex-wrap: wrap;
 }
+
 .portrait-wrap {
   width: 96px;
   height: 96px;
@@ -478,9 +623,24 @@ input[readonly][data-skill-id] { cursor: pointer; }
   align-items: center;
   justify-content: center;
 }
-.portrait-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.portrait-placeholder { font-size: 2.2rem; color: var(--brass-dim); }
-.header-main { flex: 1 1 260px; min-width: 200px; }
+
+.portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.portrait-placeholder {
+  font-size: 2.2rem;
+  color: var(--brass-dim);
+}
+
+.header-main {
+  flex: 1 1 260px;
+  min-width: 200px;
+}
+
 .name-input-large {
   font-size: 1.3rem;
   font-family: 'Cinzel', Georgia, serif;
@@ -488,29 +648,39 @@ input[readonly][data-skill-id] { cursor: pointer; }
   max-width: 320px;
 }
 
-/* Skill/category tables can get wide (6-8 columns) — let them scroll
-   horizontally within their own card rather than force the tile wider. */
-.table-scroll { overflow-x: auto; }
-.table-scroll .skill-table { min-width: 420px; }
+/* Skill/category tables can get wide (6-8 columns) — let them scrollhorizontally within their own card rather than force the tile wider. */
+.table-scroll {
+  overflow-x: auto;
+}
 
-/* ---- "Used this session" — one-way toggle, backed by Firestore so the
-   GM can reset it. Click a skill/weapon/spell/language name to fatten it
-   as a reminder for post-session improvement rolls (Section 11.2).
-   No hover effect — it should only react to an actual click. ---- */
-.skill-name-clickable { cursor: pointer; }
-.used-skill { font-weight: 700; color: var(--danger); }
+.table-scroll .skill-table {
+  min-width: 420px;
+}
+
+/* ---- "Used this session" — one-way toggle, backed by Firestore so theGM can reset it. Click a skill/weapon/spell/language name to fatten itas a reminder for post-session improvement rolls (Section 11.2).No hover effect — it should only react to an actual click. ---- */
+.skill-name-clickable {
+  cursor: pointer;
+}
+
+.used-skill {
+  font-weight: 700;
+  color: var(--danger);
+}
 
 /* ---- Rest buttons (now in the header, next to the mode toggle) ---- */
-.rest-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.rest-row {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
 
-/* ---- Magnitude tag — small roman-numeral badge in front of a spell's name
-   (Section 5.2), instead of a separate "Mag" column. ---- */
+/* ---- Magnitude tag — small roman-numeral badge in front of a spell's name(Section 5.2), instead of a separate "Mag" column. ---- */
 .magnitude-tag {
   display: inline-block;
   min-width: 1.5em;
   text-align: center;
   font-family: 'Cinzel', Georgia, serif;
-  font-size: 0.75rem;
+  font-size: .75rem;
   color: var(--ink-soft);
   border: 1px solid var(--brass-dim);
   border-radius: 3px;
@@ -524,19 +694,34 @@ input[readonly][data-skill-id] { cursor: pointer; }
   padding-bottom: 1rem;
   border-bottom: 1px dashed var(--brass-dim);
 }
-.campaign-block:last-child { border-bottom: none; margin-bottom: 0; }
-.campaign-block h3 { margin-bottom: 0.4rem; }
+
+.campaign-block:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.campaign-block h3 {
+  margin-bottom: 0.4rem;
+}
+
 .admin-char-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+  gap: .5rem;
   padding: 0.4rem 0;
   border-bottom: 1px dashed var(--brass-dim);
   flex-wrap: wrap;
 }
-.admin-char-row:last-child { border-bottom: none; }
-.admin-char-row .links a { margin-left: 0.75rem; font-size: 0.85rem; }
+
+.admin-char-row:last-child {
+  border-bottom: none;
+}
+
+.admin-char-row .links a {
+  margin-left: .75rem;
+  font-size: 0.85rem;
+}
 
 footer.foot {
   text-align: center;
