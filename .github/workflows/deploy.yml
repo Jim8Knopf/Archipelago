@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       ref:
@@ -13,16 +15,40 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Adding the "deploy" label to a PR starts a manual deploy run on main for the
+  # PR's branch. PR runs use refs/pull/N/merge, which the github-pages
+  # environment protection rules reject, so the PR run can't deploy directly.
+  trigger-from-pr:
+    if: github.event_name == 'pull_request' && github.event.label.name == 'deploy'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Start deploy of PR branch
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH"
+
+      # Remove the label so adding it again triggers a fresh deploy
+      - name: Remove deploy label
+        if: always()
+        run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label deploy
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
