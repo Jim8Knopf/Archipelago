@@ -8,7 +8,7 @@ Firebase Firestore for real-time sync between players and the GM.
 
 All derived numbers (Max HP, Movement, category transfer bonuses,
 normal/hard/extreme thresholds, points spent/remaining) are calculated
-live from the formulas in `Pirate_TTRPG_Rules_Draft.md` — nothing is
+live from the formulas in `rules/rules.md` (also shown on the Rules page) — nothing is
 hardcoded per-character, so the sheet stays correct as points change.
 
 ## Project structure
@@ -24,6 +24,11 @@ pirate-ttrpg-web/
 │                           cross-training bonus, the ladder, points budget) —
 │                           shared by both sheet.js and gm.js so the math only
 │                           lives in one place
+├── rules/
+│   ├── index.html          rules page — renders rules.md as Homebrewery-style pages
+│   ├── rules.md            the ruleset (\page, \column and {{note ... }} supported)
+│   ├── rules.js
+│   └── rules.css
 ├── sheet/
 │   ├── index.html          player character sheet (full, editable)
 │   └── sheet.js

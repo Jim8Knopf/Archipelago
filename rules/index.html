@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules — Archipelago</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="rules.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">⚓ Archipelago</div>
+    <nav id="site-nav"></nav>
+  </header>
+
+  <!-- The rules text lives in rules.md (Homebrewery-flavoured Markdown:
+       \page starts a new page, \column a new column, {{note ... }} a note
+       box). rules.js fetches and renders it into the book pages below. -->
+  <main class="rules-main">
+    <div id="rules-book" class="rules-book">
+      <p class="rules-status">Unrolling the scrolls…</p>
+    </div>
+  </main>
+
+  <footer class="foot">Fair winds. ⚓</footer>
+
+  <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="rules.js"></script>
+</body>
+</html>

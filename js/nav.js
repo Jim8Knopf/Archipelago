@@ -3,7 +3,7 @@
 // Every page used to hand-write its own <nav> with a slightly different
 // subset of links (never linking to itself). That meant 4 copies to keep in
 // sync, and no page ever showed "you are here". This module replaces all of
-// that: every page lists all four destinations, and the current one is
+// that: every page lists all destinations, and the current one is
 // rendered as plain text instead of a link.
 //
 // Usage: <nav id="site-nav"></nav> somewhere in header.top, then
@@ -13,13 +13,14 @@
 
 const PAGES = [
   { key: "home", label: "Home", folder: "" },
+  { key: "rules", label: "Rules", folder: "rules/" },
   { key: "sheet", label: "Character Sheet", folder: "sheet/" },
   { key: "gm", label: "GM Dashboard", folder: "gm/" },
   { key: "admin", label: "Admin", folder: "admin/" }
 ];
 
 // Every non-home page lives exactly one folder below the site root
-// (site.com/sheet/, site.com/gm/, site.com/admin/), so we can tell which
+// (site.com/rules/, site.com/sheet/, site.com/gm/, site.com/admin/), so we can tell which
 // page we're on just by checking which folder name the path ends with.
 function currentPageKey() {
   const path = window.location.pathname.replace(/index\.html$/, "");
