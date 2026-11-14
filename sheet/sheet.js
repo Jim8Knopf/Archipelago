@@ -633,7 +633,7 @@ function renderMagicStats(d) {
   const maxMana = getMaxMana(d);
   document.getElementById("mana-max-derived").textContent = maxMana;
   const bonusTotal = R.magicBonusTotal(d.categories);
-  document.getElementById("mana-formula-note").textContent = ` (= ${d.manaPoints || 0} points × +${bonusTotal} magic bonus)`;
+  document.getElementById("mana-formula-note").textContent = ` (= ${d.manaPoints || 0} points × +${bonusTotal} magic bonus ÷ 2)`;
   renderGauge("mana", d.currentMana ?? 0, maxMana);
 }
 
