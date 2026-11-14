@@ -78,8 +78,21 @@ function buildBook(markdown) {
   }
 }
 
+// Which rulebook to show: ?book=ships, otherwise the core rules.
+const BOOKS = {
+  core:  { file: "rules.md", title: "Rules" },
+  ships: { file: "ships.md", title: "Ship Rules" }
+};
+const bookKey = new URLSearchParams(location.search).get("book");
+const current = BOOKS[bookKey] ? bookKey : "core";
+
+document.title = `${BOOKS[current].title} — Archipelago`;
+document.querySelectorAll("#book-tabs a").forEach(a => {
+  if (a.dataset.book === current) a.setAttribute("aria-current", "page");
+});
+
 try {
-  const res = await fetch("rules.md", { cache: "no-cache" });
+  const res = await fetch(BOOKS[current].file, { cache: "no-cache" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   buildBook(await res.text());
 } catch (err) {

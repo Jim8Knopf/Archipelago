@@ -34,6 +34,32 @@ main.rules-main {
   gap: 1.5rem;
 }
 
+/* ---------- Core / Ship book switcher ---------- */
+
+.book-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.book-tabs a {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  color: var(--brass-light);
+  font-family: 'Cinzel', Georgia, serif;
+  text-decoration: none;
+}
+
+.book-tabs a:hover { border-color: var(--brass-light); }
+
+.book-tabs a[aria-current="page"] {
+  background: var(--brass);
+  border-color: var(--brass);
+  color: var(--navy-deep);
+}
+
 .rules-status {
   color: var(--parchment);
   font-style: italic;
