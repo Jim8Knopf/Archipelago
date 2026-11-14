@@ -39,7 +39,7 @@ Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid,
 - **How closely related** the skill is to the task — a near-perfect match gets a small malus, a stretch gets a bigger one.
 - **How general the skill itself is** — a broad, catch-all skill (e.g. a player-defined "Dexterity" instead of specific skills like Sleight of Hand, Lockpicking, or Acrobatics) can be used for almost anything, but that breadth is exactly what earns it a bigger malus every time. A narrowly defined skill (e.g. "Pick Pockets") never needs a malus for its one specific use, but also can't cover anything else.
 
-GM-decided rather than formula-derived, same spirit as ship HP and gem slot assignment — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic group transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
+GM-decided rather than formula-derived — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic group transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
 
 ### 3.2 Cross-Training — Skill Groups, Weapons, Magic and Languages
 All four share one mechanic: skills within the same **category** partially train each other.
@@ -141,7 +141,7 @@ Magic is resisted in two ways: **Resilience** makes the spell harder to land, an
 - **Non-damage spells:** Resilience always applies; there is no choice to make (see Section 5.6).
 - If the lowered value is 0 or less, only a natural 00 can affect you (Section 1).
 
-**Wards (Bannsteine)** — the passive defense. Element-locked charms, amulets or gemstones, the personal version of the ship Warding Gems:
+**Wards (Bannsteine)** — the passive defense. Element-locked charms, amulets or gemstones, the personal version of the ship Guard Stones:
 
 | Tier | Magnitude reduction |
 |---|---|
