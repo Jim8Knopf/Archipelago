@@ -95,6 +95,13 @@ export function evasionTotal(evasionPoints, movement) {
   return (Number(evasionPoints) || 0) + (Number(movement) || 0);
 }
 
+// Section 5.5: Resilience has its own invested points, like Evasion. It is
+// never rolled — casters roll against their skill minus half of it, floored
+// like every other halved threshold in the ladder.
+export function resilienceModifier(resiliencePoints) {
+  return Math.floor((Number(resiliencePoints) || 0) / 2);
+}
+
 // Section 8: Trait tier point values.
 export function tierValue(tier) {
   return { minor: 15, moderate: 30, major: 50 }[tier] || 0;
@@ -104,7 +111,8 @@ export function tierValue(tier) {
 // grants (pointsGranted) and Flaw bonus points.
 export function pointsSpent(char) {
   let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0)
-    + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0);
+    + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0)
+    + (Number(char.resiliencePoints) || 0);
   // Legacy flat basic skills. Once a doc is migrated these live in
   // `categories` as type "skill" and are counted by the loop below, so this
   // term only ever contributes for an un-migrated document.
@@ -220,6 +228,7 @@ export function defaultCharacter(name) {
     movementPoints: 0,
     currentHP: 0,
     evasionPoints: 0,
+    resiliencePoints: 0,
     armorCustom: 0,
     manaPoints: 0,
     currentMana: 0,

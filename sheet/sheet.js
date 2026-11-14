@@ -244,6 +244,7 @@ function normalize(d) {
     inventory,
     armorCustom: d.armorCustom ?? d.armor ?? 0,
     evasionPoints,
+    resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
     usedSkillIds: d.usedSkillIds || []
@@ -597,6 +598,11 @@ function renderAttributes(d) {
   document.getElementById("evasion-derived").textContent = evasion;
   document.getElementById("evasion-ladder").textContent =
     ` (Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})`;
+
+  // Section 5.5: Resilience is never rolled — only its modifier matters.
+  const resiliencePointsInput = document.getElementById("resilience-points-input");
+  if (document.activeElement !== resiliencePointsInput) resiliencePointsInput.value = d.resiliencePoints ?? 0;
+  document.getElementById("resilience-derived").textContent = `−${R.resilienceModifier(d.resiliencePoints)}`;
 }
 
 document.getElementById("hp-points-input").addEventListener("change", (e) => {
@@ -617,6 +623,10 @@ document.getElementById("armor-custom-input").addEventListener("change", (e) => 
 
 document.getElementById("evasion-points-input").addEventListener("change", (e) => {
   saveField({ evasionPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
+document.getElementById("resilience-points-input").addEventListener("change", (e) => {
+  saveField({ resiliencePoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
 document.getElementById("mana-points-input").addEventListener("change", (e) => {
