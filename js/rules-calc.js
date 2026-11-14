@@ -66,6 +66,29 @@ export function categoriesOfType(categories, type) {
   return (categories || []).filter(c => c.type === type);
 }
 
+// Basic Skills used to be a flat `basicSkills` array with no cross-training.
+// They're now skill groups — the same named-category shape Weapons and Magic
+// use, so members of a group partially train each other (Section 3.2).
+//
+// This folds any leftover flat list into a "General" group so an older
+// character keeps every skill (and its points) with no manual fixing up. It
+// returns the categories array unchanged once there's nothing left to move,
+// which is what makes it safe to run on every load.
+export function migrateBasicSkills(basicSkills, categories) {
+  const cats = categories || [];
+  const flat = basicSkills || [];
+  if (flat.length === 0) return cats;
+
+  const existing = cats.find(c => c.type === "skill");
+  if (existing) {
+    return cats.map(c => c === existing
+      ? { ...c, skills: [...(c.skills || []), ...flat] }
+      : c
+    );
+  }
+  return [...cats, { id: makeId(), name: "General", type: "skill", skills: flat }];
+}
+
 // Section 4: Evasion = Evasion points invested + full Movement. Evasion has
 // its own dedicated field now, rather than being a Basic Skill found by name.
 export function evasionTotal(evasionPoints, movement) {
@@ -82,6 +105,9 @@ export function tierValue(tier) {
 export function pointsSpent(char) {
   let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0)
     + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0);
+  // Legacy flat basic skills. Once a doc is migrated these live in
+  // `categories` as type "skill" and are counted by the loop below, so this
+  // term only ever contributes for an un-migrated document.
   spent += (char.basicSkills || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   spent += (char.languages || []).reduce((a, s) => a + (Number(s.points) || 0), 0);
   (char.categories || []).forEach(cat => {
@@ -197,10 +223,14 @@ export function defaultCharacter(name) {
     armorCustom: 0,
     manaPoints: 0,
     currentMana: 0,
+    // Basic Skills are grouped like Weapons and Magic — see `categories`.
+    // This stays only so an older document that still has a flat list keeps
+    // loading; nothing writes to it any more.
     basicSkills: [],
-    // Weapons and Magic can have several named categories (Sword, Fire, ...).
+    // Skills, Weapons and Magic can all have several named categories
+    // (Seamanship, Sword, Fire, ...), each cross-training its own members.
     // Languages are a single shared pool per Section 3.2 — no sub-categories.
-    categories: [],
+    categories: [{ id: makeId(), name: "General", type: "skill", skills: [] }],
     languages: [],
     traits: [],
     // Inventory items are typed: "item" (name, qty), "armor" (name,
