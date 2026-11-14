@@ -92,7 +92,7 @@ function renderCharacters(docs) {
     const maxMana = R.manaPoolFromPoints(data.manaPoints, data.categories);
     const movement = R.movementFromPoints(data.movementPoints);
     const evasion = R.evasionTotal(data.evasionPoints, movement);
-    const resilience = R.resilienceSkill(data.categories);
+    const resilienceMod = R.resilienceModifier(data.resiliencePoints);
     const hpPct = maxHP > 0 ? Math.min(100, ((data.currentHP ?? 0) / maxHP) * 100) : 0;
     const manaPct = maxMana > 0 ? Math.min(100, ((data.currentMana ?? 0) / maxMana) * 100) : 0;
     const inv = data.inventory || [];
@@ -120,7 +120,7 @@ function renderCharacters(docs) {
       ` : ""}
 
       <p class="muted" style="margin-top:0.5rem;">
-        Movement ${movement} m/s · Armor ${R.totalArmor(data)} · Evasion ${evasion}${resilience ? ` · Resilience ${resilience.effective} (−${R.resilienceMalus(resilience.effective)})` : ""} · Points ${spent}/${available}
+        Movement ${movement} m/s · Armor ${R.totalArmor(data)} · Evasion ${evasion} · Resilience −${resilienceMod} · Points ${spent}/${available}
       </p>
 
       ${inv.length ? `

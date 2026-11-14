@@ -56,10 +56,7 @@ function usedClass(d, id) {
 //  - Pass `magnitude` for spells — shown as a roman-numeral prefix on the
 //    name, always visible in both modes, plus its own edit-only number
 //    input for changing it.
-//  - Pass `resilience: true` for basic skills — adds an edit-only checkbox
-//    column for marking this skill as the character's Resilience skill
-//    (Section 5.5), and a small shield marker on the name in both modes.
-function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, resilience }) {
+function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
   const ro = currentMode === "view" ? "readonly" : "";
   const clickable = currentMode === "view" ? "skill-name-clickable" : "";
   const used = usedClass(d, skill.id);
@@ -69,9 +66,6 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, resilience
     ? `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>`
     : "";
   const isSpell = magnitude != null;
-  const resilienceTag = resilience && skill.resilience
-    ? `<span class="resilience-tag" title="Resilience skill — casters roll at −½ of this value (Section 5.5)">🛡</span>`
-    : "";
   const note = isSpell ? (skill.note || "").trim() : "";
   // View mode: a spell with a note gets an (i) button beside its name.
   // Hovering the name or the button shows the note in a floating panel;
@@ -84,7 +78,7 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, resilience
         aria-label="Spell info" aria-expanded="false" title="Spell info">i</button>`
     : "";
   const nameCell = `
-    <td><div class="name-wrap" ${note ? `data-spell-hover="${skill.id}"` : ""}>${magnitudeTag}${resilienceTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
+    <td><div class="name-wrap" ${note ? `data-spell-hover="${skill.id}"` : ""}>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
       ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}">${infoBtn}</div></td>`;
   const pointsCell = `<td data-edit-control="true"><input type="number" data-field="points" value="${skill.points || 0}" min="0"></td>`;
   const magnitudeCell = magnitude != null
@@ -95,13 +89,9 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, resilience
     const castAttrs = cost != null ? ` data-action="cast" data-cost="${cost}" title="Costs ${cost} Mana"` : "";
     return `<td class="num ${clickable} ${used}" data-skill-id="${skill.id}"${castAttrs}>${val}</td>`;
   }).join("");
-  const resilienceCell = resilience
-    ? `<td data-edit-control="true" class="center"><input type="checkbox" data-field="resilience" ${skill.resilience ? "checked" : ""}
-        title="Use as Resilience skill" aria-label="Use ${escapeHtml(skill.name)} as Resilience skill"></td>`
-    : "";
   const removeCell = `<td data-edit-control="true"><button class="small danger" data-action="remove-skill">✕</button></td>`;
 
-  const columnCount = 3 + (isSpell ? 1 : 0) + (resilience ? 1 : 0) + tiers.length;
+  const columnCount = 3 + (isSpell ? 1 : 0) + tiers.length;
   // Spells get a second, edit-only row spanning the table, holding a
   // free-text note (effect, range, duration, component...). It shares the
   // spell's data-id so the category container's change handler saves it
@@ -113,7 +103,7 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, resilience
       </tr>`
     : "";
 
-  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${resilienceCell}${removeCell}</tr>${noteRow}`;
+  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>${noteRow}`;
 }
 
 // Marks a skill "used" when its name or any of its value cells is tapped —
@@ -254,6 +244,7 @@ function normalize(d) {
     inventory,
     armorCustom: d.armorCustom ?? d.armor ?? 0,
     evasionPoints,
+    resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
     usedSkillIds: d.usedSkillIds || []
@@ -608,25 +599,10 @@ function renderAttributes(d) {
   document.getElementById("evasion-ladder").textContent =
     ` (Half: ${evLadder.hard} · One-fifth: ${evLadder.extreme})`;
 
-  renderResilience(d);
-}
-
-// Section 5.5: Resilience is never rolled — the sheet just shows the marked
-// skill's effective value and how much it lowers a caster's skill.
-function renderResilience(d) {
-  const res = R.resilienceSkill(d.categories);
-  const valueEl = document.getElementById("resilience-derived");
-  const noteEl = document.getElementById("resilience-note");
-  if (!res) {
-    valueEl.textContent = "—";
-    noteEl.textContent = currentMode === "edit"
-      ? " (tick Resil. on a Basic Skill to use it as your Resilience)"
-      : " (no Resilience skill)";
-    return;
-  }
-  const malus = R.resilienceMalus(res.effective);
-  valueEl.textContent = res.effective;
-  noteEl.textContent = ` (${res.skill.name || "Unnamed"}) — casters roll at their skill −${malus}`;
+  // Section 5.5: Resilience is never rolled — only its modifier matters.
+  const resiliencePointsInput = document.getElementById("resilience-points-input");
+  if (document.activeElement !== resiliencePointsInput) resiliencePointsInput.value = d.resiliencePoints ?? 0;
+  document.getElementById("resilience-derived").textContent = `−${R.resilienceModifier(d.resiliencePoints)}`;
 }
 
 document.getElementById("hp-points-input").addEventListener("change", (e) => {
@@ -647,6 +623,10 @@ document.getElementById("armor-custom-input").addEventListener("change", (e) => 
 
 document.getElementById("evasion-points-input").addEventListener("change", (e) => {
   saveField({ evasionPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
+document.getElementById("resilience-points-input").addEventListener("change", (e) => {
+  saveField({ resiliencePoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
 document.getElementById("mana-points-input").addEventListener("change", (e) => {
@@ -742,7 +722,7 @@ function renderCategoryGroup(containerId, allCategories, type) {
       const skillRows = (cat.skills || []).map(s => {
         const eff = R.categorySkillEffective(s, bonus);
         const l = R.ladder(eff);
-        return skillRowHtml(currentData, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id, resilience: type === "skill" });
+        return skillRowHtml(currentData, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id });
       }).join("");
 
       return `
@@ -754,7 +734,7 @@ function renderCategoryGroup(containerId, allCategories, type) {
           <div class="cat-bonus">Transfer bonus: +${bonus}</div>
           <div class="table-scroll">
             <table class="skill-table">
-              <thead><tr><th>${labels.member}</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th>${type === "skill" ? `<th data-edit-control="true" title="Resilience skill (Section 5.5)">Resil.</th>` : ""}<th data-edit-control="true"></th></tr></thead>
+              <thead><tr><th>${labels.member}</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
               <tbody>${skillRows}</tbody>
             </table>
           </div>
@@ -825,19 +805,6 @@ function wireCategoryContainer(container, dataKey) {
     const input = e.target.closest("input[data-field], textarea[data-field]");
     if (!input) return;
     const catId = input.closest("[data-cat]").dataset.cat;
-
-    // Resilience (Section 5.5) is one skill per character, so ticking a
-    // skill clears the flag everywhere else, across every skill group.
-    if (input.dataset.field === "resilience") {
-      const skillId = input.closest("tr").dataset.id;
-      const on = input.checked;
-      const updatedList = currentData[dataKey].map(cat => cat.type !== "skill" ? cat : {
-        ...cat,
-        skills: (cat.skills || []).map(s => ({ ...s, resilience: on && s.id === skillId }))
-      });
-      saveField({ [dataKey]: updatedList });
-      return;
-    }
     const row = input.closest("tr");
     const TEXT_FIELDS = ["name", "note"];
 

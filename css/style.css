@@ -688,17 +688,6 @@ input[readonly][data-skill-id] { cursor: pointer; }
   margin-right: 0.4em;
 }
 
-/* ---- Resilience marker — shield in front of the Basic Skill used as Resilience (Section 5.5). ---- */
-.resilience-tag {
-  display: inline-block;
-  font-size: .8rem;
-  margin-right: 0.35em;
-  cursor: help;
-}
-.skill-table td.center {
-  text-align: center;
-}
-
 /* ---- Admin panel ----
    Each campaign is its own card; #admin-content uses display: contents so
    those cards pack into main's columns just like the sheet's sections. */

@@ -95,28 +95,11 @@ export function evasionTotal(evasionPoints, movement) {
   return (Number(evasionPoints) || 0) + (Number(movement) || 0);
 }
 
-// Section 5.5: Resilience is an ordinary basic skill (Willpower, Iron Nerve,
-// Warding Lore...) that the player marks as their Resilience skill. It is
-// never rolled — it lowers a caster's chance against you by half its
-// effective value. Returns the marked skill with its effective value
-// (group transfer bonus included), or null if none is marked. Only one skill
-// should carry the flag; if an older doc somehow has several, the best wins.
-export function resilienceSkill(categories) {
-  let best = null;
-  categoriesOfType(categories, "skill").forEach(cat => {
-    const bonus = categoryBonus(cat.skills);
-    (cat.skills || []).filter(s => s.resilience).forEach(s => {
-      const effective = categorySkillEffective(s, bonus);
-      if (!best || effective > best.effective) best = { skill: s, group: cat, effective };
-    });
-  });
-  return best;
-}
-
-// How much a caster's skill drops against you: half your Resilience, floored
+// Section 5.5: Resilience has its own invested points, like Evasion. It is
+// never rolled — casters roll against their skill minus half of it, floored
 // like every other halved threshold in the ladder.
-export function resilienceMalus(effective) {
-  return Math.floor((Number(effective) || 0) / 2);
+export function resilienceModifier(resiliencePoints) {
+  return Math.floor((Number(resiliencePoints) || 0) / 2);
 }
 
 // Section 8: Trait tier point values.
@@ -128,7 +111,8 @@ export function tierValue(tier) {
 // grants (pointsGranted) and Flaw bonus points.
 export function pointsSpent(char) {
   let spent = (Number(char.hpPoints) || 0) + (Number(char.movementPoints) || 0)
-    + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0);
+    + (Number(char.manaPoints) || 0) + (Number(char.evasionPoints) || 0)
+    + (Number(char.resiliencePoints) || 0);
   // Legacy flat basic skills. Once a doc is migrated these live in
   // `categories` as type "skill" and are counted by the loop below, so this
   // term only ever contributes for an un-migrated document.
@@ -244,6 +228,7 @@ export function defaultCharacter(name) {
     movementPoints: 0,
     currentHP: 0,
     evasionPoints: 0,
+    resiliencePoints: 0,
     armorCustom: 0,
     manaPoints: 0,
     currentMana: 0,
