@@ -102,7 +102,7 @@ Reuses the **First Aid** mechanic (core rules, Section 6.3) wholesale, just rena
 - Normal success → repair 1 Hull
 - Hard success → repair 2 Hull
 - Extreme success → repair 4 Hull
-- Limit: one repair attempt per damage instance, per character, per fight
+- Limit: one repair attempt per ship, per character, per fight
 
 ---
 
@@ -791,7 +791,7 @@ The **number of slots is not derived from a formula or tied to HP — it's a GM 
 | 2 | | | |
 | 3 | | | |
 
-Add or remove rows to match the ship's actual slot count. A ship can hold spare gems in cargo even when its rack is full — it just can't benefit from a gem that isn't currently seated in a slot.
+Add or remove rows to match the ship's actual slot count. **Gems never stack:** against any one spell only the single best gem of that spell's element counts, the same rule as personal Wards (core rules Section 5.5). Filling several slots is worth it for covering **different elements** (e.g. one Fire and one Water gem), not for doubling up on one. A ship can hold spare gems in cargo even when its rack is full — it just can't benefit from a gem that isn't currently seated in a slot.
 
 **Rarity:** These are meant to be genuinely rare — a quest reward or a rumor to chase down more often than something sitting on a shelf in a shop. If a GM does allow outright purchase, the prices above should feel like a real gut-punch, on par with buying a warship.
 
@@ -801,7 +801,6 @@ Add or remove rows to match the ship's actual slot count. A ship can hold spare 
 
 ## 21. Open Items — Warding Gems
 
-- [ ] Decide whether a ship can hold two gems of the same element in separate rack slots, and if so, whether the Magnitude reduction adds or just takes the better one.
 - [ ] Pin down the exact swap time and any risk/check for an emergency swap faster than a short rest.
 - [ ] Design the offensive gem-weapon variant once the protective version has been playtested.
 - [ ] Revisit gem pricing once a second element exists and gems can be compared against each other, not just against ship prices.

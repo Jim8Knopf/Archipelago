@@ -33,19 +33,19 @@ A 100-point investment yields Movement 10 — reasonably fast, nowhere near absu
 ## 3. Skills
 
 ### 3.1 Basic Skills
-Independent, freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Bought individually, no automatic cross-training. Standard normal/hard/extreme ladder applies.
+Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Each skill is bought individually, and skills are organised into **skill groups** (e.g. **Sneaking**: Stealth, Pick Pockets; **Seafaring**: Swim, Ship Steering). Skills in the same group partially train each other with the same transfer bonus as weapons and magic (Section 3.2). Standard normal/hard/extreme ladder applies.
 
 **Skill Transfer (using a related skill instead):** a character can attempt a task with a skill they don't have, using a related one instead, if the GM allows it — always at a **malus** the GM sets on the spot, based on:
 - **How closely related** the skill is to the task — a near-perfect match gets a small malus, a stretch gets a bigger one.
 - **How general the skill itself is** — a broad, catch-all skill (e.g. a player-defined "Dexterity" instead of specific skills like Sleight of Hand, Lockpicking, or Acrobatics) can be used for almost anything, but that breadth is exactly what earns it a bigger malus every time. A narrowly defined skill (e.g. "Pick Pockets") never needs a malus for its one specific use, but also can't cover anything else.
 
-GM-decided rather than formula-derived, same spirit as ship HP and gem slot assignment — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
+GM-decided rather than formula-derived, same spirit as ship HP and gem slot assignment — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic group transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
 
-### 3.2 Weapons, Magic, and Languages — Cross-Training
-These three all share one mechanic: skills within the same **category** partially train each other.
+### 3.2 Cross-Training — Skill Groups, Weapons, Magic and Languages
+All four share one mechanic: skills within the same **category** partially train each other.
 
-- Group your weapons/spells/languages into categories (e.g. **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball; languages as their own category).
-- Each category has a **transfer bonus** = (sum of *raw* invested points across all skills in that category) ÷ 10.
+- Group your basic skills/weapons/spells/languages into categories (e.g. **Seafaring**: Swim, Ship Steering; **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball). All languages form a single category.
+- Each category has a **transfer bonus** = (sum of *raw* invested points across all skills in that category) ÷ 10, rounded down.
 - That bonus is added on top of each individual skill's raw value to get its **effective** value.
 - The bonus must be calculated from raw invested points, not effective values — otherwise it compounds on itself every time it's recalculated.
 
@@ -86,7 +86,8 @@ Evasion = evasion skill + full movement.
 
 ### 5.1 Mana Pool
 - Each character starts with **one element** (e.g. Fire), and therefore **one mana pool** for now. Whether to split pools per-element later is an open conversation to have with players once more disciplines exist.
-- Pool size scales from points invested in the magic category and the specific spell/element skill — large investment can produce large pools (e.g. ~700+ mana at high investment), which is intended; the cost curve below is what keeps that from being overpowered, not the pool size.
+- **Max Mana = Mana points invested × (sum of the transfer bonuses of all your magic categories) ÷ 2**, rounded down. Mana points are bought from the creation pool like any other points (Section 7). *Example:* 15 Mana points with a Fire magic bonus of +10 gives 15 × 10 ÷ 2 = **75 mana**.
+- Because both factors grow with investment, a dedicated caster can reach very large pools, which is intended; the cost curve below is what keeps that from being overpowered, not the pool size.
 
 ### 5.2 Magnitude Scale (freeform, no spell list)
 Rather than pre-writing every spell, spells are pitched by players and slotted into a magnitude by comparing to anchor examples — same instinct as judging a hard vs. extreme skill check.
@@ -148,7 +149,7 @@ Magic is resisted in two ways: **Resilience** makes the spell harder to land, an
 | Moderate | −2 |
 | Major | −3 |
 
-A ward only works against spells of its own element. It works automatically on top of whichever defense you chose, and the caster's degree of success does not affect it. Only your single best matching ward counts — wards never stack. A spell reduced to magnitude 0 or lower has no effect.
+A ward only works against spells of its own element. It works automatically on top of whichever defense you chose, and the caster's degree of success does not affect it. You can carry wards of **different elements** (a Fire ward and a Mind ward both protect you, each against its own element), but against any one spell only your **single best matching ward** counts — wards of the same element never stack. A spell reduced to magnitude 0 or lower has no effect.
 
 **Order of resolution:** ward lowers the magnitude → caster rolls against their skill (minus half Resilience, if chosen) → damage dice from the final magnitude, then Armor or Evasion if that was the chosen defense.
 
@@ -181,7 +182,7 @@ Uses the First Aid basic skill, and requires a consumable (bandage, kit charge, 
 - Hard success → heal 2
 - Extreme success → heal 4
 
-Limit: one attempt per wound, per character, per fight — the resource cost is what keeps this in check, not the roll.
+Limit: one attempt per patient, per healer, per fight — the resource cost is what keeps this in check, not the roll.
 
 ### 6.4 Magic Healing
 Uses the same magnitude table as damage spells (Section 5.2) — identical cost and access gating — but the **healing dice** are read from the damage-dice column **one magnitude lower** than the spell's own magnitude:
@@ -195,13 +196,15 @@ Uses the same magnitude table as damage spells (Section 5.2) — identical cost 
 | 7 | 2d8 |
 | 8 | 3d6 |
 
+Magnitude 1–2 healing spells have no healing dice — they can soothe, clean or stabilise, but don't restore HP.
+
 ### 6.5 In-Combat Mana: Channel
 Spend your action to recover **1/10 of max mana**. Channeling leaves you wide open until your next turn: you can't choose Evasion or Resilience, and your Resilience does **not** lower casters' chances against you — not even against non-damage spells like Charm. Armor still applies passively, and so do Wards.
 
 
 ## 7. Character Creation
 
-**800 points, freely distributed** across HP, Movement, Basic Skills, and Weapons/Magic/Languages — no dedicated sub-pools, no hard per-skill caps. This comfortably covers a 13 HP baseline (which only costs 91 points on its own) while leaving room to spread across several basic skills and more than one or two weapons/spells per category, matching cross-training's intent. GM discretion applies to any wildly lopsided allocation, same spirit as the inventory rule above.
+**800 points, freely distributed** across HP, Movement, Evasion, Mana, Basic Skills, and Weapons/Magic/Languages — no dedicated sub-pools, no hard per-skill caps. This comfortably covers a 13 HP baseline (which only costs 91 points on its own) while leaving room to spread across several basic skills and more than one or two weapons/spells per category, matching cross-training's intent. GM discretion applies to any wildly lopsided allocation, same spirit as the inventory rule (Section 9).
 
 
 ## 8. Traits: Advantages & Flaws
@@ -219,7 +222,7 @@ Same philosophy as magic's magnitude scale — no exhaustive list to maintain, p
 
 ### Making Flaws Matter — Compel
 A flaw that only exists on paper is just a discount. To make it a real ongoing mechanic: at any point, the GM can **compel** a character's flaw — invoking it to complicate the current scene (the gambler stumbles onto a high-stakes game right when the crew needs to move fast; the wanted pirate gets recognized by a guard). The player then chooses:
-- **Accept it** — the complication plays out, and they get a small immediate reward (an extra d10 on their next roll, a bit of free mana/HP recovery — whichever currency fits the moment).
+- **Accept it** — the complication plays out, and they get a small immediate reward (+1d10 to the skill value of their next roll, a bit of free mana/HP recovery — whichever currency fits the moment).
 - **Refuse it** — the complication is avoided, but it costs them something small in return (a point of a relevant resource, or simply no reward this time).
 
 This keeps flaws generating actual story beats throughout play, rather than being a one-time character-creation discount.
@@ -263,6 +266,6 @@ This deliberately trades strict "you get what you individually earned" purity fo
 
 
 ## 12. Summary of Open Items
-- [ ] Watch for the "spread points thin across a category" exploit in weapon/magic cross-training
+- [ ] Watch for the "spread points thin across a category" exploit in skill/weapon/magic cross-training
 - [ ] Decide if/when to split mana pools per-element once players learn a second discipline
 - [ ] Build out a second element's anchor-example table (e.g. Water) once Fire is playtested
