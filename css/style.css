@@ -688,20 +688,52 @@ input[readonly][data-skill-id] { cursor: pointer; }
   margin-right: 0.4em;
 }
 
-/* ---- Admin panel ---- */
-.campaign-block {
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px dashed var(--brass-dim);
-}
-
-.campaign-block:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
+/* ---- Admin panel ----
+   Each campaign is its own card; #admin-content uses display: contents so
+   those cards pack into main's columns just like the sheet's sections. */
+#admin-content {
+  display: contents;
 }
 
 .campaign-block h3 {
   margin-bottom: 0.4rem;
+}
+
+.campaign-actions {
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-char-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.admin-thumb {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid var(--brass-dim);
+  background: var(--navy-light);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-thumb-placeholder {
+  font-size: 0.95rem;
+  color: var(--brass-dim);
 }
 
 .admin-char-row {

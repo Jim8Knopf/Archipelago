@@ -33,19 +33,19 @@ A 100-point investment yields Movement 10 — reasonably fast, nowhere near absu
 ## 3. Skills
 
 ### 3.1 Basic Skills
-Independent, freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Bought individually, no automatic cross-training. Standard normal/hard/extreme ladder applies.
+Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Each skill is bought individually, and skills are organised into **skill groups** (e.g. **Sneaking**: Stealth, Pick Pockets; **Seafaring**: Swim, Ship Steering). Skills in the same group partially train each other with the same transfer bonus as weapons and magic (Section 3.2). Standard normal/hard/extreme ladder applies.
 
 **Skill Transfer (using a related skill instead):** a character can attempt a task with a skill they don't have, using a related one instead, if the GM allows it — always at a **malus** the GM sets on the spot, based on:
 - **How closely related** the skill is to the task — a near-perfect match gets a small malus, a stretch gets a bigger one.
 - **How general the skill itself is** — a broad, catch-all skill (e.g. a player-defined "Dexterity" instead of specific skills like Sleight of Hand, Lockpicking, or Acrobatics) can be used for almost anything, but that breadth is exactly what earns it a bigger malus every time. A narrowly defined skill (e.g. "Pick Pockets") never needs a malus for its one specific use, but also can't cover anything else.
 
-GM-decided rather than formula-derived, same spirit as ship HP and gem slot assignment — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
+GM-decided rather than formula-derived — quick at the table, no lookup table needed. It also doubles as a built-in check against naming an overly broad skill at creation: covering more ground always costs something in reliability. (This is separate from the automatic group transfer bonus in 3.2 below, which is a fixed formula, not a per-attempt GM call.)
 
-### 3.2 Weapons, Magic, and Languages — Cross-Training
-These three all share one mechanic: skills within the same **category** partially train each other.
+### 3.2 Cross-Training — Skill Groups, Weapons, Magic and Languages
+All four share one mechanic: skills within the same **category** partially train each other.
 
-- Group your weapons/spells/languages into categories (e.g. **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball; languages as their own category).
-- Each category has a **transfer bonus** = (sum of *raw* invested points across all skills in that category) ÷ 10.
+- Group your basic skills/weapons/spells/languages into categories (e.g. **Seafaring**: Swim, Ship Steering; **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball). All languages form a single category.
+- Each category has a **transfer bonus** = (sum of *raw* invested points across all skills in that category) ÷ 10, rounded down.
 - That bonus is added on top of each individual skill's raw value to get its **effective** value.
 - The bonus must be calculated from raw invested points, not effective values — otherwise it compounds on itself every time it's recalculated.
 
@@ -78,7 +78,7 @@ These three all share one mechanic: skills within the same **category** partiall
 
 Evasion = evasion skill + full movement.
 
-**Against spells**, Resilience is a third choice alongside Armor and Evasion — see Section 5.5.
+**Against damage spells**, Resilience is a third choice alongside Armor and Evasion — see Section 5.5.
 
 \page
 
@@ -86,7 +86,8 @@ Evasion = evasion skill + full movement.
 
 ### 5.1 Mana Pool
 - Each character starts with **one element** (e.g. Fire), and therefore **one mana pool** for now. Whether to split pools per-element later is an open conversation to have with players once more disciplines exist.
-- Pool size scales from points invested in the magic category and the specific spell/element skill — large investment can produce large pools (e.g. ~700+ mana at high investment), which is intended; the cost curve below is what keeps that from being overpowered, not the pool size.
+- **Max Mana = Mana points invested × (sum of the transfer bonuses of all your magic categories) ÷ 2**, rounded down. Mana points are bought from the creation pool like any other points (Section 7). *Example:* 15 Mana points with a Fire magic bonus of +10 gives 15 × 10 ÷ 2 = **75 mana**.
+- Because both factors grow with investment, a dedicated caster can reach very large pools, which is intended; the cost curve below is what keeps that from being overpowered, not the pool size.
 
 ### 5.2 Magnitude Scale (freeform, no spell list)
 Rather than pre-writing every spell, spells are pitched by players and slotted into a magnitude by comparing to anchor examples — same instinct as judging a hard vs. extreme skill check.
@@ -103,7 +104,7 @@ Rather than pre-writing every spell, spells are pitched by players and slotted i
 | 8 | | Summon a fire elemental, ignite the unburnable | 3d8 |
 
 **Modifiers** (adjust magnitude, no new spells needed):
-- Bigger area, longer duration, unwilling target, more precision demanded → **+1 magnitude**
+- Bigger area, longer duration, more precision demanded → **+1 magnitude**
 - Added drawback, narrower use-case, slower cast time → **−1 magnitude**
 
 **Access gating:** a character can only attempt magnitudes that fall within their own success-tier reach — a magnitude within your "hard success" threshold is a normal attempt; above that requires rolling a hard/extreme success just to go off at all; beyond your extreme-success threshold, it's not attemptable regardless of mana. This ties magic's power ceiling to skill investment, the same way combat skill gates what a character can reliably hit.
@@ -125,6 +126,7 @@ Base cost per magnitude follows a **doubling** curve (chosen specifically becaus
 - **Fail costs the same as Extreme success** (the low end of the table) — even a botched cast should sting a little, but not as much as a clumsy full-price attempt.
 - Cantrips stay cheap under every outcome, preserving low-stakes "fluff" casting.
 - Top-magnitude spells cost enough that even a very large pool only supports a handful of casts, keeping big magic rare without needing a damage-side penalty to compensate.
+- A **natural 00** while casting is an automatic Extreme Success (Section 1), so it costs the cheap Extreme-success rate, plus the usual +1 skill point from Section 11.1 — no additional refund on top of that, so it can't be used to make high-magnitude spells free.
 
 ### 5.4 Spell Damage
 Roll the dice from the magnitude table (after any magnitude reduction from Section 5.5), then resolve exactly like weapon damage (Section 4): straight to the defender's chosen Armor or Evasion. No separate success-based damage reduction on the caster's side — the cost table above is what keeps top-end magic in check, not a second damage penalty.
@@ -132,16 +134,14 @@ Roll the dice from the magnitude table (after any magnitude reduction from Secti
 \page
 
 ### 5.5 Defending Against Magic
-Magic is resisted by **reducing its magnitude**. The reduction happens before damage dice are read, and it weakens non-damage effects too (judge the weaker effect against the anchor examples in 5.2). A spell reduced to magnitude 0 or lower has no effect. The caster still pays the mana for the original magnitude.
+Magic is resisted in two ways: **Resilience** makes the spell harder to land, and **Wards** reduce its magnitude. The caster always pays the mana for the original magnitude.
 
-**Resilience (Widerstandskraft)** — the active defense. A basic skill, freeform like any other (Willpower, Iron Nerve, Warding Lore...); the broad-skill malus from Section 3.1 applies. Against a spell, the defender chooses **one** of Armor, Evasion or Resilience.
-- **Normal success** → magnitude −1
-- **Hard success** → magnitude −2
-- **Extreme success** → magnitude −3
-- **Fail** → no reduction, and armor does not apply either (same either/or risk as Evasion).
-- The caster's degree of success degrades Resilience like any other defense (Section 4): on a **hard success** roll against **half** your Resilience; on an **extreme success** no roll is allowed.
+**Resilience (Widerstandskraft)** — a basic skill, freeform like any other (Willpower, Iron Nerve, Warding Lore...); the broad-skill malus from Section 3.1 applies. Resilience is **never rolled**. Instead it lowers the caster's chance: the caster rolls against **their skill − half your Resilience**, and derives normal/hard/extreme from that lowered value. Access gating (Section 5.2) still uses the caster's unmodified skill.
+- **Damage spells:** Resilience is one of your three defense choices (Armor, Evasion or Resilience). If the spell still hits, it deals full damage — armor does not apply.
+- **Non-damage spells:** Resilience always applies; there is no choice to make (see Section 5.6).
+- If the lowered value is 0 or less, only a natural 00 can affect you (Section 1).
 
-**Wards (Bannsteine)** — the passive defense. Element-locked charms, amulets or gemstones, the personal version of the ship Warding Gems:
+**Wards (Bannsteine)** — the passive defense. Element-locked charms, amulets or gemstones, the personal version of the ship Guard Stones:
 
 | Tier | Magnitude reduction |
 |---|---|
@@ -149,36 +149,21 @@ Magic is resisted by **reducing its magnitude**. The reduction happens before da
 | Moderate | −2 |
 | Major | −3 |
 
-A ward only works against spells of its own element. It works automatically on top of whichever defense you chose, and the caster's degree of success does not degrade it. Only your single best matching ward counts — wards never stack.
+A ward only works against spells of its own element. It works automatically on top of whichever defense you chose, and the caster's degree of success does not affect it. You can carry wards of **different elements** (a Fire ward and a Mind ward both protect you, each against its own element), but against any one spell only your **single best matching ward** counts — wards of the same element never stack. A spell reduced to magnitude 0 or lower has no effect.
 
-**Order of resolution:** ward → chosen defense → damage dice from the final magnitude. Armor and Evasion never reduce magnitude, and Resilience never subtracts flat damage.
+**Order of resolution:** ward lowers the magnitude → caster rolls against their skill (minus half Resilience, if chosen) → damage dice from the final magnitude, then Armor or Evasion if that was the chosen defense.
 
 {{note
-#### Example — Fireball vs. Ward
-A magnitude 6 fireball (2d8) hits on a normal success. The target wears a Moderate Fire ward (−2 → magnitude 4) and chooses Resilience, rolling a hard success (−2 → magnitude 2). The fireball does 1d4.
+#### Example — Fireball vs. Resilience and Ward
+A caster with Fire skill 60 throws a magnitude 6 fireball (2d8). The target wears a Moderate Fire ward (−2 → magnitude 4, 1d8) and chooses Resilience 30, so the caster needs **60 − 15 = 45** or less (hard ≤ 22, extreme ≤ 9). They roll 38: a hit. The fireball does 1d8, and armor does not apply.
 }}
 
 ### 5.6 Non-Damage Spells (Charm, Sleep, Fear...)
-Same rule, nothing new to learn: the target resists by **reducing the magnitude**, and the GM re-slots the effect at the reduced magnitude using the anchor examples (Section 5.2). At magnitude 0 or lower, nothing happens.
+Same rule, nothing new to learn — but these spells are **hit or miss**: if the caster's roll succeeds, the effect lands at its (ward-reduced) magnitude; if it fails, nothing happens.
 
-- **Only Resilience and Wards apply.** Armor and Evasion cannot stop a mind or body effect, so there is no either/or choice to make — the target simply rolls Resilience (the ward works on top, as usual). A failed roll costs nothing extra; the spell lands at full magnitude.
-- **Willing targets** (buffs, healing, a friendly charm) can skip the roll and take the spell at full magnitude.
-- **Unwilling targets** already cost the caster **+1 magnitude** (Section 5.2), so a hostile charm is harder to cast *and* can still be resisted.
+- **Only Resilience and Wards apply.** Armor and Evasion cannot stop a mind or body effect, so there is no either/or choice to make — Resilience always lowers the caster's chance, and the ward works on top, as usual.
+- **Willing targets** (buffs, healing, a friendly charm) can waive their Resilience and take the spell at full magnitude.
 - **Mixed spells** (damage plus an effect, like a burning curse) use the one chosen defense for both parts.
-
-{{note
-#### Example — Charm (Mind)
-
-| Final magnitude | Effect on the target |
-|---|---|
-| 4 | Dominated: obeys orders for the scene |
-| 3 | Treats the caster as a trusted friend for the scene |
-| 2 | Warm and talkative, shares small favours |
-| 1 | A brief flicker of liking or hesitation |
-| 0 or lower | Shrugs it off |
-
-A magnitude 4 Charm against a target with a Moderate Mind ward (−2) who also rolls a normal Resilience success (−1) lands at magnitude 1 — a flicker of doubt, not a puppet.
-}}
 
 \page
 
@@ -197,7 +182,7 @@ Uses the First Aid basic skill, and requires a consumable (bandage, kit charge, 
 - Hard success → heal 2
 - Extreme success → heal 4
 
-Limit: one attempt per wound, per character, per fight — the resource cost is what keeps this in check, not the roll.
+Limit: one attempt per patient, per healer, per fight — the resource cost is what keeps this in check, not the roll.
 
 ### 6.4 Magic Healing
 Uses the same magnitude table as damage spells (Section 5.2) — identical cost and access gating — but the **healing dice** are read from the damage-dice column **one magnitude lower** than the spell's own magnitude:
@@ -211,15 +196,15 @@ Uses the same magnitude table as damage spells (Section 5.2) — identical cost 
 | 7 | 2d8 |
 | 8 | 3d6 |
 
-### 6.5 In-Combat Mana: Channel
-Spend your action to recover **1/10 of max mana**. While channeling, you forfeit your active defenses this round (Evasion and Resilience) — Armor still applies passively, but you can't choose to dodge or resist actively.
+Magnitude 1–2 healing spells have no healing dice — they can soothe, clean or stabilise, but don't restore HP.
 
-A natural 00 while casting is an automatic Extreme Success (Section 1), so it costs the cheap Extreme-success rate, plus the usual +1 skill point from Section 11.1 — no additional refund on top of that, so it can't be used to make high-magnitude spells free.
+### 6.5 In-Combat Mana: Channel
+Spend your action to recover **1/10 of max mana**. Channeling leaves you wide open until your next turn: you can't choose Evasion or Resilience, and your Resilience does **not** lower casters' chances against you — not even against non-damage spells like Charm. Armor still applies passively, and so do Wards.
 
 
 ## 7. Character Creation
 
-**800 points, freely distributed** across HP, Movement, Basic Skills, and Weapons/Magic/Languages — no dedicated sub-pools, no hard per-skill caps. This comfortably covers a 13 HP baseline (which only costs 91 points on its own) while leaving room to spread across several basic skills and more than one or two weapons/spells per category, matching cross-training's intent. GM discretion applies to any wildly lopsided allocation, same spirit as the inventory rule above.
+**800 points, freely distributed** across HP, Movement, Evasion, Mana, Basic Skills, and Weapons/Magic/Languages — no dedicated sub-pools, no hard per-skill caps. This comfortably covers a 13 HP baseline (which only costs 91 points on its own) while leaving room to spread across several basic skills and more than one or two weapons/spells per category, matching cross-training's intent. GM discretion applies to any wildly lopsided allocation, same spirit as the inventory rule (Section 9).
 
 
 ## 8. Traits: Advantages & Flaws
@@ -237,7 +222,7 @@ Same philosophy as magic's magnitude scale — no exhaustive list to maintain, p
 
 ### Making Flaws Matter — Compel
 A flaw that only exists on paper is just a discount. To make it a real ongoing mechanic: at any point, the GM can **compel** a character's flaw — invoking it to complicate the current scene (the gambler stumbles onto a high-stakes game right when the crew needs to move fast; the wanted pirate gets recognized by a guard). The player then chooses:
-- **Accept it** — the complication plays out, and they get a small immediate reward (an extra d10 on their next roll, a bit of free mana/HP recovery — whichever currency fits the moment).
+- **Accept it** — the complication plays out, and they get a small immediate reward (+1d10 to the skill value of their next roll, a bit of free mana/HP recovery — whichever currency fits the moment).
 - **Refuse it** — the complication is avoided, but it costs them something small in return (a point of a relevant resource, or simply no reward this time).
 
 This keeps flaws generating actual story beats throughout play, rather than being a one-time character-creation discount.
@@ -278,9 +263,3 @@ At the end of each island (story arc), before starting the next one:
 3. Every character then receives an additional shared batch of points for the next island.
 
 This deliberately trades strict "you get what you individually earned" purity for table-level balance — nobody falls permanently behind because they had less spotlight time or rolled fewer 00s, and every island starts the party on an even footing regardless of how the last one went.
-
-
-## 12. Summary of Open Items
-- [ ] Watch for the "spread points thin across a category" exploit in weapon/magic cross-training
-- [ ] Decide if/when to split mana pools per-element once players learn a second discipline
-- [ ] Build out a second element's anchor-example table (e.g. Water) once Fire is playtested

@@ -15,10 +15,15 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <!-- The rules text lives in rules.md (Homebrewery-flavoured Markdown:
+  <!-- Two books: rules.md (core rules, default) and ships.md (?book=ships).
+       The text is Homebrewery-flavoured Markdown:
        \page starts a new page, \column a new column, {{note ... }} a note
        box). rules.js fetches and renders it into the book pages below. -->
   <main class="rules-main">
+    <nav class="book-tabs" id="book-tabs" aria-label="Rulebooks">
+      <a href="./" data-book="core">Core Rules</a>
+      <a href="?book=ships" data-book="ships">Ship Rules</a>
+    </nav>
     <div id="rules-book" class="rules-book">
       <p class="rules-status">Unrolling the scrolls…</p>
     </div>

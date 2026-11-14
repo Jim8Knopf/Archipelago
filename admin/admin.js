@@ -31,11 +31,25 @@ function gmUrl(campaignId) {
   return url.toString();
 }
 
+// Small portrait thumbnail next to each character's name. Only http(s)
+// URLs are used; anything else (or a broken link, see the error handler
+// below) falls back to the same anchor placeholder the sheet shows.
+function thumbHtml(imageUrl) {
+  const url = (imageUrl || "").trim();
+  const safe = /^https?:\/\//i.test(url);
+  return `
+    <span class="admin-thumb">
+      ${safe ? `<img src="${escapeHtml(url)}" alt="" loading="lazy">` : ""}
+      <span class="admin-thumb-placeholder"${safe ? ' style="display:none;"' : ""}>⚓</span>
+    </span>
+  `;
+}
+
 function render(byCampaign) {
   const campaignIds = Object.keys(byCampaign).sort();
 
   if (campaignIds.length === 0) {
-    content.innerHTML = `<p class="empty-state">No campaigns found yet — create a character from the Character Sheet page to get started.</p>`;
+    content.innerHTML = `<div class="card empty-state">No campaigns found yet — create a character from the Character Sheet page to get started.</div>`;
     return;
   }
 
@@ -45,7 +59,7 @@ function render(byCampaign) {
       const maxHP = R.hpFromPoints(data.hpPoints);
       return `
         <div class="admin-char-row" data-campaign="${escapeHtml(campaignId)}" data-char="${id}">
-          <span>${escapeHtml(data.name || "Unnamed")} <span class="muted">— HP ${data.currentHP ?? 0}/${maxHP}${R.hasMagic(data) ? `, Mana ${data.currentMana ?? 0}/${R.manaPoolFromPoints(data.manaPoints, data.categories)}` : ""}</span></span>
+          <span class="admin-char-name">${thumbHtml(data.imageUrl)}<span>${escapeHtml(data.name || "Unnamed")} <span class="muted">— HP ${data.currentHP ?? 0}/${maxHP}${R.hasMagic(data) ? `, Mana ${data.currentMana ?? 0}/${R.manaPoolFromPoints(data.manaPoints, data.categories)}` : ""}</span></span></span>
           <span class="links">
             <a href="${sheetUrl(campaignId, id)}" target="_blank">Open sheet</a>
             <a href="#" data-action="delete-char">Delete</a>
@@ -55,19 +69,26 @@ function render(byCampaign) {
     }).join("");
 
     return `
-      <div class="campaign-block" data-campaign="${escapeHtml(campaignId)}">
-        <div class="row spread">
-          <h3>${escapeHtml(campaignId)} <span class="muted">(${chars.length} character${chars.length === 1 ? "" : "s"})</span></h3>
-          <span class="row">
+      <div class="card campaign-block" data-campaign="${escapeHtml(campaignId)}">
+        <h3>${escapeHtml(campaignId)} <span class="muted">(${chars.length} character${chars.length === 1 ? "" : "s"})</span></h3>
+        <div class="row campaign-actions">
             <a href="${gmUrl(campaignId)}" target="_blank"><button class="small">GM Dashboard</button></a>
-            <button class="small danger" data-action="delete-campaign" data-campaign="${escapeHtml(campaignId)}">Delete all in campaign</button>
-          </span>
+          <button class="small danger" data-action="delete-campaign" data-campaign="${escapeHtml(campaignId)}">Delete all in campaign</button>
         </div>
         ${rows}
       </div>
     `;
   }).join("");
 }
+
+// Broken portrait link → show the placeholder instead. "error" doesn't
+// bubble, so listen in the capture phase to catch it from every <img>.
+content.addEventListener("error", (e) => {
+  if (e.target.tagName !== "IMG") return;
+  e.target.style.display = "none";
+  const ph = e.target.nextElementSibling;
+  if (ph) ph.style.display = "";
+}, true);
 
 content.addEventListener("click", async (e) => {
   const deleteCharLink = e.target.closest("a[data-action='delete-char']");
@@ -120,5 +141,5 @@ onSnapshot(collectionGroup(db, "characters"), (snap) => {
 }, (err) => {
   console.error(err);
   flash("Connection error — check firebase-config.js and firestore.rules.");
-  content.innerHTML = `<p class="empty-state">Couldn't load campaigns.</p>`;
+  content.innerHTML = `<div class="card empty-state">Couldn't load campaigns.</div>`;
 });
