@@ -95,6 +95,30 @@ export function evasionTotal(evasionPoints, movement) {
   return (Number(evasionPoints) || 0) + (Number(movement) || 0);
 }
 
+// Section 5.5: Resilience is an ordinary basic skill (Willpower, Iron Nerve,
+// Warding Lore...) that the player marks as their Resilience skill. It is
+// never rolled — it lowers a caster's chance against you by half its
+// effective value. Returns the marked skill with its effective value
+// (group transfer bonus included), or null if none is marked. Only one skill
+// should carry the flag; if an older doc somehow has several, the best wins.
+export function resilienceSkill(categories) {
+  let best = null;
+  categoriesOfType(categories, "skill").forEach(cat => {
+    const bonus = categoryBonus(cat.skills);
+    (cat.skills || []).filter(s => s.resilience).forEach(s => {
+      const effective = categorySkillEffective(s, bonus);
+      if (!best || effective > best.effective) best = { skill: s, group: cat, effective };
+    });
+  });
+  return best;
+}
+
+// How much a caster's skill drops against you: half your Resilience, floored
+// like every other halved threshold in the ladder.
+export function resilienceMalus(effective) {
+  return Math.floor((Number(effective) || 0) / 2);
+}
+
 // Section 8: Trait tier point values.
 export function tierValue(tier) {
   return { minor: 15, moderate: 30, major: 50 }[tier] || 0;
