@@ -65,9 +65,16 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
   const magnitudeTag = magnitude != null
     ? `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>`
     : "";
+  const isSpell = magnitude != null;
+  const note = isSpell ? (skill.note || "").trim() : "";
+  // View mode: a spell's note sits right under its name as plain text.
+  // Edit mode shows the full textarea row instead (see noteRow below).
+  const noteDisplay = note && currentMode === "view"
+    ? `<div class="spell-note">${escapeHtml(note)}</div>`
+    : "";
   const nameCell = `
     <td>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
-      ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}"></td>`;
+      ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}">${noteDisplay}</td>`;
   const pointsCell = `<td data-edit-control="true"><input type="number" data-field="points" value="${skill.points || 0}" min="0"></td>`;
   const magnitudeCell = magnitude != null
     ? `<td data-edit-control="true"><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>`
@@ -79,7 +86,19 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
   }).join("");
   const removeCell = `<td data-edit-control="true"><button class="small danger" data-action="remove-skill">✕</button></td>`;
 
-  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>`;
+  const columnCount = 3 + (isSpell ? 1 : 0) + tiers.length;
+  // Spells get a second, edit-only row spanning the table, holding a
+  // free-text note (effect, range, duration, component...). It shares the
+  // spell's data-id so the category container's change handler saves it
+  // onto the same skill object as the name/points/magnitude inputs.
+  const noteRow = isSpell
+    ? `<tr class="spell-note-row" data-id="${skill.id}"${catAttr} data-edit-control="true">
+        <td colspan="${columnCount}"><textarea data-field="note" rows="1"
+          placeholder="Spell notes — effect, range, duration, components…">${escapeHtml(skill.note || "")}</textarea></td>
+      </tr>`
+    : "";
+
+  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>${noteRow}`;
 }
 
 // Marks a skill "used" when its name or any of its value cells is tapped —
@@ -678,10 +697,11 @@ function renderMagicCategories(d) {
 
 function wireCategoryContainer(container, dataKey) {
   container.addEventListener("change", (e) => {
-    const input = e.target.closest("input[data-field]");
+    const input = e.target.closest("input[data-field], textarea[data-field]");
     if (!input) return;
     const catId = input.closest("[data-cat]").dataset.cat;
     const row = input.closest("tr");
+    const TEXT_FIELDS = ["name", "note"];
 
     const updatedList = currentData[dataKey].map(cat => {
       if (cat.id !== catId) return cat;
@@ -690,7 +710,7 @@ function wireCategoryContainer(container, dataKey) {
         return {
           ...cat,
           skills: cat.skills.map(s => s.id === skillId
-            ? { ...s, [input.dataset.field]: input.dataset.field === "name" ? input.value : (parseFloat(input.value) || 0) }
+            ? { ...s, [input.dataset.field]: TEXT_FIELDS.includes(input.dataset.field) ? input.value : (parseFloat(input.value) || 0) }
             : s
           )
         };

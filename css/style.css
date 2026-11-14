@@ -730,3 +730,40 @@ footer.foot {
   margin-top: 2rem;
   opacity: 0.7;
 }
+/* ---- Spell notes (issue #5) — free-text note per spell. Edit mode shows a
+   full-width textarea row under the spell; View mode shows the note as a
+   small italic line under the spell's name. ---- */
+.spell-note-row td {
+  padding-top: 0;
+  border-top: none;
+}
+
+.spell-note-row textarea {
+  width: 100%;
+  min-height: 2.2rem;
+  font-size: .9rem;
+  resize: vertical;
+  field-sizing: content;
+}
+
+.spell-note {
+  font-size: .85rem;
+  font-style: italic;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+  margin-top: .15rem;
+  line-height: 1.3;
+}
+
+/* ---- GM spellbook — every spell of every character in one table ---- */
+.spellbook-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.spellbook-table th, .spellbook-table td {
+  text-align: left;
+  padding: .35rem .4rem;
+  border-bottom: 1px dashed var(--brass-dim);
+  vertical-align: top;
+}
+.spellbook-table th { color: var(--ink-soft); font-size: .75rem; text-transform: uppercase; }
+.spellbook-table td.num, .spellbook-table th.num { text-align: right; white-space: nowrap; }
+.spellbook-table .spell-note { margin-top: 0; }
+.spellbook-filter { width: 100%; margin-bottom: .6rem; }
