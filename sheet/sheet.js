@@ -100,7 +100,7 @@ function wireUsedToggle(containerId) {
   });
   el.dataset.usedWired = "1";
 }
-["basic-skills-body", "languages-container", "weapons-container", "magic-container"].forEach(wireUsedToggle);
+["skills-container", "languages-container", "weapons-container", "magic-container"].forEach(wireUsedToggle);
 
 // ---- View / Edit mode ----
 
@@ -165,10 +165,17 @@ function initSheet() {
       flash(loaderStatus, "That character doesn't exist yet in this campaign.");
       return;
     }
-    currentData = normalize(snap.data());
+    const raw = snap.data();
+    currentData = normalize(raw);
     loaderCard.style.display = "none";
     sheetCard.style.display = "contents";
     render();
+    // normalize() only migrates in memory. Write the skill-group migration
+    // back once, so the stale flat list can't linger in Firestore and get
+    // counted a second time by pointsSpent() on the GM dashboard.
+    if ((raw.basicSkills || []).length > 0) {
+      saveField({ basicSkills: [], categories: currentData.categories });
+    }
   }, (err) => {
     console.error(err);
     flash(loaderStatus, "Connection error — check firestore.rules allows access.");
@@ -176,6 +183,7 @@ function initSheet() {
 }
 
 // Fills in missing fields from older/partial docs, and migrates legacy shapes:
+// - flat `basicSkills` array -> a "skill" type category (skill group)
 // - "language" type categories -> flat `languages` array
 // - a Basic Skill literally named "Evasion" -> `evasionPoints`
 // - old flat `armor` number -> `armorCustom`
@@ -188,19 +196,25 @@ function normalize(d) {
     .filter(c => c.type === "language")
     .flatMap(c => c.skills || []);
 
-  const rawBasicSkills = d.basicSkills || def.basicSkills;
+  const rawBasicSkills = d.basicSkills || [];
   const legacyEvasionSkill = rawBasicSkills.find(s => (s.name || "").trim().toLowerCase() === "evasion");
   const basicSkills = rawBasicSkills.filter(s => s !== legacyEvasionSkill);
   const evasionPoints = d.evasionPoints ?? (legacyEvasionSkill ? legacyEvasionSkill.points : 0);
 
   const inventory = (d.inventory || []).map(item => item.type ? item : { ...item, type: "item" });
 
+  // Basic Skills are groups now (type "skill" categories). Any flat list
+  // left on an older document is folded into a group here, and `basicSkills`
+  // is emptied so the same skills can't be counted or shown twice. The
+  // emptied list is written back on the next save of that field.
+  const withSkillGroups = R.migrateBasicSkills(basicSkills, categories);
+
   return {
     ...def,
     ...d,
     basicInfo: { ...def.basicInfo, ...(d.basicInfo || {}) },
-    basicSkills,
-    categories,
+    basicSkills: [],
+    categories: withSkillGroups,
     languages: d.languages && d.languages.length ? d.languages : legacyLangSkills,
     traits: d.traits || [],
     inventory,
@@ -233,7 +247,7 @@ function render() {
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
   renderLanguages(d.languages);
-  renderBasicSkills(d.basicSkills);
+  renderCategoryGroup("skills-container", d.categories, "skill");
   renderCategoryGroup("weapons-container", d.categories, "weapon");
   renderMagicStats(d);
   renderMagicCategories(d);
@@ -246,6 +260,10 @@ function render() {
   const hideWhenEmpty = (id, isEmpty) => {
     document.getElementById(id).style.display = (currentMode === "view" && isEmpty) ? "none" : "";
   };
+  // A skill group with no skills in it is still noise in View mode, so the
+  // section hides unless at least one group actually has a skill.
+  const skillGroups = catsOfType(d.categories, "skill");
+  hideWhenEmpty("skills-section", !skillGroups.some(c => (c.skills || []).length > 0));
   hideWhenEmpty("weapons-section", catsOfType(d.categories, "weapon").length === 0);
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
@@ -556,50 +574,23 @@ document.getElementById("add-language-btn").addEventListener("click", () => {
   saveField({ languages: [...currentData.languages, { id: R.makeId(), name: "New Language", points: 0 }] });
 });
 
-// ---- Basic skills ----
-
-function renderBasicSkills(skills) {
-  const tbody = document.getElementById("basic-skills-body");
-  const rows = skills.map(s => {
-    const l = R.ladder(s.points);
-    return skillRowHtml(currentData, s, { tiers: [l.normal, l.hard, l.extreme] });
-  }).join("");
-  tbody.innerHTML = rows || (currentMode === "edit"
-    ? `<tr><td colspan="6" class="empty-state">No basic skills yet.</td></tr>`
-    : "");
-}
-
-document.getElementById("basic-skills-body").addEventListener("change", (e) => {
-  const input = e.target.closest("input[data-field]");
-  if (!input) return;
-  const tr = input.closest("tr");
-  const id = tr.dataset.id;
-  const skills = currentData.basicSkills.map(s => s.id === id
-    ? { ...s, [input.dataset.field]: input.dataset.field === "points" ? (parseFloat(input.value) || 0) : input.value }
-    : s
-  );
-  saveField({ basicSkills: skills });
-});
-
-document.getElementById("basic-skills-body").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-action='remove-skill']");
-  if (!btn) return;
-  const id = btn.closest("tr").dataset.id;
-  saveField({ basicSkills: currentData.basicSkills.filter(s => s.id !== id) });
-});
-
-document.getElementById("add-basic-skill-btn").addEventListener("click", () => {
-  saveField({ basicSkills: [...currentData.basicSkills, { id: R.makeId(), name: "New Skill", points: 0 }] });
-});
-
-// ---- Weapons: multiple named categories ----
+// ---- Skills & Weapons: multiple named categories ----
+//
+// Skill groups and weapon categories render identically — the only
+// difference is the wording on the header row and the "add" button, so both
+// go through this one function rather than a near-duplicate copy each.
+const CATEGORY_LABELS = {
+  skill: { group: "Group name", member: "Skill", add: "+ Add skill to this group", removeGroup: "✕ Group", empty: "No skill groups yet." },
+  weapon: { group: "Category name", member: "Skill", add: "+ Add skill to this category", removeGroup: "✕ Category", empty: "No categories yet." }
+};
 
 function renderCategoryGroup(containerId, allCategories, type) {
   const container = document.getElementById(containerId);
   const categories = catsOfType(allCategories, type);
+  const labels = CATEGORY_LABELS[type];
 
   if (categories.length === 0) {
-    container.innerHTML = currentMode === "edit" ? `<p class="empty-state">No categories yet.</p>` : "";
+    container.innerHTML = currentMode === "edit" ? `<p class="empty-state">${labels.empty}</p>` : "";
   } else {
     const ro = currentMode === "view" ? "readonly" : "";
     container.innerHTML = categories.map(cat => {
@@ -613,17 +604,17 @@ function renderCategoryGroup(containerId, allCategories, type) {
       return `
         <div class="category-card" data-cat="${cat.id}">
           <div class="cat-header">
-            <input type="text" data-field="name" placeholder="Category name" value="${escapeHtml(cat.name)}" ${ro}>
-            <button class="small danger" data-action="remove-category" data-edit-control="true">✕ Category</button>
+            <input type="text" data-field="name" placeholder="${labels.group}" value="${escapeHtml(cat.name)}" ${ro}>
+            <button class="small danger" data-action="remove-category" data-edit-control="true">${labels.removeGroup}</button>
           </div>
           <div class="cat-bonus">Transfer bonus: +${bonus}</div>
           <div class="table-scroll">
             <table class="skill-table">
-              <thead><tr><th>Skill</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
+              <thead><tr><th>${labels.member}</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
               <tbody>${skillRows}</tbody>
             </table>
           </div>
-          <button class="small brass" data-action="add-skill" data-edit-control="true">+ Add skill to this category</button>
+          <button class="small brass" data-action="add-skill" data-edit-control="true">${labels.add}</button>
         </div>
       `;
     }).join("");
@@ -735,6 +726,9 @@ function wireCategoryContainer(container, dataKey) {
   });
 }
 
+document.getElementById("add-skill-group-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Skill Group", type: "skill", skills: [] }] });
+});
 document.getElementById("add-weapon-category-btn").addEventListener("click", () => {
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Weapon Category", type: "weapon", skills: [] }] });
 });

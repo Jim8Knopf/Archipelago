@@ -168,15 +168,11 @@
         <button class="small brass" id="add-language-btn" data-edit-control="true">+ Add language</button>
       </details>
 
-      <details class="card shared-section" open>
+      <details class="card shared-section" open id="skills-section">
         <summary><h3 style="display:inline;">Basic Skills</h3></summary>
-        <div class="table-scroll">
-          <table class="skill-table">
-            <thead><tr><th>Skill</th><th data-edit-control="true">Points</th><th>Normal</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
-            <tbody id="basic-skills-body"></tbody>
-          </table>
-        </div>
-        <button class="small brass" id="add-basic-skill-btn" data-edit-control="true">+ Add skill</button>
+        <p class="muted">Skills are organised into groups. Skills in the same group partially train each other — bonus = (sum of raw points in group) ÷ 10.</p>
+        <div id="skills-container"></div>
+        <button class="small brass" id="add-skill-group-btn" data-edit-control="true">+ Add skill group</button>
       </details>
 
       <details class="card shared-section" open id="weapons-section">

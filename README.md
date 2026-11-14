@@ -1,7 +1,7 @@
 # Archipelago — Ship's Log (prototype)
 
 A live-synced, full character sheet — basic info, HP/Movement/Evasion,
-Mana, Basic Skills, Weapons/Magic/Languages (with cross-training bonus),
+Mana, Basic Skills (in groups), Weapons/Magic/Languages (with cross-training bonus),
 Traits, Inventory, and a running character-creation point budget — plus
 a GM dashboard, hosted as a static site on GitHub Pages and backed by
 Firebase Firestore for real-time sync between players and the GM.
@@ -119,9 +119,10 @@ campaigns/{campaignId}/characters/{characterId}
   currentHP:      number
   maxMana:        number   — set by GM/player judgement (Section 5.1 has no fixed formula)
   currentMana:    number
-  basicSkills:    array of { id, name, points }         — no cross-training
+  basicSkills:    legacy flat skill list — migrated into a "skill" category
+                             on load and then left empty; nothing writes to it
   categories:     array of { id, name, type, skills: [{ id, name, points }] }
-                             type is "weapon" | "magic" | "language"
+                             type is "skill" | "weapon" | "magic" | "language"
   traits:         array of { id, name, type, tier, description }
                              type is "advantage" | "flaw"; tier is "minor" | "moderate" | "major"
   inventory:      array of { name, qty }
@@ -131,8 +132,8 @@ campaigns/{campaignId}/characters/{characterId}
 
 - **Max HP** — largest `n` where `n(n+1)/2 ≤ hpPoints` (Section 2)
 - **Movement** — `floor(sqrt(movementPoints))` m/s (Section 2)
-- **Evasion total** — the raw value of a Basic Skill literally named "Evasion", plus full Movement (Section 4). Add a skill called exactly `Evasion` to feed this.
-- **Category transfer bonus** — `(sum of raw points across all skills in that category) ÷ 10`, added to each skill's raw value to get its effective value (Section 3.2)
+- **Evasion total** — `evasionPoints` invested plus full Movement (Section 4). Evasion has its own field in Attributes; a legacy Basic Skill named exactly `Evasion` is migrated into it on load.
+- **Category transfer bonus** — `(sum of raw points across all skills in that category) ÷ 10`, added to each skill's raw value to get its effective value (Section 3.2). Applies to skill groups, weapon categories and magic categories alike — Basic Skills are organised into named groups whose members partially train each other, the same way weapons and spells do.
 - **Normal / Hard / Extreme** — effective value, effective ÷ 2, effective ÷ 5 (Section 1)
 - **Points budget** — spent = HP points + Movement points + all Basic Skill points + all category skill points + Advantage costs; available = `pointsGranted` + Flaw bonus points; remaining = available − spent (Sections 7–8)
 

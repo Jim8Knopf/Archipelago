@@ -155,13 +155,15 @@ function buildFullDetails(data) {
     .filter(k => info[k])
     .map(k => `<tr><th>${k}</th><td>${escapeHtml(info[k])}</td></tr>`).join("");
 
-  const basicSkillRows = (data.basicSkills || []).map(s => {
-    const l = R.ladder(s.points);
-    return `<tr><td>${escapeHtml(s.name)}</td><td>${s.points}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
-  }).join("");
-
-  const weaponBlocks = (data.categories || []).filter(c => c.type === "weapon").map(cat => categoryBlockHtml(cat)).join("");
-  const magicBlocks = (data.categories || []).filter(c => c.type === "magic").map(cat => magicCategoryBlockHtml(cat)).join("");
+  // Skill groups cross-train like weapon categories, so they go through the
+  // same block renderer. A character whose doc predates skill groups may
+  // still have a flat `basicSkills` list — migrateBasicSkills folds it into
+  // a group here too, so the GM sees the same thing the player does even
+  // before that player has opened their sheet to persist the migration.
+  const categories = R.migrateBasicSkills(data.basicSkills, data.categories);
+  const skillBlocks = R.categoriesOfType(categories, "skill").map(cat => categoryBlockHtml(cat)).join("");
+  const weaponBlocks = R.categoriesOfType(categories, "weapon").map(cat => categoryBlockHtml(cat)).join("");
+  const magicBlocks = R.categoriesOfType(categories, "magic").map(cat => magicCategoryBlockHtml(cat)).join("");
 
   const langBonus = R.categoryBonus(data.languages);
   const langRows = (data.languages || []).map(s => {
@@ -176,8 +178,7 @@ function buildFullDetails(data) {
 
   return `
     ${infoRows ? `<table>${infoRows}</table>` : ""}
-    ${basicSkillRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Basic Skills</strong></p>
-      <table><thead><tr><th>Skill</th><th>Pts</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${basicSkillRows}</tbody></table>` : ""}
+    ${skillBlocks ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Basic Skills</strong></p>${skillBlocks}` : ""}
     ${weaponBlocks ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Weapons</strong></p>${weaponBlocks}` : ""}
     ${magicBlocks ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Magic</strong></p>${magicBlocks}` : ""}
     ${langRows ? `<p class="muted" style="margin-bottom:0.15rem;"><strong>Languages</strong> — bonus +${langBonus}</p>
