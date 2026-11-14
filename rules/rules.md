@@ -263,9 +263,3 @@ At the end of each island (story arc), before starting the next one:
 3. Every character then receives an additional shared batch of points for the next island.
 
 This deliberately trades strict "you get what you individually earned" purity for table-level balance — nobody falls permanently behind because they had less spotlight time or rolled fewer 00s, and every island starts the party on an even footing regardless of how the last one went.
-
-
-## 12. Summary of Open Items
-- [ ] Watch for the "spread points thin across a category" exploit in skill/weapon/magic cross-training
-- [ ] Decide if/when to split mana pools per-element once players learn a second discipline
-- [ ] Build out a second element's anchor-example table (e.g. Water) once Fire is playtested

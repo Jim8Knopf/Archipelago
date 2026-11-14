@@ -508,12 +508,3 @@ Built to haul immensely valuable cargo through dangerous waters, the East Indiam
 
 **Benefits:** the richest cargo a crew can realistically capture; armed to bluff or beat casual attackers; hard to board.
 **Flaws:** genuinely dangerous to attack; slow to replace if damaged in the taking; often travels with naval escorts.
-
-## 16. Open Items
-
-- [ ] Playtest damage against Hull — the target is roughly 3–4 landed broadsides to cripple a ship of the same class.
-- [ ] Ramming and collision rules (War Galley's Ram trait).
-- [ ] Confirm the Doubloon's exchange rate against character-creation points, if the two economies should ever interact.
-- [ ] Pin down any risk or check for an emergency Guard Stone swap faster than a short rest.
-- [ ] Design the offensive gem-weapon variant once Guard Stones have been playtested.
-- [ ] Revisit Guard Stone pricing once a second element exists.
