@@ -767,3 +767,51 @@ footer.foot {
 .spellbook-table td.num, .spellbook-table th.num { text-align: right; white-space: nowrap; }
 .spellbook-table .spell-note { margin-top: 0; }
 .spellbook-filter { width: 100%; margin-bottom: .6rem; }
+
+/* ---- Spell info: (i) button + floating panel (sheet, View mode) ----
+   The button keeps a wide gap from the spell name and a large hit area so
+   tapping it never lands on the name (which marks the spell "used"). */
+.name-wrap {
+  display: flex;
+  align-items: center;
+}
+.name-wrap input { flex: 1; min-width: 6rem; }
+
+.spell-info-btn {
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: 1rem;
+  padding: 0;
+  border-radius: 50%;
+  font: italic 700 1rem Georgia, serif;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.spell-info-btn[aria-expanded="true"] {
+  background: var(--brass-dim);
+  color: var(--parchment);
+}
+
+.spell-info-panel {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: .6rem .75rem;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-size: .9rem;
+  line-height: 1.35;
+}
+.spell-info-panel[hidden] { display: none; }
+.spell-info-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-weight: 700;
+  margin-bottom: .3rem;
+}
+.spell-info-body { white-space: pre-wrap; }

@@ -67,14 +67,19 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
     : "";
   const isSpell = magnitude != null;
   const note = isSpell ? (skill.note || "").trim() : "";
-  // View mode: a spell's note sits right under its name as plain text.
-  // Edit mode shows the full textarea row instead (see noteRow below).
-  const noteDisplay = note && currentMode === "view"
-    ? `<div class="spell-note">${escapeHtml(note)}</div>`
+  // View mode: a spell with a note gets an (i) button beside its name.
+  // Hovering the name or the button shows the note in a floating panel;
+  // clicking (i) pins it open. The button sits outside every
+  // [data-skill-id] element and has a wide margin, so checking the info
+  // never marks the spell "used" or casts it. Edit mode shows the full
+  // textarea row instead (see noteRow below).
+  const infoBtn = note && currentMode === "view"
+    ? `<button type="button" class="spell-info-btn" data-action="spell-info" data-spell-id="${skill.id}"
+        aria-label="Spell info" aria-expanded="false" title="Spell info">i</button>`
     : "";
   const nameCell = `
-    <td>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
-      ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}">${noteDisplay}</td>`;
+    <td><div class="name-wrap" ${note ? `data-spell-hover="${skill.id}"` : ""}>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
+      ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}">${infoBtn}</div></td>`;
   const pointsCell = `<td data-edit-control="true"><input type="number" data-field="points" value="${skill.points || 0}" min="0"></td>`;
   const magnitudeCell = magnitude != null
     ? `<td data-edit-control="true"><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>`
@@ -269,6 +274,7 @@ function render() {
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
   hideWhenEmpty("inventory-section", d.inventory.length === 0);
+  refreshSpellInfo();
 }
 
 // ---- Character name ----
@@ -418,6 +424,95 @@ document.getElementById("magic-section").addEventListener("click", (e) => {
   }
   saveField({ currentMana: current - cost });
 });
+
+// ---- Spell info panel ----
+//
+// One floating panel on <body>, not inside the table: the Magic tables live
+// in .table-scroll (overflow-x: auto), which would clip a popup drawn
+// inside them. Hovering a spell's name shows its note; the (i) button pins
+// the panel open (for touch screens, and to read long notes) until it's
+// clicked again, Esc is pressed, or the click lands somewhere else.
+const spellInfoPanel = document.createElement("div");
+spellInfoPanel.className = "spell-info-panel";
+spellInfoPanel.setAttribute("role", "tooltip");
+spellInfoPanel.hidden = true;
+document.body.appendChild(spellInfoPanel);
+let pinnedSpellId = null;
+
+function findSpell(id) {
+  for (const cat of catsOfType(currentData?.categories, "magic")) {
+    const s = (cat.skills || []).find(sk => sk.id === id);
+    if (s) return s;
+  }
+  return null;
+}
+
+function showSpellInfo(id, anchor) {
+  const spell = findSpell(id);
+  const note = (spell?.note || "").trim();
+  if (!spell || !note) { hideSpellInfo(true); return; }
+  const magnitude = R.magnitudeOf(spell);
+  spellInfoPanel.innerHTML = `
+    <div class="spell-info-title"><span class="magnitude-tag">${toRoman(magnitude)}</span>${escapeHtml(spell.name)}</div>
+    <div class="spell-info-body">${escapeHtml(note)}</div>`;
+  spellInfoPanel.hidden = false;
+
+  // Below the anchor if it fits, otherwise above; clamped to the viewport.
+  const r = anchor.getBoundingClientRect();
+  const p = spellInfoPanel.getBoundingClientRect();
+  const gap = 8;
+  let top = r.bottom + gap;
+  if (top + p.height > window.innerHeight - gap) top = Math.max(gap, r.top - p.height - gap);
+  const left = Math.min(Math.max(gap, r.left), window.innerWidth - p.width - gap);
+  spellInfoPanel.style.top = `${top}px`;
+  spellInfoPanel.style.left = `${left}px`;
+}
+
+function hideSpellInfo(force = false) {
+  if (pinnedSpellId && !force) return;
+  pinnedSpellId = null;
+  spellInfoPanel.hidden = true;
+  document.querySelectorAll('.spell-info-btn[aria-expanded="true"]').forEach(b => b.setAttribute("aria-expanded", "false"));
+}
+
+// Called after every render: the table was rebuilt, so re-anchor a pinned
+// panel to the new (i) button, or drop it if the spell/note is gone.
+function refreshSpellInfo() {
+  if (!pinnedSpellId) { hideSpellInfo(true); return; }
+  const btn = document.querySelector(`.spell-info-btn[data-spell-id="${pinnedSpellId}"]`);
+  if (!btn) { hideSpellInfo(true); return; }
+  btn.setAttribute("aria-expanded", "true");
+  showSpellInfo(pinnedSpellId, btn);
+}
+
+const magicSectionEl = document.getElementById("magic-section");
+magicSectionEl.addEventListener("click", (e) => {
+  const btn = e.target.closest('[data-action="spell-info"]');
+  if (!btn) return;
+  e.preventDefault();
+  const id = btn.dataset.spellId;
+  if (pinnedSpellId === id) { hideSpellInfo(true); return; }
+  hideSpellInfo(true);
+  pinnedSpellId = id;
+  btn.setAttribute("aria-expanded", "true");
+  showSpellInfo(id, btn);
+});
+magicSectionEl.addEventListener("mouseover", (e) => {
+  if (pinnedSpellId) return;
+  const wrap = e.target.closest("[data-spell-hover]");
+  if (wrap && currentMode === "view") showSpellInfo(wrap.dataset.spellHover, wrap);
+});
+magicSectionEl.addEventListener("mouseout", (e) => {
+  const wrap = e.target.closest("[data-spell-hover]");
+  if (wrap && !wrap.contains(e.relatedTarget)) hideSpellInfo();
+});
+document.addEventListener("click", (e) => {
+  if (pinnedSpellId && !e.target.closest('[data-action="spell-info"]') && !spellInfoPanel.contains(e.target)) hideSpellInfo(true);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideSpellInfo(true); });
+window.addEventListener("scroll", () => {
+  if (pinnedSpellId) refreshSpellInfo(); else hideSpellInfo();
+}, { passive: true, capture: true });
 
 // ---- Basic info ----
 
