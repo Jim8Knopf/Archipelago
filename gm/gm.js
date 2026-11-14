@@ -206,7 +206,7 @@ function magicCategoryBlockHtml(cat) {
     const eff = R.categorySkillEffective(s, bonus);
     const l = R.ladder(eff);
     const magnitude = R.magnitudeOf(s);
-    const name = `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>${escapeHtml(s.name)}`;
+    const name = `<span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>${escapeHtml(s.name)}${spellNoteHtml(s)}`;
     return `<tr><td>${name}</td><td>${eff}</td><td>${l.hard}</td><td>${l.extreme}</td></tr>`;
   }).join("");
   return `
@@ -214,6 +214,86 @@ function magicCategoryBlockHtml(cat) {
     <table><thead><tr><th>Spell</th><th>Eff.</th><th>Hard</th><th>Extreme</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 }
+
+function spellNoteHtml(spell) {
+  const note = (spell.note || "").trim();
+  return note ? `<div class="spell-note">${escapeHtml(note)}</div>` : "";
+}
+
+// ---- Spellbook: every spell of every character in one table ----
+//
+// Flattens all magic categories across the campaign into one row per spell,
+// so the GM can see at a glance who can cast what (and the player's notes on
+// it) without opening each character's "Full sheet". The filter matches
+// character, spell, category and note text, and survives the re-render that
+// every Firestore snapshot triggers.
+const spellbookEl = document.getElementById("spellbook");
+const spellbookFilter = document.getElementById("spellbook-filter");
+
+function collectSpells(docs) {
+  const rows = [];
+  docs.forEach(({ data }) => {
+    R.categoriesOfType(data.categories, "magic").forEach(cat => {
+      const bonus = R.categoryBonus(cat.skills);
+      (cat.skills || []).forEach(s => {
+        const eff = R.categorySkillEffective(s, bonus);
+        const magnitude = R.magnitudeOf(s);
+        rows.push({
+          character: data.name || "Unnamed",
+          category: cat.name || "",
+          spell: s,
+          magnitude,
+          eff,
+          ladder: R.ladder(eff),
+          cost: R.castingCost(magnitude)
+        });
+      });
+    });
+  });
+  const byText = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" });
+  return rows.sort((a, b) =>
+    byText(a.character, b.character) || byText(a.category, b.category) || byText(a.spell.name || "", b.spell.name || "")
+  );
+}
+
+function renderSpellbook(docs) {
+  const all = collectSpells(docs);
+  if (all.length === 0) {
+    spellbookEl.innerHTML = `<p class="empty-state">No character knows any spells yet.</p>`;
+    return;
+  }
+  const q = spellbookFilter.value.trim().toLowerCase();
+  const rows = q
+    ? all.filter(r => [r.character, r.category, r.spell.name, r.spell.note].some(t => (t || "").toLowerCase().includes(q)))
+    : all;
+  if (rows.length === 0) {
+    spellbookEl.innerHTML = `<p class="empty-state">No spells match “${escapeHtml(q)}”.</p>`;
+    return;
+  }
+  spellbookEl.innerHTML = `
+    <div class="table-scroll">
+      <table class="spellbook-table">
+        <thead><tr><th>Character</th><th>Spell</th><th>Category</th><th class="num">Eff.</th><th class="num">Hard</th><th class="num">Extreme</th><th class="num" title="Mana cost: normal / hard / extreme">Mana</th></tr></thead>
+        <tbody>${rows.map(r => `
+          <tr>
+            <td>${escapeHtml(r.character)}</td>
+            <td><span class="magnitude-tag" title="Magnitude ${r.magnitude}">${toRoman(r.magnitude)}</span>${escapeHtml(r.spell.name || "")}${spellNoteHtml(r.spell)}</td>
+            <td>${escapeHtml(r.category)}</td>
+            <td class="num">${r.eff}</td>
+            <td class="num">${r.ladder.hard}</td>
+            <td class="num">${r.ladder.extreme}</td>
+            <td class="num">${r.cost.normal} / ${r.cost.hard} / ${r.cost.extreme}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top:.4rem;">${rows.length} of ${all.length} spell${all.length === 1 ? "" : "s"}</p>
+  `;
+}
+
+spellbookFilter.addEventListener("input", () => {
+  renderSpellbook(Object.entries(charsById).map(([id, data]) => ({ id, data })));
+});
 
 function inventoryLineHtml(item) {
   if (item.type === "armor") {
@@ -306,6 +386,7 @@ onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
   charsById = {};
   docs.forEach(({ id, data }) => { charsById[id] = data; });
   renderCharacters(docs);
+  renderSpellbook(docs);
 }, (err) => {
   console.error(err);
   flash("Connection error — check firebase-config.js and firestore.rules.");
