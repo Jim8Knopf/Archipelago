@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    types: [labeled]
   workflow_dispatch:
     inputs:
       ref:
@@ -15,14 +17,17 @@ permissions:
   contents: read
   pages: write
   id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
+  pull-requests: write
 
 jobs:
   deploy:
+    # On PRs, only run when the "deploy-preview" label was added
+    if: github.event_name != 'pull_request' || github.event.label.name == 'deploy-preview'
     runs-on: ubuntu-latest
+    # Job-level so skipped runs (other labels) don't cancel a running deploy
+    concurrency:
+      group: pages
+      cancel-in-progress: true
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -30,7 +35,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          ref: ${{ inputs.ref || github.event.pull_request.head.sha || github.ref }}
 
       - name: Generate firebase-config.js from secrets
         run: |
@@ -53,3 +58,10 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Remove the label so adding it again triggers a fresh deploy
+      - name: Remove deploy-preview label
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --remove-label deploy-preview
