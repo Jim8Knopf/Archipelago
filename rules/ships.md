@@ -4,18 +4,18 @@
 
 ## 1. Your Ship — Euer Schiff
 
-Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate. A sloop is always a sloop: Hull 8, Armor 1, Max Speed 7, and so on.
+Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate, no upgrade shopping. A sloop is always a sloop: Hull 14, Armor 1, Max Speed 7, and so on.
 
-The only thing that changes a ship's values is an **upgrade** (Part II). Every upgrade changes specific values by a fixed amount, so the ship's current numbers are always: **base values of its type + installed upgrades**. Write both down on the ship's record:
+If a ship ever changes, it's because of the story — a shipwright's favour, a cursed figurehead, a Guard Stone Terminal pried from a wreck (Section 9). The GM decides what changes and writes it on the ship's record:
 
 | Ship Record | |
 |---|---|
 | Name & type | *e.g. "Salt Widow", Sloop* |
 | Current Hull | */ max Hull* |
-| Installed upgrades | *e.g. Copper Sheathing, Guard Stone Terminal* |
-| Guard Stones seated | *see Section 11* |
+| Story changes | *e.g. Guard Stone Terminal (2 slots)* |
+| Guard Stones seated | *see Section 9* |
 
-Captured ships work the same way: the crew gets the ship type's base values plus whatever upgrades the previous owner installed.
+Captured ships keep their type's values plus any story changes they already had.
 
 ## 2. Ship Values — Schiffswerte
 
@@ -31,8 +31,7 @@ Captured ships work the same way: the crew gets the ship type's base values plus
 | **Chasers** | Jagdkanonen | Smaller guns that can fire in any direction. |
 | **Crew** | Besatzung | Full crew complement — flavour and upkeep only (see below). |
 | **Cargo** | Ladung | Hold size in tons — a sanity check, not an inventory. |
-| **Terminal Slots** | Terminal-Plätze | How many Guard Stones a Guard Stone Terminal on this ship can hold (Section 11). |
-| **Price** | Preis | Base price in Doubloons (Dbl.). |
+| **Price** | Preis | Price in Doubloons (Dbl.), for buying or selling a ship in the story. |
 | **Traits** | Eigenschaften | Special rules, below. |
 
 **Crew** numbers are for the story, pay and provisions. In ship combat only **named characters** (PCs and important NPCs) take actions — nobody tracks 180 sailors.
@@ -111,13 +110,13 @@ Ship weapons (cannons, ballistae, ship-mounted spells) resolve **exactly like pe
 
 - **Each die is one gun battery.** A broadside of 4d6 is four dice, not one bigger die — every battery is on the table. Small ships use smaller dice rather than fewer dice.
 - **Broadside (Breitseite)** guns fire only to their own side, at full strength.
-- **Chasers (Jagdkanonen)** are one die size smaller but rotate to fire in any direction.
+- **Chasers (Jagdkanonen)** are one die size smaller (never below d4) but rotate to fire in any direction.
 - **Direction is the gunner's choice, not the ship's.** Firing is a personal Combat/Free action: the character who fires picks the target. The ship's facing only limits which guns point that way.
 - One firing action fires **one** broadside (one side) or **one** chaser.
 
 ### 6.2 Defense — Verteidigung
 
-A ship's **Armor** works identically to personal armor — flat subtraction, minimum 1 damage always gets through. Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 11) reduce the magnitude first.
+A ship's **Armor** works identically to personal armor — flat subtraction, minimum 1 damage always gets through. Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 9) reduce the magnitude first.
 
 ### 6.3 Hull 0 — Kampfunfähig
 
@@ -149,30 +148,13 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 
 \page
 
-# Part II — Upgrades / Aufwertungen
+# Part II — Guard Stones / Bannsteine
 
-## 9. How Upgrades Work
+## 9. Guard Stone Terminal — Bannstein-Terminal
 
-An upgrade is a **fixed change** to the ship's values, installed in a harbour or shipyard. Each upgrade can be installed **once per ship**, stays with the ship (including when it's captured), and is written on the ship's record. Prices are a share of the ship type's base price, so bigger ships cost more to refit.
+*Rare, element-locked stones that shrink incoming spells before they ever reach the hull.*
 
-## 10. Mundane Upgrades — Gewöhnliche Aufwertungen
-
-*Draft list — adjust after playtesting.*
-
-| Upgrade | Deutsch | Effect | Price |
-|---|---|---|---|
-| Reinforced Hull | Verstärkter Rumpf | +25% Hull (round up) | 20% of base price |
-| Iron Plating | Eisenbeschläge | +1 Armor, −1 Max Speed | 25% of base price |
-| Copper Sheathing | Kupferbeschlag | +1 Max Speed | 15% of base price |
-| Extra Battery | Zusätzliche Batterie | +1 die to each broadside | 25% of base price |
-| Swivel Chaser | Drehbasse | Adds a 1d4 chaser (bow or stern) | 10% of base price |
-| Racing Rig | Renntakelage | +1 Handling | 20% of base price |
-
-## 11. Guard Stone Terminal — Bannstein-Terminal
-
-*The first magical upgrade: a fitting that holds element-locked Guard Stones, which shrink incoming spells before they ever reach the hull.*
-
-**The Terminal.** A ship can carry Guard Stones only if it has a **Guard Stone Terminal** installed — an upgrade like any other. The terminal has as many slots as the ship type's **Terminal Slots** value; ships with 0 slots can't take one. Each slot holds exactly one Guard Stone.
+**The Terminal.** A ship can carry Guard Stones only if it has a **Guard Stone Terminal** — and no ship comes with one. A terminal is only ever gained **through the story**: salvaged from a wreck, granted by a patron, built by a mad artificer as payment for a debt. The GM sets its number of **slots** when it enters the game; each slot holds exactly one Guard Stone. Most terminals have 1–2 slots; 3 or more is the stuff of legend.
 
 **Guard Stones (Bannsteine).** Rare, magically attuned gemstones — the ship-sized version of personal Wards (core rules Section 5.5). Each stone is locked to one element (currently just Fire, until a second element exists). Before an incoming spell of the matching element rolls damage, the stone **reduces its magnitude**. At magnitude 0 or lower, the spell fizzles. Whatever survives resolves normally, then the ship's Armor applies.
 
@@ -180,12 +162,11 @@ An upgrade is a **fixed change** to the ship's values, installed in a harbour or
 - **Stones never stack:** against any one spell only the **single best** stone of that element counts — the same rule as personal Wards. Filling several slots is worth it for covering **different elements**, not for doubling up.
 - A stone does nothing against other elements, cannonballs or boarding axes.
 
-| Item | Effect | Price (Dbl.) |
+| Guard Stone | Effect | Price (Dbl.) |
 |---|---|---|
-| Guard Stone Terminal | Holds the ship's Terminal Slots | 25% of base price |
-| Minor Guard Stone | Magnitude −1 | 8,000–15,000 |
-| Moderate Guard Stone | Magnitude −2 | 25,000–45,000 |
-| Major Guard Stone | Magnitude −3 | 60,000–100,000+ |
+| Minor | Magnitude −1 | 8,000–15,000 |
+| Moderate | Magnitude −2 | 25,000–45,000 |
+| Major | Magnitude −3 | 60,000–100,000+ |
 
 **Swapping stones** takes about a short rest's worth of crew work (core rules Section 6.1), so it can't happen mid-broadside. Spare stones can be kept in cargo, but only seated stones protect the ship.
 
@@ -197,42 +178,41 @@ An upgrade is a **fixed change** to the ship's values, installed in a harbour or
 
 # Part III — Ship Compendium / Schiffskompendium
 
-*Sixteen ship types from oar-driven antiquity to the Golden Age of Sail, sorted from small to large within each group. All base values are mundane — no ship comes with a Guard Stone Terminal installed.*
+*Sixteen ship types from oar-driven antiquity to the Golden Age of Sail, sorted from small to large within each group. All values are fixed and mundane — no ship comes with a Guard Stone Terminal.*
 
-## 12. Quick Reference
+## 10. Quick Reference
 
-| Ship | Hull | Arm. | Speed | Hand. | Turn | Man. | Broadside | Slots | Price |
-|---|---|---|---|---|---|---|---|---|---|
-| Rowboat | 2 | 0 | 2 | 1 | 90° | +15 | — | 0 | 50 |
-| Longship | 6 | 0 | 8 | 3 | 60° | +10 | — | 0 | 1,200 |
-| War Galley | 7 | 1 | 5 | 3 | 90° | +15/−10 | — | 1 | 4,000 |
-| Cog | 9 | 2 | 3 | 1 | 30° | −5 | 1d4 | 1 | 1,900 |
-| Fluyt | 9 | 1 | 3 | 1 | 30° | −10 | 1d4 | 1 | 3,000 |
-| Merchantman | 15 | 2 | 4 | 1 | 45° | −5 | 2d6 | 1 | 7,000 |
-| Caravel | 8 | 1 | 4 | 2 | 60° | +10 | 1d4 | 1 | 2,400 |
-| Sloop | 8 | 1 | 7 | 2 | 90° | +18 | 2d4 | 1 | 2,800 |
-| Schooner | 9 | 1 | 6 | 2 | 60° | +15 | 3d4 | 1 | 3,200 |
-| Xebec | 8 | 1 | 6 | 2 | 90° | +15 | 3d4 | 1 | 3,600 |
-| Brigantine | 18 | 2 | 4 | 2 | 45° | +5 | 4d6 | 2 | 6,000 |
-| Frigate | 24 | 3 | 6 | 2 | 45° | +5 | 5d8 | 2 | 18,000 |
-| Man-of-War | 55 | 5 | 4 | 1 | 30° | −18 | 8d10 | 4 | 95,000 |
-| Carrack | 28 | 3 | 4 | 1 | 30° | −12 | 4d6 | 2 | 15,000 |
-| Galleon | 35 | 4 | 4 | 1 | 30° | −15 | 6d8 | 3 | 26,000 |
-| East Indiaman | 30 | 3 | 5 | 1 | 30° | −8 | 5d6 | 3 | 38,000 |
+| Ship | Hull | Arm. | Speed | Hand. | Turn | Man. | Broadside | Price |
+|---|---|---|---|---|---|---|---|---|
+| Rowboat | 3 | 0 | 2 | 1 | 90° | +15 | — | 50 |
+| Longship | 9 | 0 | 8 | 3 | 60° | +10 | — | 1,200 |
+| War Galley | 10 | 1 | 5 | 3 | 90° | +15/−10 | — | 4,000 |
+| Cog | 14 | 2 | 3 | 1 | 30° | −5 | 1d4 | 1,900 |
+| Fluyt | 13 | 1 | 3 | 1 | 30° | −10 | 1d4 | 3,000 |
+| Merchantman | 22 | 2 | 4 | 1 | 45° | −5 | 2d4 | 7,000 |
+| Caravel | 12 | 1 | 4 | 2 | 60° | +10 | 1d4 | 2,400 |
+| Sloop | 14 | 1 | 7 | 2 | 90° | +18 | 2d4 | 2,800 |
+| Schooner | 20 | 1 | 6 | 2 | 60° | +15 | 3d4 | 3,200 |
+| Xebec | 20 | 1 | 6 | 2 | 90° | +15 | 3d4 | 3,600 |
+| Brigantine | 28 | 2 | 4 | 2 | 45° | +5 | 4d4 | 6,000 |
+| Frigate | 50 | 3 | 6 | 2 | 45° | +5 | 5d6 | 18,000 |
+| Man-of-War | 110 | 5 | 4 | 1 | 30° | −18 | 8d8 | 95,000 |
+| Carrack | 40 | 3 | 4 | 1 | 30° | −12 | 4d6 | 15,000 |
+| Galleon | 60 | 4 | 4 | 1 | 30° | −15 | 6d6 | 26,000 |
+| East Indiaman | 48 | 3 | 5 | 1 | 30° | −8 | 5d6 | 38,000 |
 
-## 13. Boats & Oared Ships — Boote & Ruderschiffe
+## 11. Boats & Oared Ships — Boote & Ruderschiffe
 
 ### Rowboat / Jolly Boat (Ruderboot)
 *Ancient through present — the boat every other ship carries.*
 
 | Value | |
 |---|---|
-| Hull / Armor | 2 / 0 |
+| Hull / Armor | 3 / 0 |
 | Max Speed / Handling / Turn Rate | 2 / 1 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | — / — |
 | Crew / Cargo | 4 / 0.3 t |
-| Terminal Slots | 0 |
 | Traits | Oars, Shallow Draft |
 | Price | 50 Dbl. |
 
@@ -246,12 +226,11 @@ Every larger ship carries one or two of these as a tender, for landing parties, 
 
 | Value | |
 |---|---|
-| Hull / Armor | 6 / 0 |
+| Hull / Armor | 9 / 0 |
 | Max Speed / Handling / Turn Rate | 8 / 3 / 60° |
 | Maneuverability | +10 (−10 in storms or high seas) |
 | Broadside / Chasers | — / — (spears, axes, bows) |
 | Crew / Cargo | 40 / 15 t |
-| Terminal Slots | 0 |
 | Traits | Oars, Shallow Draft |
 | Price | 1,200 Dbl. |
 
@@ -265,12 +244,11 @@ A long, shallow, double-ended hull that can land on a beach or slip up a river a
 
 | Value | |
 |---|---|
-| Hull / Armor | 7 / 1 |
+| Hull / Armor | 10 / 1 |
 | Max Speed / Handling / Turn Rate | 5 / 3 / 90° |
 | Maneuverability | +15 in calm/coastal water, −10 on open sea or in storms |
 | Broadside / Chasers | — / Ballista 1d8 (bow, rotates) |
 | Crew / Cargo | 120 / 15 t |
-| Terminal Slots | 1 |
 | Traits | Oars, Ram |
 | Price | 4,000 Dbl. |
 
@@ -281,19 +259,18 @@ Built for speed and precision rather than durability, the war galley trades carg
 
 \page
 
-## 14. Traders — Handelsschiffe
+## 12. Traders — Handelsschiffe
 
 ### Cog (Kogge)
 *Medieval merchant workhorse of the northern seas.*
 
 | Value | |
 |---|---|
-| Hull / Armor | 9 / 2 |
+| Hull / Armor | 14 / 2 |
 | Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
 | Maneuverability | −5 |
 | Broadside / Chasers | 1d4 / — |
 | Crew / Cargo | 12 / 120 t |
-| Terminal Slots | 1 |
 | Traits | High Sides |
 | Price | 1,900 Dbl. |
 
@@ -307,12 +284,11 @@ A round-hulled, flat-bottomed trader built to move as much cargo as possible wit
 
 | Value | |
 |---|---|
-| Hull / Armor | 9 / 1 |
+| Hull / Armor | 13 / 1 |
 | Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
 | Maneuverability | −10 |
 | Broadside / Chasers | 1d4 / — |
 | Crew / Cargo | 15 / 280 t |
-| Terminal Slots | 1 |
 | Traits | Shallow Draft |
 | Price | 3,000 Dbl. |
 
@@ -326,12 +302,11 @@ Purpose-built to haul the most cargo for the least money, the fluyt's pear-shape
 
 | Value | |
 |---|---|
-| Hull / Armor | 15 / 2 |
+| Hull / Armor | 22 / 2 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 45° |
 | Maneuverability | −5 |
-| Broadside / Chasers | 2d6 / — |
+| Broadside / Chasers | 2d4 / — |
 | Crew / Cargo | 25 / 200 t |
-| Terminal Slots | 1 |
 | Traits | — |
 | Price | 7,000 Dbl. |
 
@@ -342,19 +317,18 @@ The ship that carries most of the world's trade — nothing special to look at, 
 
 \page
 
-## 15. Raiders — Kaperschiffe
+## 13. Raiders — Kaperschiffe
 
 ### Caravel (Karavelle)
 *Age-of-Exploration scout and light trader.*
 
 | Value | |
 |---|---|
-| Hull / Armor | 8 / 1 |
+| Hull / Armor | 12 / 1 |
 | Max Speed / Handling / Turn Rate | 4 / 2 / 60° |
 | Maneuverability | +10 |
 | Broadside / Chasers | 1d4 / — |
 | Crew / Cargo | 20 / 70 t |
-| Terminal Slots | 1 |
 | Traits | Shallow Draft |
 | Price | 2,400 Dbl. |
 
@@ -368,12 +342,11 @@ Small, cheap and easy to handle, the caravel's lateen sails let it work close to
 
 | Value | |
 |---|---|
-| Hull / Armor | 8 / 1 |
+| Hull / Armor | 14 / 1 |
 | Max Speed / Handling / Turn Rate | 7 / 2 / 90° |
 | Maneuverability | +18 |
 | Broadside / Chasers | 2d4 / — |
 | Crew / Cargo | 30 / 85 t |
-| Terminal Slots | 1 |
 | Traits | Shallow Draft |
 | Price | 2,800 Dbl. |
 
@@ -387,12 +360,11 @@ Fast, shallow and worked entirely from the deck, the sloop was the first ship of
 
 | Value | |
 |---|---|
-| Hull / Armor | 9 / 1 |
+| Hull / Armor | 20 / 1 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 60° |
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / — |
 | Crew / Cargo | 30 / 95 t |
-| Terminal Slots | 1 |
 | Traits | Shallow Draft |
 | Price | 3,200 Dbl. |
 
@@ -406,12 +378,11 @@ The sloop's speed and shallow draft with a bit more cargo and gun capacity — s
 
 | Value | |
 |---|---|
-| Hull / Armor | 8 / 1 |
+| Hull / Armor | 20 / 1 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / 1d4 bow |
 | Crew / Cargo | 35 / 100 t |
-| Terminal Slots | 1 |
 | Traits | Oars |
 | Price | 3,600 Dbl. |
 
@@ -425,12 +396,11 @@ A favourite of corsairs, the xebec combines a galley's independence from the win
 
 | Value | |
 |---|---|
-| Hull / Armor | 18 / 2 |
+| Hull / Armor | 28 / 2 |
 | Max Speed / Handling / Turn Rate | 4 / 2 / 45° |
 | Maneuverability | +5 |
-| Broadside / Chasers | 4d6 / 1d4 bow, 1d4 stern |
+| Broadside / Chasers | 4d4 / 1d4 bow, 1d4 stern |
 | Crew / Cargo | 60 / 200 t |
-| Terminal Slots | 2 |
 | Traits | — |
 | Price | 6,000 Dbl. |
 
@@ -441,19 +411,18 @@ A true jack-of-all-trades: enough cargo to trade, enough guns to fight, enough c
 
 \page
 
-## 16. Warships — Kriegsschiffe
+## 14. Warships — Kriegsschiffe
 
 ### Frigate (Fregatte)
 *Fast, heavily armed warship.*
 
 | Value | |
 |---|---|
-| Hull / Armor | 24 / 3 |
+| Hull / Armor | 50 / 3 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 45° |
 | Maneuverability | +5 |
-| Broadside / Chasers | 5d8 / 1d6 bow, 1d6 stern |
+| Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
 | Crew / Cargo | 220 / 65 t free hold |
-| Terminal Slots | 2 |
 | Traits | — |
 | Price | 18,000 Dbl. |
 
@@ -467,12 +436,11 @@ Fast enough to chase down almost anything smaller and armed to outfight almost a
 
 | Value | |
 |---|---|
-| Hull / Armor | 55 / 5 |
+| Hull / Armor | 110 / 5 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −18 |
-| Broadside / Chasers | 8d10 / 2d8 bow, 2d8 stern |
+| Broadside / Chasers | 8d8 / 2d6 bow, 2d6 stern |
 | Crew / Cargo | 600 / 100 t free hold |
-| Terminal Slots | 4 |
 | Traits | High Sides |
 | Price | 95,000 Dbl. |
 
@@ -483,19 +451,18 @@ A floating fortress whose broadside ends most fights before they start. Ordinary
 
 *Warship cargo is free hold space only — most of the tonnage is guns, powder and crew.*
 
-## 17. Great Haulers — Große Frachtschiffe
+## 15. Great Haulers — Große Frachtschiffe
 
 ### Carrack (Karacke)
 *The lumbering long-hauler that came before the galleon.*
 
 | Value | |
 |---|---|
-| Hull / Armor | 28 / 3 |
+| Hull / Armor | 40 / 3 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −12 |
 | Broadside / Chasers | 4d6 / 1d4 bow |
 | Crew / Cargo | 90 / 450 t |
-| Terminal Slots | 2 |
 | Traits | High Sides |
 | Price | 15,000 Dbl. |
 
@@ -511,12 +478,11 @@ High-sided, round-bellied and built for endurance, the carrack survives months a
 
 | Value | |
 |---|---|
-| Hull / Armor | 35 / 4 |
+| Hull / Armor | 60 / 4 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −15 |
-| Broadside / Chasers | 6d8 / 2d6 bow, 1d6 stern |
+| Broadside / Chasers | 6d6 / 2d4 bow, 1d4 stern |
 | Crew / Cargo | 180 / 700 t |
-| Terminal Slots | 3 |
 | Traits | High Sides |
 | Price | 26,000 Dbl. |
 
@@ -530,12 +496,11 @@ Built to haul a kingdom's treasure across an ocean, the galleon carries enormous
 
 | Value | |
 |---|---|
-| Hull / Armor | 30 / 3 |
+| Hull / Armor | 48 / 3 |
 | Max Speed / Handling / Turn Rate | 5 / 1 / 30° |
 | Maneuverability | −8 |
 | Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
 | Crew / Cargo | 120 / 1,000 t |
-| Terminal Slots | 3 |
 | Traits | High Sides |
 | Price | 38,000 Dbl. |
 
@@ -544,12 +509,11 @@ Built to haul immensely valuable cargo through dangerous waters, the East Indiam
 **Benefits:** the richest cargo a crew can realistically capture; armed to bluff or beat casual attackers; hard to board.
 **Flaws:** genuinely dangerous to attack; slow to replace if damaged in the taking; often travels with naval escorts.
 
-## 18. Open Items
+## 16. Open Items
 
-- [ ] Playtest damage against Hull — a heavy broadside can take half a ship's Hull in one hit.
+- [ ] Playtest damage against Hull — the target is roughly 3–4 landed broadsides to cripple a ship of the same class.
 - [ ] Ramming and collision rules (War Galley's Ram trait).
 - [ ] Confirm the Doubloon's exchange rate against character-creation points, if the two economies should ever interact.
-- [ ] Playtest the mundane upgrade list and prices.
 - [ ] Pin down any risk or check for an emergency Guard Stone swap faster than a short rest.
 - [ ] Design the offensive gem-weapon variant once Guard Stones have been playtested.
 - [ ] Revisit Guard Stone pricing once a second element exists.
