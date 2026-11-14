@@ -1,0 +1,315 @@
+/* ============================================================
+   Rules page — Homebrewery / PHB-style book pages.
+   Fonts are free Google stand-ins for the PHB fonts:
+     Mr Eaves Small Caps → Alegreya Sans SC
+     Bookinsanity        → Libre Baskerville
+     Scaly Sans          → Alegreya Sans
+     Solbera (drop cap)  → Cinzel Decorative
+   ============================================================ */
+
+.rules-book {
+  --phb-red:     #58180d;
+  --phb-gold:    #c9ad6a;
+  --phb-green:   #e0e5c1;
+  --phb-paper:   #eee5ce;
+  --phb-ink:     #1a1a1a;
+  --phb-display: 'Alegreya Sans SC', 'Cinzel', Georgia, sans-serif;
+  --phb-body:    'Libre Baskerville', 'Spectral', Georgia, serif;
+  --phb-sans:    'Alegreya Sans', 'Segoe UI', sans-serif;
+}
+
+/* style.css lays <main> out in masonry columns for the cards; the book
+   needs a plain centred stack instead. */
+main.rules-main {
+  max-width: none;
+  column-width: auto;
+  columns: auto;
+  padding: 1.5rem 16px;
+}
+
+.rules-book {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.rules-status {
+  color: var(--parchment);
+  font-style: italic;
+}
+
+/* ---------- The page ---------- */
+
+.phb-page {
+  position: relative;
+  width: 215.9mm;
+  min-height: 279.4mm;
+  padding: 1.4cm 1.9cm 2.4cm;
+  box-sizing: border-box;
+  color: var(--phb-ink);
+  font: 0.32cm/1.3 var(--phb-body);
+  column-count: 2;
+  column-gap: 0.9cm;
+  column-fill: balance;
+  background-color: var(--phb-paper);
+  /* parchment mottling, standing in for Homebrewery's paper texture */
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(255, 250, 230, 0.75), transparent 45%),
+    radial-gradient(ellipse at 85% 25%, rgba(214, 196, 150, 0.35), transparent 50%),
+    radial-gradient(ellipse at 30% 80%, rgba(220, 200, 150, 0.35), transparent 55%),
+    radial-gradient(ellipse at 90% 95%, rgba(196, 172, 120, 0.35), transparent 40%),
+    radial-gradient(ellipse at center, transparent 60%, rgba(150, 120, 70, 0.25) 100%);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  scroll-margin-top: 1rem;
+}
+
+.phb-page :is(h1, h2, h3, h4) { scroll-margin-top: 1rem; }
+
+.phb-page p {
+  margin: 0 0 0.325cm;
+}
+
+.phb-page p + p,
+.phb-page ul + p,
+.phb-page ol + p {
+  text-indent: 1em;
+  margin-top: -0.2cm;
+}
+
+.phb-page strong { font-weight: 700; }
+.phb-page em { font-style: italic; }
+
+.phb-page a { color: var(--phb-red); }
+
+/* ---------- Headings ---------- */
+
+.phb-page h1,
+.phb-page h2,
+.phb-page h3,
+.phb-page h4,
+.phb-page h5 {
+  color: var(--phb-red);
+  font-family: var(--phb-display);
+  font-weight: 800;
+  letter-spacing: normal;
+  line-height: 1;
+  margin: 0.3cm 0 0.15cm;
+  break-after: avoid;
+}
+
+.phb-page h1 {
+  column-span: all;
+  font-size: 0.95cm;
+  margin: 0 0 0.3cm;
+}
+
+.phb-page h2 {
+  font-size: 0.75cm;
+  margin-top: 0.15cm;
+}
+
+.phb-page h3 {
+  font-size: 0.55cm;
+  border-bottom: 2px solid var(--phb-gold);
+  padding-bottom: 0.05cm;
+  margin-top: 0.35cm;
+}
+
+.phb-page h4 {
+  font-size: 0.45cm;
+}
+
+/* Drop cap on the paragraph right after the title */
+.phb-page h1 + p::first-letter {
+  float: left;
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-style: normal;
+  font-size: 3.3em;
+  line-height: 0.85;
+  padding: 0.05em 0.1em 0 0;
+  color: var(--phb-red);
+  background: linear-gradient(170deg, #8a2a14, var(--phb-red) 60%, #2e0b05);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---------- Lists ---------- */
+
+.phb-page ul,
+.phb-page ol {
+  margin: 0 0 0.325cm;
+  padding-left: 1.4em;
+}
+
+.phb-page li { margin-bottom: 0.08cm; }
+.phb-page li::marker { color: var(--phb-ink); }
+
+.phb-page li input[type="checkbox"] {
+  margin: 0 0.4em 0 -1.2em;
+  accent-color: var(--phb-red);
+}
+.phb-page li:has(> input[type="checkbox"]) { list-style: none; }
+
+/* ---------- Tables ---------- */
+
+.phb-page table {
+  width: 100%;
+  margin: 0 0 0.35cm;
+  border-collapse: collapse;
+  font: 0.3cm/1.25 var(--phb-sans);
+  break-inside: avoid;
+}
+
+.phb-page th {
+  text-align: left;
+  font-weight: 700;
+  padding: 0.05cm 0.12cm;
+  vertical-align: bottom;
+}
+
+.phb-page td {
+  padding: 0.05cm 0.12cm;
+  vertical-align: top;
+}
+
+.phb-page tbody tr:nth-child(odd) {
+  background: var(--phb-green);
+}
+
+/* ---------- Note / descriptive boxes ---------- */
+
+.phb-page .note {
+  margin: 0.15cm 0 0.45cm;
+  padding: 0.15cm 0.25cm;
+  background: var(--phb-green);
+  border-top: 4px solid #2a1d0d;
+  border-bottom: 4px solid #2a1d0d;
+  box-shadow: 1px 4px 12px rgba(80, 60, 30, 0.45);
+  font: 0.3cm/1.3 var(--phb-sans);
+  break-inside: avoid;
+}
+
+.phb-page .note h4,
+.phb-page .note h5 {
+  font-size: 0.4cm;
+  margin: 0.1cm 0 0.12cm;
+  color: var(--phb-ink);
+}
+
+.phb-page .note p,
+.phb-page .note table {
+  font-family: var(--phb-sans);
+  text-indent: 0;
+  margin-top: 0;
+}
+
+.phb-page .note p:last-child { margin-bottom: 0.05cm; }
+
+.phb-page .note tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.phb-page .descriptive {
+  margin: 0.15cm 0 0.45cm;
+  padding: 0.25cm 0.35cm;
+  background: #faf7ea;
+  border: 6px double #a99a7c;
+  box-shadow: 0 0 6px #faf7ea, 1px 4px 12px rgba(80, 60, 30, 0.4);
+  font-style: italic;
+  break-inside: avoid;
+}
+
+.phb-page .wide { column-span: all; }
+
+.phb-page .column-break {
+  break-after: column;
+}
+
+.phb-page hr {
+  border: none;
+  border-top: 2px solid var(--phb-gold);
+  margin: 0.3cm 0;
+}
+
+/* ---------- Footer ---------- */
+
+.phb-page::after {
+  /* decorative footer band */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.1cm;
+  background:
+    linear-gradient(to bottom, transparent 0 0.35cm, var(--phb-gold) 0.35cm 0.42cm, transparent 0.42cm),
+    linear-gradient(to top, rgba(88, 24, 13, 0.18), transparent);
+}
+
+.phb-page-number,
+.phb-footnote {
+  position: absolute;
+  bottom: 0.55cm;
+  font: 0.3cm var(--phb-sans);
+  color: var(--phb-ink);
+  column-span: none;
+}
+
+.phb-page-number {
+  right: 1.9cm;
+  font-weight: 700;
+}
+
+.phb-footnote {
+  right: 2.7cm;
+  font-variant: small-caps;
+  color: var(--phb-red);
+}
+
+/* Even pages mirror the footer to the left, like a printed book */
+.phb-page:nth-child(even) .phb-page-number { right: auto; left: 1.9cm; }
+.phb-page:nth-child(even) .phb-footnote   { right: auto; left: 2.7cm; }
+
+/* ---------- Narrow screens: one fluid column ---------- */
+
+@media (max-width: 880px) {
+  .phb-page {
+    width: 100%;
+    min-height: 0;
+    padding: 1.2rem 1.1rem 3.2rem;
+    column-count: 1;
+    font-size: 15px;
+  }
+
+  .phb-page h1 { font-size: 2rem; }
+  .phb-page h2 { font-size: 1.6rem; }
+  .phb-page h3 { font-size: 1.25rem; }
+  .phb-page h4 { font-size: 1.05rem; }
+  .phb-page table,
+  .phb-page .note { font-size: 14px; }
+
+  .phb-page-number,
+  .phb-page:nth-child(even) .phb-page-number { right: 1.1rem; left: auto; }
+  .phb-footnote,
+  .phb-page:nth-child(even) .phb-footnote { right: 2.6rem; left: auto; }
+}
+
+/* ---------- Print: one book page per sheet ---------- */
+
+@media print {
+  header.top,
+  footer.foot { display: none; }
+
+  body { background: none; }
+
+  main.rules-main { padding: 0; }
+
+  .rules-book { gap: 0; }
+
+  .phb-page {
+    box-shadow: none;
+    break-after: page;
+  }
+}
