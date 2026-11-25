@@ -37,7 +37,12 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Start deploy of PR branch
-        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH" -f pr="$PR_NUMBER"
+        # The dispatched run uses main's copy of this workflow. If main doesn't
+        # accept the `pr` input yet (this change not merged), deploy without
+        # it — the deploy still runs, it just can't report back to the PR.
+        run: |
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH" -f pr="$PR_NUMBER" \
+            || gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH"
 
       - name: Comment that the deploy started
         run: |
