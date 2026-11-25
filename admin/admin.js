@@ -3,6 +3,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db } from "../js/firebase-init.js";
 import * as R from "../js/rules-calc.js";
+import { portraitUrl } from "../js/format.js";
 
 const content = document.getElementById("admin-content");
 const statusEl = document.getElementById("admin-status");
@@ -35,11 +36,11 @@ function gmUrl(campaignId) {
 // URLs are used; anything else (or a broken link, see the error handler
 // below) falls back to the same anchor placeholder the sheet shows.
 function thumbHtml(imageUrl) {
-  const url = (imageUrl || "").trim();
-  const safe = /^https?:\/\//i.test(url);
+  const url = portraitUrl(imageUrl);
+  const safe = !!url;
   return `
     <span class="admin-thumb">
-      ${safe ? `<img src="${escapeHtml(url)}" alt="" loading="lazy">` : ""}
+      ${safe ? `<img src="${escapeHtml(url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
       <span class="admin-thumb-placeholder"${safe ? ' style="display:none;"' : ""}>⚓</span>
     </span>
   `;
