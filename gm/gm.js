@@ -137,7 +137,7 @@ function gaugeClass(current, max) {
 // Every rollable thing a character has — skill groups, weapons, magic and
 // languages — flattened, with its effective value and ladder.
 function skillEntries(data) {
-  const cats = R.migrateBasicSkills(data.basicSkills, data.categories);
+  const cats = R.ensureSkillGroups(R.migrateBasicSkills(data.basicSkills, data.categories));
   const out = [];
   ["skill", "weapon", "magic"].forEach(type => {
     R.categoriesOfType(cats, type).forEach(cat => {

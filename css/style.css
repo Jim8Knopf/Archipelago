@@ -480,6 +480,11 @@ details.card[open] summary::before {
   font-family: 'Spectral', Georgia, serif;
 }
 
+.category-card .cat-title {
+  flex: 2;
+  margin: 0;
+}
+
 .category-card .cat-bonus {
   font-size: 0.85rem;
   color: var(--ink-soft);
