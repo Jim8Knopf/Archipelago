@@ -60,20 +60,15 @@ jobs:
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
             "❌ Couldn't start the deploy of \`$PR_BRANCH\`. See [the run log]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
 
-  deploy:
+  # Build and deploy are separate jobs, as in GitHub's own Pages templates.
+  # With upload and deploy-pages in the same job, deploy-pages sometimes
+  # looked up the artifact before it was registered and failed with
+  # 'No artifacts named "github-pages" were found'.
+  build:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      id-token: write
-      pull-requests: write
-    concurrency:
-      group: pages
-      cancel-in-progress: true
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -98,25 +93,49 @@ jobs:
         with:
           path: .
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: true
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
 
-      # Label-triggered deploys report back to the PR, so the result is
-      # visible there instead of only in a run on main.
+  # Label-triggered deploys report back to the PR, so the result is
+  # visible there instead of only in a run on main.
+  report:
+    needs: [build, deploy]
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.pr != ''
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ inputs.pr }}
+      REF: ${{ inputs.ref }}
+      BUILD: ${{ needs.build.result }}
+      DEPLOY: ${{ needs.deploy.result }}
+      PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
       - name: Report result to PR
-        if: always() && inputs.pr != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr }}
-          REF: ${{ inputs.ref }}
-          STATUS: ${{ job.status }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          case "$STATUS" in
-            success)   body="✅ Deployed \`$REF\` to $PAGE_URL — hard-refresh (Ctrl+Shift+R) if you still see the old version. ([run]($RUN_URL))" ;;
-            cancelled) body="⏹️ Deploy of \`$REF\` was cancelled, probably replaced by a newer deploy. ([run]($RUN_URL))" ;;
-            *)         body="❌ Deploy of \`$REF\` failed. ([run]($RUN_URL))" ;;
-          esac
+          if [ "$BUILD" = success ] && [ "$DEPLOY" = success ]; then
+            body="✅ Deployed \`$REF\` to $PAGE_URL — hard-refresh (Ctrl+Shift+R) if you still see the old version. ([run]($RUN_URL))"
+          elif [ "$BUILD" = cancelled ] || [ "$DEPLOY" = cancelled ]; then
+            body="⏹️ Deploy of \`$REF\` was cancelled, probably replaced by a newer deploy. ([run]($RUN_URL))"
+          else
+            body="❌ Deploy of \`$REF\` failed (build: $BUILD, deploy: $DEPLOY). ([run]($RUN_URL))"
+          fi
           gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body"
