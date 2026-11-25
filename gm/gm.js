@@ -4,7 +4,7 @@ import {
 import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash as flashEl, toRoman, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
-import { restCharacter, applyRestCooldown, restMessage } from "../js/rest.js";
+import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 
 const campaignInput = document.getElementById("campaign-input");
 const charList = document.getElementById("char-list");
@@ -374,19 +374,8 @@ charList.addEventListener("click", async (e) => {
     await updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal });
   }
 
-  // Same transaction + cooldown as the player's sheet (js/rest.js), so a
-  // rest pressed here and on the sheet a few seconds apart heals only once.
   if (action === "rest") {
-    const type = btn.dataset.rest;
-    btn.disabled = true;
-    try {
-      const result = await restCharacter(campaign, id, type);
-      flash(`${data.name || "Unnamed"}: ${restMessage(result, type)}`);
-    } catch (err) {
-      console.error(err);
-      flash("Couldn't rest — check firestore.rules.");
-    }
-    refreshRestButtons();
+    restCharacters([id], btn.dataset.rest);
     return;
   }
 
@@ -426,14 +415,42 @@ document.getElementById("new-island-btn").addEventListener("click", async () => 
   }
 });
 
-// Rest buttons show a live countdown while the character is on the shared
-// rest cooldown. Cards are rebuilt on every snapshot, so look them up fresh.
-function refreshRestButtons() {
-  charList.querySelectorAll('button[data-action="rest"]').forEach((btn) => {
-    applyRestCooldown([btn], charsById[btn.dataset.id]);
-  });
+// Rests one or more characters. Same transaction + cooldown as the player's
+// sheet (js/rest.js), so a rest pressed here and on the sheet a few seconds
+// apart heals only once. The heal is drawn immediately from the local copy;
+// the cooldown is a silent background guard, never shown on screen.
+async function restCharacters(ids, type) {
+  const label = type === "long" ? "Long Rest" : "Short Rest";
+  const fresh = ids.filter(id => charsById[id] && restCooldownLeft(charsById[id]) === 0);
+  const skippedLocally = ids.length - fresh.length;
+
+  fresh.forEach(id => { charsById[id] = restedLocally(charsById[id], type); });
+  if (fresh.length) rerenderFromCache();
+
+  const results = await Promise.allSettled(fresh.map(id => restCharacter(campaign, id, type)));
+  const failed = results.filter(r => r.status === "rejected");
+  failed.forEach(r => console.error(r.reason));
+  const skipped = skippedLocally + results.filter(r => r.status === "fulfilled" && r.value === false).length;
+
+  const name = ids.length === 1 ? `${charsById[ids[0]]?.name || "Unnamed"}: ` : "";
+  if (failed.length) flash(`${name}${label} failed for ${failed.length} — check firestore.rules.`);
+  else if (ids.length === 1) flash(`${name}${skipped ? "already rested just now." : label + " taken."}`);
+  else flash(`${label}: ${ids.length - skipped} rested${skipped ? `, ${skipped} already rested just now` : ""}.`);
 }
-setInterval(refreshRestButtons, 1000);
+
+function rerenderFromCache() {
+  const docs = Object.entries(charsById).map(([id, data]) => ({ id, data }));
+  renderCharacters(docs);
+  renderSpellbook(docs);
+}
+
+document.querySelectorAll("button[data-party-rest]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const ids = Object.keys(charsById);
+    if (ids.length === 0) { flash("No characters in this campaign yet."); return; }
+    restCharacters(ids, btn.dataset.partyRest);
+  });
+});
 
 // Live sync — this onSnapshot listener is what makes the dashboard update
 // automatically (players' edits, other GM actions) without ever reloading.
@@ -442,7 +459,6 @@ onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
   charsById = {};
   docs.forEach(({ id, data }) => { charsById[id] = data; });
   renderCharacters(docs);
-  refreshRestButtons();
   renderSpellbook(docs);
 }, (err) => {
   console.error(err);
