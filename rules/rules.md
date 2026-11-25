@@ -234,6 +234,15 @@ This keeps flaws generating actual story beats throughout play, rather than bein
 - **Personal inventory**: keep it reasonable — a common-sense check on what a person could plausibly carry and stow on their body, no formal weight/slot tracking needed.
 - **Ship storage**: effectively unlimited, within reason. The ship, not the character sheet, is where pirate loot actually lives — this keeps cargo and hoarding from turning into inventory bookkeeping.
 
+### 9.1 Potions & Bottles
+A potion is a spell in a bottle. To brew one, cast the potion's spell as usual (normal Mana cost and roll). On a success, the potion goes into one empty bottle. The potion's magnitude is the spell's magnitude at the time of brewing.
+
+- **Bottles**: each brewer carries a set number of bottles. A bottle is full, empty, or broken.
+- **Brewing happens in the cauldron**: a failed brew costs the Mana, but never a bottle.
+- **Drinking or pouring out** a potion leaves the bottle empty and ready for the next brew.
+- **Throwing** a potion breaks its bottle. Bottles can also break for story reasons (a fall, a crushed bag).
+- **Broken bottles** stay broken until the next Island Reset (Section 11.3), when every bottle is whole again. Potions still in bottles carry over.
+
 
 ## 10. Combat Order — Popcorn, Locked After Round 1
 

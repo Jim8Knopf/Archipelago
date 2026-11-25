@@ -890,3 +890,82 @@ footer.foot {
   font-size: .8rem;
   text-align: right;
 }
+
+/* ---- Potions & bottles (Section 9.1) ---- */
+.spell-note-wrap {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+}
+
+.spell-note-wrap textarea { flex: 1; min-width: 0; }
+
+.spell-note-wrap .inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .8rem;
+  white-space: nowrap;
+  padding-top: .4rem;
+}
+
+.bottle-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .6rem;
+}
+
+.bottle-pips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+/* A little flask: rounded body with a narrow neck. */
+.bottle-pip {
+  width: 12px;
+  height: 18px;
+  border: 2px solid var(--brass-dim);
+  border-radius: 3px 3px 6px 6px;
+  background: transparent;
+}
+
+.bottle-pip.full { background: var(--success); }
+.bottle-pip.broken {
+  border-style: dashed;
+  border-color: var(--danger-light);
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--danger-light) 3px 4px);
+  opacity: .7;
+}
+
+.potion-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+
+.potion-row .item-name { flex: 1; min-width: 8rem; }
+
+.bottle-prompt {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .75rem;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.bottle-prompt[hidden] { display: none; }

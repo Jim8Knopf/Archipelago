@@ -245,6 +245,13 @@ export function defaultCharacter(name) {
     // Inventory items are typed: "item" (name, qty), "armor" (name,
     // armorValue, worn), "weapon" (name, woundDice).
     inventory: [],
+    // Potions (Section 9.1): stacks of { id, spellId, name, magnitude, qty },
+    // brewed from a spell marked brewable. Name and magnitude are copied
+    // from the spell at brew time. Bottles: a max the player sets, plus a
+    // broken count that only the GM's New Island button resets.
+    potions: [],
+    bottlesMax: 0,
+    bottlesBroken: 0,
     // "Used this session" markers — one-way toggle set from the sheet, only
     // clearable from the GM dashboard. Lives in Firestore (not just local
     // browser memory) specifically so a GM reset can reach every device.
@@ -253,4 +260,15 @@ export function defaultCharacter(name) {
     // `character` for longer-lived things like backstory and goals.
     notes: { session: "", character: "" }
   };
+}
+
+// Section 9.1: potion bottles. Full = one per potion carried, broken =
+// thrown or smashed (back at the Island Reset), empty = what's left of the
+// max. Drinking or pouring out a potion turns a full bottle back into an
+// empty one, so only `potions` and `bottlesBroken` are ever stored.
+export function bottleCounts(d) {
+  const max = Math.max(0, Number(d?.bottlesMax) || 0);
+  const full = (d?.potions || []).reduce((n, p) => n + Math.max(0, Number(p.qty) || 0), 0);
+  const broken = Math.max(0, Number(d?.bottlesBroken) || 0);
+  return { max, full, broken, empty: Math.max(0, max - full - broken) };
 }

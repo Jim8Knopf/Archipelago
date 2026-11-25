@@ -159,6 +159,8 @@ function renderCharacters(docs) {
         </ul>
       ` : `<p class="muted" style="margin-top:0.5rem;">Inventory empty.</p>`}
 
+      ${potionsHtml(data)}
+
       <details style="margin-top:0.5rem;">
         <summary style="cursor:pointer;color:var(--ink-soft);">Full sheet</summary>
         <div class="readonly-block">${buildFullDetails(data)}</div>
@@ -336,6 +338,22 @@ function inventoryLineHtml(item) {
   return `<li><span class="item-name">${escapeHtml(item.name)}</span><span class="item-qty">×${item.qty}</span></li>`;
 }
 
+// Potions and bottle counts (Section 9.1) — only for characters who carry
+// bottles or potions at all.
+function potionsHtml(data) {
+  const potions = data.potions || [];
+  const b = R.bottleCounts(data);
+  if (b.max === 0 && potions.length === 0) return "";
+  return `
+    <p class="muted" style="margin-top:0.5rem;margin-bottom:0.25rem;">
+      Potions — bottles: ${b.full} full · ${b.empty} empty · ${b.broken} broken (of ${b.max})
+    </p>
+    ${potions.length ? `<ul class="inventory-list">${potions.map(p => `
+      <li><span class="magnitude-tag" title="Magnitude ${p.magnitude}">${toRoman(p.magnitude)}</span><span class="item-name">${escapeHtml(p.name)}</span> <span class="item-qty">×${p.qty}</span></li>`).join("")}
+    </ul>` : ""}
+  `;
+}
+
 charList.addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
@@ -393,7 +411,7 @@ charList.addEventListener("click", async (e) => {
 document.getElementById("new-island-btn").addEventListener("click", async () => {
   const ids = Object.keys(charsById);
   if (ids.length === 0) { flash("No characters in this campaign yet."); return; }
-  if (!confirm(`Start a new island? This fully restores HP and Mana, and clears used-skill markers, for all ${ids.length} character(s) in "${campaign}".`)) return;
+  if (!confirm(`Start a new island? This fully restores HP and Mana, repairs broken potion bottles, and clears used-skill markers, for all ${ids.length} character(s) in "${campaign}".`)) return;
 
   try {
     const batch = writeBatch(db);
@@ -404,6 +422,7 @@ document.getElementById("new-island-btn").addEventListener("click", async () => 
       batch.update(doc(db, "campaigns", campaign, "characters", id), {
         currentHP: maxHP,
         currentMana: maxMana,
+        bottlesBroken: 0,
         usedSkillIds: []
       });
     });
