@@ -89,6 +89,38 @@ export function migrateBasicSkills(basicSkills, categories) {
   return [...cats, { id: makeId(), name: "General", type: "skill", skills: flat }];
 }
 
+// Section 3.1: the five fixed skill groups (after DSA's Körper-,
+// Gesellschafts-, Natur-, Wissens- and Handwerkstalente). `match` lists name
+// fragments that map an older, freely named group onto a fixed one.
+export const SKILL_GROUPS = [
+  { key: "physical", name: "Physical", match: ["physical", "body", "körper", "koerper"] },
+  { key: "social", name: "Social", match: ["social", "gesellschaft"] },
+  { key: "nature", name: "Nature", match: ["nature", "natur"] },
+  { key: "knowledge", name: "Knowledge", match: ["knowledge", "lore", "wissen"] },
+  { key: "crafting", name: "Crafting", match: ["craft", "handwerk"] }
+];
+
+// Makes sure the character has all five fixed skill groups, tagged with
+// their `group` key. An older group whose name matches one (e.g. "Körper")
+// is adopted as that group and renamed. Groups that are still missing are
+// added with a deterministic id (`skill-<key>`), so running this on every
+// load always produces the same ids. Older groups that match nothing stay
+// as they are, so their skills can be moved into a fixed group by hand.
+export function ensureSkillGroups(categories) {
+  let cats = [...(categories || [])];
+  SKILL_GROUPS.forEach(g => {
+    if (cats.some(c => c.type === "skill" && c.group === g.key)) return;
+    const legacy = cats.find(c => c.type === "skill" && !c.group
+      && g.match.some(m => (c.name || "").toLowerCase().includes(m)));
+    if (legacy) {
+      cats = cats.map(c => c === legacy ? { ...c, group: g.key, name: g.name } : c);
+    } else {
+      cats.push({ id: `skill-${g.key}`, name: g.name, type: "skill", group: g.key, skills: [] });
+    }
+  });
+  return cats;
+}
+
 // Section 4: Evasion = Evasion points invested + full Movement. Evasion has
 // its own dedicated field now, rather than being a Basic Skill found by name.
 export function evasionTotal(evasionPoints, movement) {
@@ -236,10 +268,11 @@ export function defaultCharacter(name) {
     // This stays only so an older document that still has a flat list keeps
     // loading; nothing writes to it any more.
     basicSkills: [],
-    // Skills, Weapons and Magic can all have several named categories
-    // (Seamanship, Sword, Fire, ...), each cross-training its own members.
+    // Basic Skills sit in the five fixed groups (SKILL_GROUPS); Weapons and
+    // Magic can have several named categories (Sword, Fire, ...). Each
+    // category cross-trains its own members.
     // Languages are a single shared pool per Section 3.2 — no sub-categories.
-    categories: [{ id: makeId(), name: "General", type: "skill", skills: [] }],
+    categories: ensureSkillGroups([]),
     languages: [],
     traits: [],
     // Inventory items are typed: "item" (name, qty), "armor" (name,

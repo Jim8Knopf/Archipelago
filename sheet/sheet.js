@@ -57,7 +57,9 @@ function usedClass(d, id) {
 //  - Pass `magnitude` for spells — shown as a roman-numeral prefix on the
 //    name, always visible in both modes, plus its own edit-only number
 //    input for changing it.
-function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
+//  - Pass `groupSelect` (an HTML <select>) for basic skills — an edit-only
+//    cell right after the name for moving the skill to another group.
+function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId, groupSelect }) {
   const ro = currentMode === "view" ? "readonly" : "";
   const clickable = currentMode === "view" ? "skill-name-clickable" : "";
   const used = usedClass(d, skill.id);
@@ -81,6 +83,7 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
   const nameCell = `
     <td><div class="name-wrap" ${note ? `data-spell-hover="${skill.id}"` : ""}>${magnitudeTag}<input type="text" data-field="name" value="${escapeHtml(skill.name)}"
       ${ro} data-skill-id="${skill.id}" class="${clickable} ${used}">${infoBtn}</div></td>`;
+  const groupCell = groupSelect ? `<td data-edit-control="true">${groupSelect}</td>` : "";
   const pointsCell = `<td data-edit-control="true"><input type="number" data-field="points" value="${skill.points || 0}" min="0"></td>`;
   const magnitudeCell = magnitude != null
     ? `<td data-edit-control="true"><input type="number" data-field="magnitude" value="${magnitude}" min="1" max="8" style="width:3rem;"></td>`
@@ -106,7 +109,7 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
       </tr>`
     : "";
 
-  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>${noteRow}`;
+  return `<tr data-id="${skill.id}"${catAttr}>${nameCell}${groupCell}${pointsCell}${magnitudeCell}${valueCells}${removeCell}</tr>${noteRow}`;
 }
 
 // Marks a skill "used" when its name or any of its value cells is tapped —
@@ -234,7 +237,8 @@ function normalize(d) {
   // left on an older document is folded into a group here, and `basicSkills`
   // is emptied so the same skills can't be counted or shown twice. The
   // emptied list is written back on the next save of that field.
-  const withSkillGroups = R.migrateBasicSkills(basicSkills, categories);
+  // Then every character gets the five fixed groups (Section 3.1).
+  const withSkillGroups = R.ensureSkillGroups(R.migrateBasicSkills(basicSkills, categories));
 
   return {
     ...def,
@@ -281,7 +285,7 @@ function render() {
   renderBasicInfo(d.basicInfo);
   renderAttributes(d);
   renderLanguages(d.languages);
-  renderCategoryGroup("skills-container", d.categories, "skill");
+  renderSkillGroups(d);
   renderCategoryGroup("weapons-container", d.categories, "weapon");
   renderMagicStats(d);
   renderMagicCategories(d);
@@ -737,11 +741,9 @@ document.getElementById("add-language-btn").addEventListener("click", () => {
 
 // ---- Skills & Weapons: multiple named categories ----
 //
-// Skill groups and weapon categories render identically — the only
-// difference is the wording on the header row and the "add" button, so both
-// go through this one function rather than a near-duplicate copy each.
+// Weapon categories are freely named. Basic Skills use the fixed groups
+// instead — see renderSkillGroups below.
 const CATEGORY_LABELS = {
-  skill: { group: "Group name", member: "Skill", add: "+ Add skill to this group", removeGroup: "✕ Group", empty: "No skill groups yet." },
   weapon: { group: "Category name", member: "Skill", add: "+ Add skill to this category", removeGroup: "✕ Category", empty: "No categories yet." }
 };
 
@@ -782,6 +784,82 @@ function renderCategoryGroup(containerId, allCategories, type) {
   }
 
   if (!container.dataset.wired) {
+    wireCategoryContainer(container, "categories");
+    container.dataset.wired = "1";
+  }
+}
+
+// ---- Basic Skills: the five fixed groups (Section 3.1) ----
+//
+// Physical, Social, Nature, Knowledge and Crafting are always there and
+// can't be renamed or removed. Every skill row has an edit-only dropdown
+// right after its name to move it into another group. A freely named group
+// left over from before the fixed groups shows below them, so its skills
+// can be moved out; once it's empty it can be removed.
+function renderSkillGroups(d) {
+  const container = document.getElementById("skills-container");
+  const all = catsOfType(d.categories, "skill");
+  const fixed = R.SKILL_GROUPS.map(g => all.find(c => c.group === g.key)).filter(Boolean);
+  const legacy = all.filter(c => !c.group);
+  const targets = [...fixed, ...legacy];
+
+  const groupSelect = (cat) => `<select data-action="move-skill" aria-label="Skill group">${
+    targets.map(t => `<option value="${t.id}" ${t.id === cat.id ? "selected" : ""}>${escapeHtml(t.name || "Unnamed")}</option>`).join("")
+  }</select>`;
+
+  const card = (cat, isLegacy) => {
+    const skills = cat.skills || [];
+    // View mode only shows groups that have something in them.
+    if (currentMode === "view" && skills.length === 0) return "";
+    const bonus = R.categoryBonus(skills);
+    const rows = skills.map(s => {
+      const eff = R.categorySkillEffective(s, bonus);
+      const l = R.ladder(eff);
+      return skillRowHtml(d, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id, groupSelect: groupSelect(cat) });
+    }).join("");
+    const removeBtn = isLegacy && skills.length === 0
+      ? `<button class="small danger" data-action="remove-category" data-edit-control="true">✕ Group</button>`
+      : "";
+    const legacyNote = isLegacy
+      ? `<p class="muted" data-edit-control="true">Old group — move these skills into one of the five groups above.</p>`
+      : "";
+    return `
+      <div class="category-card" data-cat="${cat.id}">
+        <div class="cat-header"><h4 class="cat-title">${escapeHtml(cat.name || "Unnamed")}</h4>${removeBtn}</div>
+        ${legacyNote}
+        <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+        <div class="table-scroll">
+          <table class="skill-table">
+            <thead><tr><th>Skill</th><th data-edit-control="true">Group</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        ${isLegacy ? "" : `<button class="small brass" data-action="add-skill" data-edit-control="true">+ Add ${escapeHtml(cat.name)} skill</button>`}
+      </div>
+    `;
+  };
+
+  container.innerHTML = fixed.map(c => card(c, false)).join("") + legacy.map(c => card(c, true)).join("");
+
+  if (!container.dataset.wired) {
+    // Moving a skill runs before the generic handler, which ignores <select>.
+    container.addEventListener("change", (e) => {
+      const sel = e.target.closest("select[data-action='move-skill']");
+      if (!sel) return;
+      const fromId = sel.closest("[data-cat]").dataset.cat;
+      const toId = sel.value;
+      const skillId = sel.closest("tr").dataset.id;
+      if (fromId === toId) return;
+      const skill = currentData.categories.find(c => c.id === fromId)?.skills.find(s => s.id === skillId);
+      if (!skill) return;
+      saveField({
+        categories: currentData.categories.map(c => {
+          if (c.id === fromId) return { ...c, skills: c.skills.filter(s => s.id !== skillId) };
+          if (c.id === toId) return { ...c, skills: [...(c.skills || []), skill] };
+          return c;
+        })
+      });
+    });
     wireCategoryContainer(container, "categories");
     container.dataset.wired = "1";
   }
@@ -888,9 +966,6 @@ function wireCategoryContainer(container, dataKey) {
   });
 }
 
-document.getElementById("add-skill-group-btn").addEventListener("click", () => {
-  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Skill Group", type: "skill", skills: [] }] });
-});
 document.getElementById("add-weapon-category-btn").addEventListener("click", () => {
   saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Weapon Category", type: "weapon", skills: [] }] });
 });
