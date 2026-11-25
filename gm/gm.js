@@ -4,6 +4,7 @@ import {
 import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash as flashEl, toRoman, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
+import { restCharacter, applyRestCooldown, restMessage } from "../js/rest.js";
 
 const campaignInput = document.getElementById("campaign-input");
 const charList = document.getElementById("char-list");
@@ -141,6 +142,11 @@ function renderCharacters(docs) {
         <div class="gauge ${gaugeClass(data.currentMana, maxMana)}"><div class="fill" style="width:${manaPct}%"></div></div>
         ${vitalControlsHtml(id, "mana", [-10, -1, 1, 10])}
       ` : ""}
+
+      <div class="rest-row" style="margin-top:0.5rem;">
+        <button class="small brass" data-action="rest" data-rest="short" data-id="${id}">Short Rest</button>
+        <button class="small brass" data-action="rest" data-rest="long" data-id="${id}">Long Rest</button>
+      </div>
 
       <p class="muted" style="margin-top:0.5rem;">
         Movement ${movement} m/s · Armor ${R.totalArmor(data)} · Evasion ${evasion} · Resilience −${resilienceMod} · Points ${spent}/${available}
@@ -368,6 +374,22 @@ charList.addEventListener("click", async (e) => {
     await updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal });
   }
 
+  // Same transaction + cooldown as the player's sheet (js/rest.js), so a
+  // rest pressed here and on the sheet a few seconds apart heals only once.
+  if (action === "rest") {
+    const type = btn.dataset.rest;
+    btn.disabled = true;
+    try {
+      const result = await restCharacter(campaign, id, type);
+      flash(`${data.name || "Unnamed"}: ${restMessage(result, type)}`);
+    } catch (err) {
+      console.error(err);
+      flash("Couldn't rest — check firestore.rules.");
+    }
+    refreshRestButtons();
+    return;
+  }
+
   if (action === "reset-used") {
     try {
       await updateDoc(doc(db, "campaigns", campaign, "characters", id), { usedSkillIds: [] });
@@ -404,6 +426,15 @@ document.getElementById("new-island-btn").addEventListener("click", async () => 
   }
 });
 
+// Rest buttons show a live countdown while the character is on the shared
+// rest cooldown. Cards are rebuilt on every snapshot, so look them up fresh.
+function refreshRestButtons() {
+  charList.querySelectorAll('button[data-action="rest"]').forEach((btn) => {
+    applyRestCooldown([btn], charsById[btn.dataset.id]);
+  });
+}
+setInterval(refreshRestButtons, 1000);
+
 // Live sync — this onSnapshot listener is what makes the dashboard update
 // automatically (players' edits, other GM actions) without ever reloading.
 onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
@@ -411,6 +442,7 @@ onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
   charsById = {};
   docs.forEach(({ id, data }) => { charsById[id] = data; });
   renderCharacters(docs);
+  refreshRestButtons();
   renderSpellbook(docs);
 }, (err) => {
   console.error(err);
