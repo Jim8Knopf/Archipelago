@@ -4,6 +4,7 @@ import {
 import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
+import { restCharacter, applyRestCooldown, restMessage } from "../js/rest.js";
 
 const params = new URLSearchParams(window.location.search);
 const loaderCard = document.getElementById("loader-card");
@@ -194,6 +195,7 @@ function initSheet() {
     loaderCard.style.display = "none";
     sheetCard.style.display = "contents";
     render();
+    refreshRestButtons();
     // normalize() only migrates in memory. Write the skill-group migration
     // back once, so the stale flat list can't linger in Firestore and get
     // counted a second time by pointsSpent() on the GM dashboard.
@@ -394,22 +396,31 @@ function renderGauge(stat, current, max) {
   if (curInput && document.activeElement !== curInput) curInput.value = current;
 }
 
-document.getElementById("short-rest-btn").addEventListener("click", () => {
-  const maxHP = R.hpFromPoints(currentData.hpPoints);
-  const updates = { currentHP: R.shortRestRecover(currentData.currentHP ?? 0, maxHP) };
-  if (R.hasMagic(currentData)) {
-    updates.currentMana = R.shortRestRecover(currentData.currentMana ?? 0, getMaxMana(currentData));
-  }
-  saveField(updates);
-});
+// Rests run through js/rest.js: one Firestore transaction that checks and
+// sets a cooldown shared with the GM dashboard, so a rest pressed on both
+// screens a few seconds apart only heals once.
+const restButtons = {
+  short: document.getElementById("short-rest-btn"),
+  long: document.getElementById("long-rest-btn")
+};
 
-document.getElementById("long-rest-btn").addEventListener("click", () => {
-  const maxHP = R.hpFromPoints(currentData.hpPoints);
-  const updates = { currentHP: R.longRestRecover(currentData.currentHP ?? 0, maxHP) };
-  if (R.hasMagic(currentData)) {
-    updates.currentMana = R.longRestRecover(currentData.currentMana ?? 0, getMaxMana(currentData));
-  }
-  saveField(updates);
+function refreshRestButtons() {
+  if (currentData) applyRestCooldown(Object.values(restButtons), currentData);
+}
+setInterval(refreshRestButtons, 1000);
+
+Object.entries(restButtons).forEach(([type, btn]) => {
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try {
+      const result = await restCharacter(getCampaignId(), params.get("char"), type);
+      flash(sheetStatus, restMessage(result, type));
+    } catch (err) {
+      console.error(err);
+      flash(sheetStatus, "Couldn't rest — check your connection.");
+    }
+    refreshRestButtons();
+  });
 });
 
 // Shared +/- and manual-entry wiring for both HP and Mana — one set of
