@@ -215,12 +215,11 @@ function cardHtml(id, data) {
   const nonMagic = entries.filter(e => e.type !== "magic");
   const spells = entries.filter(e => e.type === "magic");
   const inv = data.inventory || [];
-  const potions = data.potions || [];
   const usedCount = used.size;
   const menuOpen = openSections.has(`${id}:menu`) ? " open" : "";
 
   const skillsSummary = `Skills <span class="gm-count">${nonMagic.length}</span>${usedCount ? ` <span class="gm-used-badge" title="Marked used this session">${usedCount} used</span>` : ""}`;
-  const invSummary = `Inventory <span class="gm-count">${inv.length + potions.length}</span>`;
+  const invSummary = `Inventory <span class="gm-count">${inv.length}</span>`;
 
   return `
     <div class="gm-card-head">
@@ -321,20 +320,25 @@ function inventoryLineHtml(item) {
 }
 
 // Inventory, then potions and bottle counts (Section 9.1) for characters who
-// carry bottles or potions at all.
+// carry bottles or potions at all. Potions are inventory items of type
+// "potion"; they're listed on their own, under the bottle counts.
 function inventoryBodyHtml(data) {
-  const inv = data.inventory || [];
-  const potions = data.potions || [];
+  const inv = (data.inventory || []).filter(i => i.type !== "potion");
+  const potions = R.potionsOf(data);
   const b = R.bottleCounts(data);
+  const hasPotions = b.max > 0 || potions.length > 0;
   const invHtml = inv.length
     ? `<ul class="inventory-list">${inv.map(inventoryLineHtml).join("")}</ul>`
-    : `<p class="muted">Inventory empty.</p>`;
-  if (b.max === 0 && potions.length === 0) return invHtml;
+    : hasPotions ? "" : `<p class="muted">Inventory empty.</p>`;
+  if (!hasPotions) return invHtml;
   return `
     ${invHtml}
     <p class="muted gm-sub-label">Potions — bottles: ${b.full} full · ${b.empty} empty · ${b.broken} broken (of ${b.max})</p>
-    ${potions.length ? `<ul class="inventory-list">${potions.map(p => `
-      <li><span class="magnitude-tag" title="Magnitude ${p.magnitude}">${toRoman(p.magnitude)}</span><span class="item-name">${escapeHtml(p.name)}</span> <span class="item-qty">×${p.qty}</span></li>`).join("")}
+    ${potions.length ? `<ul class="inventory-list">${potions.map(p => {
+      const magnitude = R.magnitudeOf(p);
+      return `
+      <li><span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span><span class="item-name">${escapeHtml(p.name)}</span> <span class="item-qty">×${p.qty}</span></li>`;
+    }).join("")}
     </ul>` : ""}
   `;
 }

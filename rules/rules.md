@@ -63,7 +63,7 @@ All four share one mechanic: skills within the same **category** partially train
 
 ## 4. Combat: Attacks & Damage
 
-1. Attacker rolls their weapon/spell skill. Fail = no hit, no further steps.
+1. Attacker rolls their weapon/spell skill (for a thrown potion, their throwing skill — Section 9.1). Fail = no hit, no further steps.
 2. On a hit, roll damage dice for the weapon or spell magnitude (see Section 5 for spell damage).
 3. The attacker's degree of success determines how well the defender's chosen defense holds up:
    - **Normal success** → the defense applies at full strength.
@@ -175,6 +175,8 @@ Same rule, nothing new to learn — but these spells are **hit or miss**: if the
 - **Willing targets** (buffs, healing, a friendly charm) can waive their Resilience and take the spell at full magnitude.
 - **Mixed spells** (damage plus an effect, like a burning curse) use the one chosen defense for both parts.
 
+Any spell can also be brewed into a potion, to be drunk or thrown later — see Section 9.1.
+
 \page
 
 ## 6. Healing & Resource Regeneration
@@ -207,6 +209,8 @@ Uses the same magnitude table as damage spells (Section 5.2) — identical cost 
 | 8 | 3d6 |
 
 Magnitude 1–2 healing spells have no healing dice — they can soothe, clean or stabilise, but don't restore HP.
+
+A healing spell brewed into a potion heals the same way when drunk (Section 9.1).
 
 ### 6.5 In-Combat Mana: Channel
 Spend your action to recover **1/10 of max mana**. Channeling leaves you wide open until your next turn: you can't choose Evasion or Resilience, and your Resilience does **not** lower casters' chances against you — not even against non-damage spells like Charm. Armor still applies passively, and so do Wards.
@@ -245,14 +249,33 @@ This keeps flaws generating actual story beats throughout play, rather than bein
 - **Ship storage**: effectively unlimited, within reason. The ship, not the character sheet, is where pirate loot actually lives — this keeps cargo and hoarding from turning into inventory bookkeeping.
 
 ### 9.1 Potions & Bottles
-A potion is a spell in a bottle. To brew one, cast the potion's spell as usual (normal Mana cost and roll). On a success, the potion goes into one empty bottle. The potion's magnitude is the spell's magnitude at the time of brewing.
+A potion is a spell in a bottle. Potions are inventory items with a name, a magnitude and a quantity.
 
-- **Bottles**: each brewer carries a set number of bottles. A bottle is full, empty, or broken.
-- **Brewing happens in the cauldron**: a failed brew costs the Mana, but never a bottle.
-- **Drinking or pouring out** a potion leaves the bottle empty and ready for the next brew.
+**Getting potions**
+- **Brewing**: cast the potion's spell as usual, with the same roll, Mana cost and access gating (Sections 5.2–5.3). On a success, the potion goes into one empty bottle. The potion's magnitude is the spell's magnitude at the time of brewing. The degree of success only changes the Mana cost, not the potion.
+- Brewing needs the cauldron, so it can't be done in combat. A failed brew costs the Mana, but never a bottle.
+- **Bought or found potions** come in their own bottle, which joins your bottles.
+
+**Bottles**: every bottle is full, empty or broken.
+- **Drinking or pouring out** a potion leaves its bottle empty, ready for the next brew.
 - **Throwing** a potion breaks its bottle. Bottles can also break for story reasons (a fall, a crushed bag).
 - **Broken bottles** stay broken until the next Island Reset (Section 11.3), when every bottle is whole again. Potions still in bottles carry over.
+- How many bottles a character starts with is the GM's call. More can be bought or found.
 
+**Using potions**
+- **Drinking** takes your action. The drinker is a willing target (Section 5.6), so the potion works at its full magnitude with no roll. A healing potion heals like its spell (Section 6.4).
+- **Throwing** takes your action and resolves **exactly like casting the potion's spell** (Sections 4 and 5.4–5.6), with two differences: the thrower rolls a **throwing weapon skill** instead of the spell skill, and pays no Mana. Access gating doesn't apply again, since it was checked at brewing.
+  - A damage potion: the target chooses Armor, Evasion or Resilience, as against a damage spell.
+  - A non-damage potion (Sleep, Fear…): only Resilience and Wards apply.
+  - Wards lower the potion's magnitude as usual.
+- **Anyone can use a potion.** A crewmate who throws one of your potions uses their own throwing skill.
+
+{{note
+#### Why potions don't break the Mana economy
+Potions store Mana: a brewer who brews during calm times can spend far more in one fight than their Mana pool allows. That's intended. The number of bottles, and thrown bottles staying broken until the next island, are what keep it in check.
+}}
+
+\page
 
 ## 10. Combat Order — Popcorn, Locked After Round 1
 
@@ -280,5 +303,7 @@ At the end of each island (story arc), before starting the next one:
 1. Identify the highest total invested points in each relevant category across the party.
 2. Any character below that total receives free catch-up points to bring them level.
 3. Every character then receives an additional shared batch of points for the next island.
+
+Every character is also fully restored: HP and Mana back to max, and broken potion bottles whole again (Section 9.1).
 
 This deliberately trades strict "you get what you individually earned" purity for table-level balance — nobody falls permanently behind because they had less spotlight time or rolled fewer 00s, and every island starts the party on an even footing regardless of how the last one went.

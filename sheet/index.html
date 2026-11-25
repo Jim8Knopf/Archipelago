@@ -224,24 +224,6 @@
         <button class="small brass" id="add-magic-category-btn" data-edit-control="true">+ Add magic category</button>
       </details>
 
-      <details class="card shared-section" open id="potions-section">
-        <summary><h3 style="display:inline;">Potions</h3></summary>
-        <p class="muted" data-edit-control="true">Tick “Brewable” on a spell in Magic. Casting it then offers to bottle the potion, if an empty bottle is left (Section 9.1). Drinking or pouring out gives the bottle back; throwing breaks it until the next island.</p>
-
-        <div class="bottle-bar" id="bottle-bar"></div>
-        <div class="row" style="margin:0.4rem 0 0.6rem;">
-          <button class="small" id="break-bottle-btn" title="Lose an empty bottle (it fell, got crushed…). It's back at the next island.">Break an empty bottle</button>
-        </div>
-        <div class="row" data-edit-control="true" style="margin-bottom:0.6rem;">
-          <div class="field">
-            <label for="bottles-max-input">Max bottles</label>
-            <input type="number" id="bottles-max-input" min="0" style="max-width:6rem;">
-          </div>
-        </div>
-
-        <ul class="inventory-list" id="potion-list"></ul>
-      </details>
-
       <details class="card shared-section" open id="traits-section">
         <summary><h3 style="display:inline;">Traits</h3></summary>
         <div id="traits-container"></div>
@@ -273,9 +255,31 @@
         <h4 style="margin-bottom:0.3rem;">Items</h4>
         <ul class="inventory-list" id="inventory-item-list"></ul>
         <div class="row" data-edit-control="true" style="margin:0.5rem 0 1rem;">
+          <select id="item-type-input" aria-label="Item type">
+            <option value="item">Item</option>
+            <option value="potion">Potion</option>
+          </select>
           <input type="text" id="item-name-input" placeholder="Item name" style="flex:2;">
+          <input type="number" id="item-magnitude-input" placeholder="Magnitude" title="Magnitude (1–8)" value="1" min="1" max="8" style="flex:1;display:none;">
           <input type="number" id="item-qty-input" placeholder="Qty" value="1" min="1" style="flex:1;">
           <button class="brass small" id="add-item-btn">Add item</button>
+        </div>
+
+        <!-- Potions (Section 9.1): only shown once the character has a potion,
+             bottles, or a spell ticked Brewable. -->
+        <div id="inventory-potions">
+          <hr class="divider">
+          <h4 style="margin-bottom:0.3rem;">Potions</h4>
+          <p class="muted" data-edit-control="true">Add a bought or found potion above with type “Potion” — it brings its own bottle. To brew, tick “Brewable” on a spell in Magic; casting it then offers to bottle the potion if an empty bottle is left. Drinking or pouring out leaves the bottle empty; throwing breaks it until the next island.</p>
+          <div class="bottle-bar" id="bottle-bar"></div>
+          <div class="row" style="margin:0.4rem 0 0.6rem;">
+            <button class="small" id="break-bottle-btn" title="Lose an empty bottle (it fell, got crushed…). It's back at the next island.">Break an empty bottle</button>
+            <div class="field" data-edit-control="true" style="margin:0;">
+              <label for="bottles-max-input">Max bottles</label>
+              <input type="number" id="bottles-max-input" min="0" style="max-width:6rem;">
+            </div>
+          </div>
+          <ul class="inventory-list" id="potion-list" style="margin-bottom:1rem;"></ul>
         </div>
 
         <hr class="divider">
