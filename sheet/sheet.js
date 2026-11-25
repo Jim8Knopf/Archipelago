@@ -1109,31 +1109,58 @@ function renderInventoryItems(inventory) {
   `).join("");
 }
 
-// "Item" or "Potion": a potion also needs a magnitude, so that field only
-// shows for that type.
+// One add row for all inventory types. Each type needs different extra
+// fields — the inputs carry data-for="<types>" and only show for theirs.
+const ADD_ITEM_LABELS = {
+  item: { name: "Item name", button: "Add item" },
+  potion: { name: "Potion name", button: "Add potion" },
+  armor: { name: "Armor name", button: "Add armor" },
+  weapon: { name: "Weapon name", button: "Add weapon" }
+};
 const itemTypeInput = document.getElementById("item-type-input");
-itemTypeInput.addEventListener("change", () => {
-  const isPotion = itemTypeInput.value === "potion";
-  document.getElementById("item-magnitude-input").style.display = isPotion ? "" : "none";
-  document.getElementById("item-name-input").placeholder = isPotion ? "Potion name" : "Item name";
-  document.getElementById("add-item-btn").textContent = isPotion ? "Add potion" : "Add item";
-});
+const itemField = (id) => document.getElementById(id);
 
-document.getElementById("add-item-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("item-name-input");
-  const qtyInput = document.getElementById("item-qty-input");
+function syncAddItemRow() {
+  const type = itemTypeInput.value;
+  document.querySelectorAll("#inventory-section [data-for]").forEach(el => {
+    el.style.display = el.dataset.for.split(" ").includes(type) ? "" : "none";
+  });
+  itemField("item-name-input").placeholder = ADD_ITEM_LABELS[type].name;
+  itemField("add-item-btn").textContent = ADD_ITEM_LABELS[type].button;
+}
+itemTypeInput.addEventListener("change", syncAddItemRow);
+syncAddItemRow();
+
+function addInventoryItem() {
+  const nameInput = itemField("item-name-input");
   const name = nameInput.value.trim();
-  const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
   if (!name) return;
-  if (itemTypeInput.value === "potion") {
-    const magnitude = R.magnitudeOf({ magnitude: document.getElementById("item-magnitude-input").value });
-    addPotion({ name, magnitude }, qty, { bringsBottle: true });
+  const type = itemTypeInput.value;
+  const qty = Math.max(1, parseInt(itemField("item-qty-input").value, 10) || 1);
+  const add = (item) => saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type, name, ...item }] });
+
+  if (type === "potion") {
+    addPotion({ name, magnitude: R.magnitudeOf({ magnitude: itemField("item-magnitude-input").value }) }, qty, { bringsBottle: true });
+  } else if (type === "armor") {
+    add({ armorValue: Math.max(0, parseInt(itemField("item-armor-input").value, 10) || 0), worn: false });
+  } else if (type === "weapon") {
+    add({ woundDice: itemField("item-dice-input").value.trim() });
   } else {
-    saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "item", name, qty }] });
+    add({ qty });
   }
+
+  // Clear the name and the per-item numbers; keep the type and magnitude,
+  // so several potions or items of one kind go in quickly.
   nameInput.value = "";
-  qtyInput.value = "1";
+  itemField("item-qty-input").value = "1";
+  itemField("item-armor-input").value = "1";
+  itemField("item-dice-input").value = "";
   nameInput.focus();
+}
+
+itemField("add-item-btn").addEventListener("click", addInventoryItem);
+itemField("item-name-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addInventoryItem();
 });
 
 document.getElementById("inventory-item-list").addEventListener("click", (e) => {
@@ -1176,18 +1203,6 @@ function renderInventoryArmor(inventory) {
   `).join("");
 }
 
-document.getElementById("add-armor-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("armor-name-input");
-  const valueInput = document.getElementById("armor-value-input");
-  const name = nameInput.value.trim();
-  const armorValue = Math.max(0, parseInt(valueInput.value, 10) || 0);
-  if (!name) return;
-  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "armor", name, armorValue, worn: false }] });
-  nameInput.value = "";
-  valueInput.value = "1";
-  nameInput.focus();
-});
-
 document.getElementById("inventory-armor-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action='remove']");
   if (!btn) return;
@@ -1218,18 +1233,6 @@ function renderInventoryWeapons(inventory) {
     </li>
   `).join("");
 }
-
-document.getElementById("add-weapon-item-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("weapon-name-input");
-  const diceInput = document.getElementById("weapon-dice-input");
-  const name = nameInput.value.trim();
-  const woundDice = diceInput.value.trim();
-  if (!name) return;
-  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "weapon", name, woundDice }] });
-  nameInput.value = "";
-  diceInput.value = "";
-  nameInput.focus();
-});
 
 document.getElementById("inventory-weapon-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action='remove']");
