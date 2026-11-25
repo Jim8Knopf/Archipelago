@@ -12,6 +12,11 @@ on:
         required: false
         default: ""
         type: string
+      pr:
+        description: "PR number to report the result to (set automatically by the deploy label)"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -32,12 +37,23 @@ jobs:
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Start deploy of PR branch
-        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH"
+        run: gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main -f ref="$PR_BRANCH" -f pr="$PR_NUMBER"
 
-      # Remove the label so adding it again triggers a fresh deploy
+      - name: Comment that the deploy started
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "🚀 Deploy of \`$PR_BRANCH\` started. It runs as a separate **Deploy to GitHub Pages** run on \`main\` ([Actions]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/deploy.yml)); the result will be posted here."
+
+      # Remove the label so adding it again triggers a fresh deploy. Only on
+      # success: if starting the deploy failed, the label stays as a signal.
       - name: Remove deploy label
-        if: always()
         run: gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label deploy
+
+      - name: Comment that the deploy could not start
+        if: failure()
+        run: |
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body \
+            "❌ Couldn't start the deploy of \`$PR_BRANCH\`. See [the run log]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
 
   deploy:
     if: github.event_name != 'pull_request'
@@ -46,6 +62,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+      pull-requests: write
     concurrency:
       group: pages
       cancel-in-progress: true
@@ -79,3 +96,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      # Label-triggered deploys report back to the PR, so the result is
+      # visible there instead of only in a run on main.
+      - name: Report result to PR
+        if: always() && inputs.pr != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr }}
+          REF: ${{ inputs.ref }}
+          STATUS: ${{ job.status }}
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$STATUS" in
+            success)   body="✅ Deployed \`$REF\` to $PAGE_URL — hard-refresh (Ctrl+Shift+R) if you still see the old version. ([run]($RUN_URL))" ;;
+            cancelled) body="⏹️ Deploy of \`$REF\` was cancelled, probably replaced by a newer deploy. ([run]($RUN_URL))" ;;
+            *)         body="❌ Deploy of \`$REF\` failed. ([run]($RUN_URL))" ;;
+          esac
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body"
