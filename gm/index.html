@@ -26,6 +26,15 @@
     </div>
 
     <div class="card full-width">
+      <h3>🛌 Rest</h3>
+      <p class="muted">Rests the whole party at once (Section 6). Short Rest: 1/10 of max HP and Mana back. Long Rest: half of what's missing back. A character who already rested in the last minute (here or on their own sheet) is skipped, so nobody heals twice. Each card below also has its own rest buttons.</p>
+      <div class="rest-row">
+        <button class="brass" data-party-rest="short">Short Rest (All)</button>
+        <button class="brass" data-party-rest="long">Long Rest (All)</button>
+      </div>
+    </div>
+
+    <div class="card full-width">
       <h3>🏝️ New Island</h3>
       <p class="muted">Fully restores HP and Mana for every character in this campaign — the Island Reset moment (Section 11.3). Point catch-up and the shared bonus batch from that section aren't automated yet; handle those manually.</p>
       <button class="brass" id="new-island-btn">Start New Island (Full Restore All)</button>
