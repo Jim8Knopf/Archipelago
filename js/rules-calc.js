@@ -248,6 +248,9 @@ export function defaultCharacter(name) {
     // "Used this session" markers — one-way toggle set from the sheet, only
     // clearable from the GM dashboard. Lives in Firestore (not just local
     // browser memory) specifically so a GM reset can reach every device.
-    usedSkillIds: []
+    usedSkillIds: [],
+    // Free-text player notes. `session` is for the current game night,
+    // `character` for longer-lived things like backstory and goals.
+    notes: { session: "", character: "" }
   };
 }
