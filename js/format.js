@@ -56,3 +56,27 @@ export function slugify(str) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "") || "char-" + Math.random().toString(36).slice(2, 7);
 }
+
+// Turns whatever the player pasted into the "Portrait image URL" field into
+// something an <img> can actually load, or "" if it can't be used.
+// - Only http(s) URLs are allowed.
+// - Share links that point at a viewer page rather than the picture itself
+//   (Google Drive, Dropbox) are rewritten to their direct-image form.
+export function portraitUrl(raw) {
+  const url = (raw || "").trim();
+  if (!/^https?:\/\//i.test(url)) return "";
+
+  // Google Drive: .../file/d/<id>/view  or  ...?id=<id>
+  const drive = url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:.*&)?id=)([\w-]+)/i);
+  if (drive) return `https://lh3.googleusercontent.com/d/${drive[1]}`;
+
+  // Dropbox: ?dl=0 opens a preview page; raw=1 serves the file.
+  if (/^https?:\/\/(www\.)?dropbox\.com\//i.test(url)) {
+    const u = new URL(url);
+    u.searchParams.delete("dl");
+    u.searchParams.set("raw", "1");
+    return u.toString();
+  }
+
+  return url;
+}

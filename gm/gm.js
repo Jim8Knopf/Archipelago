@@ -2,7 +2,7 @@ import {
   collection, addDoc, deleteDoc, doc, updateDoc, writeBatch, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db, getCampaignId } from "../js/firebase-init.js";
-import { escapeHtml, flash as flashEl, toRoman } from "../js/format.js";
+import { escapeHtml, flash as flashEl, toRoman, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 
 const campaignInput = document.getElementById("campaign-input");
@@ -80,6 +80,26 @@ function vitalControlsHtml(id, stat, deltas) {
   `;
 }
 
+// Character portrait for the card header. Falls back to the same anchor
+// placeholder the sheet shows when there's no usable URL or it fails to load
+// (see the capture-phase "error" listener on charList below).
+function portraitHtml(imageUrl) {
+  const src = portraitUrl(imageUrl);
+  return `
+    <span class="gm-portrait">
+      ${src ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
+      <span class="gm-portrait-placeholder"${src ? ' style="display:none;"' : ""}>⚓</span>
+    </span>
+  `;
+}
+
+charList.addEventListener("error", (e) => {
+  if (e.target.tagName !== "IMG") return;
+  e.target.style.display = "none";
+  const ph = e.target.nextElementSibling;
+  if (ph) ph.style.display = "";
+}, true);
+
 function renderCharacters(docs) {
   charList.innerHTML = "";
   if (docs.length === 0) {
@@ -105,7 +125,10 @@ function renderCharacters(docs) {
     card.className = "card";
     card.innerHTML = `
       <div class="row spread">
-        <h3 style="margin:0;">${escapeHtml(data.name || "Unnamed")}</h3>
+        <div class="row" style="gap:0.6rem;align-items:center;">
+          ${portraitHtml(data.imageUrl)}
+          <h3 style="margin:0;">${escapeHtml(data.name || "Unnamed")}</h3>
+        </div>
         <button class="small danger" data-action="delete" data-id="${id}">Remove</button>
       </div>
 
