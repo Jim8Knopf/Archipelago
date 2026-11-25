@@ -847,3 +847,29 @@ footer.foot {
   margin-bottom: .3rem;
 }
 .spell-info-body { white-space: pre-wrap; }
+
+/* ---- GM dashboard: portrait in each character card's header ---- */
+.gm-portrait {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+  border-radius: var(--radius);
+  border: 2px solid var(--brass-dim);
+  background: var(--navy-light);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gm-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.gm-portrait-placeholder {
+  font-size: 1.3rem;
+  color: var(--brass-dim);
+}

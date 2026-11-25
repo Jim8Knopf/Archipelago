@@ -2,7 +2,7 @@ import {
   doc, getDoc, setDoc, updateDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db, getCampaignId } from "../js/firebase-init.js";
-import { escapeHtml, flash, clamp, toRoman, slugify } from "../js/format.js";
+import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -316,21 +316,34 @@ function renderPortrait(url) {
   const input = document.getElementById("image-url-input");
   if (document.activeElement !== input) input.value = url || "";
 
-  if (url) {
-    img.src = url;
-    img.style.display = "";
-    placeholder.style.display = "none";
-  } else {
+  const src = portraitUrl(url);
+  if (!src) {
+    img.removeAttribute("src");
     img.style.display = "none";
     placeholder.style.display = "";
+    return;
   }
+  // Every snapshot re-renders; only touch the <img> when the URL changes,
+  // otherwise a link that already failed would flip back to a broken icon.
+  if (img.dataset.src === src) return;
+  img.dataset.src = src;
+  img.style.display = "none";
+  placeholder.style.display = "";
+  img.src = src;
 }
 
 document.getElementById("image-url-input").addEventListener("change", (e) => {
   saveField({ imageUrl: e.target.value.trim() });
 });
 
+// Show the picture only once it has actually loaded; keep the anchor otherwise.
+document.getElementById("portrait-img").addEventListener("load", () => {
+  document.getElementById("portrait-img").style.display = "";
+  document.getElementById("portrait-placeholder").style.display = "none";
+});
+
 document.getElementById("portrait-img").addEventListener("error", () => {
+  console.warn("Portrait image failed to load:", document.getElementById("portrait-img").src);
   document.getElementById("portrait-img").style.display = "none";
   document.getElementById("portrait-placeholder").style.display = "";
 });
