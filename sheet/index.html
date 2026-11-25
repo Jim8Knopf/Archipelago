@@ -220,9 +220,27 @@
 
         <hr class="divider">
 
-        <p class="muted">Skills in the same category partially train each other — bonus = (sum of raw points in category) ÷ 10. A spell's Magnitude (1–8, Section 5.2) is shown as a roman numeral before its name and sets its casting cost (Section 5.3) — tap Eff./Hard/Extreme to cast.</p>
+        <p class="muted">Skills in the same category partially train each other — bonus = (sum of raw points in category) ÷ 10. A spell's Magnitude (1–8, Section 5.2) is shown as a roman numeral before its name and sets its casting cost (Section 5.3) — tap Eff./Hard/Extreme to cast. Casting a spell ticked “Brewable” offers to bottle it as a potion.</p>
         <div id="magic-container"></div>
         <button class="small brass" id="add-magic-category-btn" data-edit-control="true">+ Add magic category</button>
+      </details>
+
+      <details class="card shared-section" open id="potions-section">
+        <summary><h3 style="display:inline;">Potions</h3></summary>
+        <p class="muted" data-edit-control="true">Tick “Brewable” on a spell in Magic. Casting it then offers to bottle the potion, if an empty bottle is left (Section 9.1). Drinking or pouring out gives the bottle back; throwing breaks it until the next island.</p>
+
+        <div class="bottle-bar" id="bottle-bar"></div>
+        <div class="row" style="margin:0.4rem 0 0.6rem;">
+          <button class="small" id="break-bottle-btn" title="Lose an empty bottle (it fell, got crushed…). It's back at the next island.">Break an empty bottle</button>
+        </div>
+        <div class="row" data-edit-control="true" style="margin-bottom:0.6rem;">
+          <div class="field">
+            <label for="bottles-max-input">Max bottles</label>
+            <input type="number" id="bottles-max-input" min="0" style="max-width:6rem;">
+          </div>
+        </div>
+
+        <ul class="inventory-list" id="potion-list"></ul>
       </details>
 
       <details class="card shared-section" open id="traits-section">

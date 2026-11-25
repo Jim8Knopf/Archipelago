@@ -8,58 +8,68 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
 </head>
-<body>  
-  <header class="top">
+<body>
   <header class="top">
     <div class="brand">⚓ Archipelago</div>
     <nav id="site-nav"></nav>
   </header>
 
-  <main>
-    <div class="card full-width">
-      <h2>GM Dashboard</h2>
+  <!-- Stays at the top while scrolling: skill check lookup + party actions.
+       The check results live in here too, so they stay visible while you
+       scroll through the cards. -->
+  <div class="gm-toolbar">
+    <div class="gm-toolbar-row">
+      <div class="gm-check-input">
+        <input type="search" id="check-input" list="check-skills" placeholder="Skill check… e.g. Climbing" autocomplete="off" aria-label="Skill check">
+        <datalist id="check-skills"></datalist>
+      </div>
+      <div class="gm-party-actions">
+        <button class="small brass" data-party-rest="short" title="Short Rest for everyone at the table: 1/10 of max HP and Mana back">Short Rest</button>
+        <button class="small brass" data-party-rest="long" title="Long Rest for everyone at the table: half of what's missing back">Long Rest</button>
+        <button class="small" id="new-island-btn" title="New Island: full HP/Mana, repaired bottles, cleared used skills, for every character (including those not playing today)">🏝️ New Island</button>
+      </div>
+    </div>
+    <div id="check-results" class="gm-check-results" hidden></div>
+  </div>
+
+  <main class="gm-main">
+    <div class="gm-section-head">
+      <h2 id="party-heading">At the table</h2>
+      <div id="bench" class="gm-bench"></div>
+    </div>
+
+    <div id="char-list" class="gm-party"></div>
+
+    <details class="card gm-fold" id="spellbook-card">
+      <summary><h3 class="gm-fold-title">📖 Spellbook</h3></summary>
+      <p class="muted">Every spell known by everyone at the table, with the player's notes.</p>
+      <input type="text" id="spellbook-filter" class="spellbook-filter" placeholder="Filter by character, spell, category or note…">
+      <div id="spellbook"></div>
+    </details>
+
+    <details class="card gm-fold" id="manage-card">
+      <summary><h3 class="gm-fold-title">⚙️ Manage campaign</h3></summary>
+
       <div class="field">
         <label for="campaign-input">Campaign ID</label>
         <input type="text" id="campaign-input">
       </div>
       <p class="muted">Everyone using the same Campaign ID sees the same characters live. Make it something only your table knows, e.g. <code>black-tortuga-42</code>, rather than something guessable — see the setup guide for why.</p>
-    </div>
 
-    <div class="card full-width">
-      <h3>🛌 Rest</h3>
-      <p class="muted">Rests the whole party at once (Section 6). Short Rest: 1/10 of max HP and Mana back. Long Rest: half of what's missing back. A character who already rested in the last minute (here or on their own sheet) is skipped, so nobody heals twice. Each card below also has its own rest buttons.</p>
-      <div class="rest-row">
-        <button class="brass" data-party-rest="short">Short Rest (All)</button>
-        <button class="brass" data-party-rest="long">Long Rest (All)</button>
-      </div>
-    </div>
-
-    <div class="card full-width">
-      <h3>🏝️ New Island</h3>
-      <p class="muted">Fully restores HP and Mana for every character in this campaign — the Island Reset moment (Section 11.3). Point catch-up and the shared bonus batch from that section aren't automated yet; handle those manually.</p>
-      <button class="brass" id="new-island-btn">Start New Island (Full Restore All)</button>
-    </div>
-
-    <div class="card full-width">
-      <h3>Add a character</h3>
+      <h4>Add a character</h4>
       <div class="row">
-        <input type="text" id="new-char-name" placeholder="Character name" style="flex:2;">
-        <input type="number" id="new-char-hp" placeholder="Max HP" value="10" style="flex:1;">
+        <input type="text" id="new-char-name" placeholder="Character name" style="flex:2;min-width:10rem;">
+        <input type="number" id="new-char-hp" placeholder="Max HP" value="10" style="flex:1;min-width:5rem;">
         <button class="brass" id="add-char-btn">Add</button>
       </div>
       <p class="muted">Mana isn't set here — it's Mana Modifier points × Magic category bonus, set up on the character's own sheet once they have a magic category.</p>
-      <div class="status-msg" id="gm-status"></div>
-    </div>
 
-    <details class="card full-width" id="spellbook-card" open>
-      <summary style="cursor:pointer;"><h3 style="display:inline;">📖 Spellbook</h3></summary>
-      <p class="muted">Every spell known by every character in this campaign, with the player's notes.</p>
-      <input type="text" id="spellbook-filter" class="spellbook-filter" placeholder="Filter by character, spell, category or note…">
-      <div id="spellbook"></div>
+      <h4>Player links</h4>
+      <div id="player-links"></div>
     </details>
-
-    <div id="char-list"></div>
   </main>
+
+  <div class="gm-toast" id="gm-status" role="status" aria-live="polite"></div>
 
   <footer class="foot">Fair winds. ⚓</footer>
 

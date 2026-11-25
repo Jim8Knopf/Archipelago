@@ -890,3 +890,363 @@ footer.foot {
   font-size: .8rem;
   text-align: right;
 }
+
+/* ---- Potions & bottles (Section 9.1) ---- */
+.spell-note-wrap {
+  display: flex;
+  gap: .5rem;
+  align-items: flex-start;
+}
+
+.spell-note-wrap textarea { flex: 1; min-width: 0; }
+
+.spell-note-wrap .inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .8rem;
+  white-space: nowrap;
+  padding-top: .4rem;
+}
+
+.bottle-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .3rem .6rem;
+}
+
+.bottle-pips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+/* A little flask: rounded body with a narrow neck. */
+.bottle-pip {
+  width: 12px;
+  height: 18px;
+  border: 2px solid var(--brass-dim);
+  border-radius: 3px 3px 6px 6px;
+  background: transparent;
+}
+
+.bottle-pip.full { background: var(--success); }
+.bottle-pip.broken {
+  border-style: dashed;
+  border-color: var(--danger-light);
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--danger-light) 3px 4px);
+  opacity: .7;
+}
+
+.potion-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+
+.potion-row .item-name { flex: 1; min-width: 8rem; }
+
+.bottle-prompt {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem .75rem;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.bottle-prompt[hidden] { display: none; }
+
+/* ============================================================
+   GM dashboard layout (gm/index.html)
+   A sticky toolbar (skill check + party actions), then a responsive grid
+   of compact character cards: one column on a phone, two to four on a
+   laptop. Rarely used setup lives in folded cards at the bottom.
+   ============================================================ */
+.gm-main {
+  column-width: auto;
+  columns: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gm-main > .card { margin: 0; }
+
+/* ---- Sticky toolbar ---- */
+.gm-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--navy-deep);
+  border-bottom: 1px solid var(--brass-dim);
+  box-shadow: var(--shadow);
+  padding: .6rem 1.25rem;
+}
+
+.gm-toolbar-row {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+}
+
+.gm-check-input { flex: 1 1 16rem; min-width: 0; }
+.gm-check-input input {
+  width: 100%;
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 1rem;
+  padding: .45rem .6rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: #fffaf0;
+  color: var(--ink);
+}
+
+.gm-party-actions { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+.gm-check-results {
+  max-width: 1300px;
+  margin: .6rem auto 0;
+  max-height: 45vh;
+  overflow: auto;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  padding: .5rem .75rem;
+}
+.gm-check-results[hidden] { display: none; }
+
+.gm-check-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .3rem;
+}
+
+.gm-check-table .gm-check-first td { border-top: 1px solid var(--brass-dim); }
+.gm-check-table tbody tr:first-child td { border-top: none; }
+.gm-check-group { font-size: .8rem; }
+.gm-untrained td { font-style: italic; }
+
+/* ---- Section head + "not playing today" chips ---- */
+.gm-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .5rem 1rem;
+}
+.gm-section-head h2 { margin: 0; }
+
+.gm-bench {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem;
+}
+.gm-bench .muted { color: var(--parchment-dk); font-size: .9rem; }
+.gm-bench-chip { opacity: .85; }
+
+/* ---- Character grid ---- */
+.gm-party {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.gm-party > .card { margin: 0; }
+.gm-party > .empty-state { grid-column: 1 / -1; }
+
+.gm-card { padding: .9rem 1rem; }
+
+.gm-card-head {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin-bottom: .6rem;
+}
+.gm-card-head .gm-portrait { width: 44px; height: 44px; }
+
+.gm-card-title { flex: 1; min-width: 0; }
+.gm-card-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .15rem .7rem;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+.gm-stats b { color: var(--ink); }
+
+/* ---- ⋯ menu ---- */
+.gm-menu { position: relative; flex: none; }
+.gm-menu > summary {
+  list-style: none;
+  cursor: pointer;
+  width: 2.25rem;
+  height: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: var(--navy);
+  color: var(--brass-light);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+.gm-menu > summary::-webkit-details-marker { display: none; }
+.gm-menu[open] > summary { background: var(--navy-light); }
+
+.gm-menu-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 12rem;
+  padding: .5rem;
+  background: var(--parchment);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.gm-menu-panel button { text-align: left; padding: .5rem .7rem; }
+
+/* ---- HP / Mana ---- */
+.gm-vital { margin-bottom: .5rem; border-radius: var(--radius); }
+.gm-vital .gauge-label { font-weight: 600; }
+
+.gm-vital-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: .3rem;
+  margin-top: .3rem;
+}
+.gm-vital-controls button { padding: .4rem 0; font-size: .85rem; }
+
+@keyframes gm-pulse-down { from { background: rgba(198, 90, 68, .45); } to { background: transparent; } }
+@keyframes gm-pulse-up { from { background: rgba(90, 162, 121, .45); } to { background: transparent; } }
+.gm-vital.pulse-down { animation: gm-pulse-down 1.6s ease-out; }
+.gm-vital.pulse-up { animation: gm-pulse-up 1.6s ease-out; }
+
+/* ---- Foldouts inside a card ---- */
+.gm-sub { border-top: 1px dashed var(--brass-dim); }
+.gm-sub > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: .5rem 0;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: .9rem;
+  color: var(--ink);
+}
+.gm-sub > summary::-webkit-details-marker { display: none; }
+.gm-sub > summary::before { content: "▸ "; color: var(--brass-dim); }
+.gm-sub[open] > summary::before { content: "▾ "; }
+.gm-sub-body { padding-bottom: .5rem; }
+.gm-sub-label { margin: .6rem 0 .2rem; }
+
+.gm-count {
+  font-family: 'Spectral', Georgia, serif;
+  font-size: .8rem;
+  color: var(--ink-soft);
+}
+.gm-used-badge {
+  font-family: 'Spectral', Georgia, serif;
+  font-size: .75rem;
+  color: var(--danger);
+  border: 1px solid var(--danger-light);
+  border-radius: 999px;
+  padding: 0 .4rem;
+}
+
+/* Compact Eff / Hard / Extreme tables in cards and the check panel. */
+.gm-mini-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.gm-mini-table th,
+.gm-mini-table td {
+  text-align: left;
+  padding: .25rem .3rem;
+  border-bottom: 1px dashed rgba(138, 112, 56, .45);
+  vertical-align: top;
+}
+.gm-mini-table thead th {
+  color: var(--ink-soft);
+  font-size: .7rem;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.gm-mini-table .num { text-align: right; white-space: nowrap; width: 3.2rem; }
+.gm-mini-table .gm-group-row th {
+  padding-top: .5rem;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: .8rem;
+  border-bottom: 1px solid var(--brass-dim);
+}
+.gm-mini-table .gm-group-row .muted { font-family: 'Spectral', Georgia, serif; font-size: .8rem; }
+.gm-info-table th { text-transform: capitalize; color: var(--ink-soft); font-weight: 500; width: 40%; }
+.gm-cost { font-size: .75rem; white-space: nowrap; }
+
+/* ---- Folded cards at the bottom ---- */
+.gm-fold-title { display: inline; margin: 0; }
+.gm-fold h4 { margin: 1.2rem 0 .5rem; color: var(--ink); font-family: 'Cinzel', Georgia, serif; }
+
+.gm-links li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem;
+}
+.gm-links .item-name { min-width: 7rem; font-weight: 600; }
+.gm-links .char-link { flex: 1 1 12rem; }
+
+/* ---- Toast for status messages ---- */
+.gm-toast {
+  position: fixed;
+  z-index: 1000;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: .55rem .9rem;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  font-size: .9rem;
+}
+.gm-toast:empty { display: none; }
+
+@media (max-width: 480px) {
+  .gm-toolbar { padding: .5rem 16px; }
+  .gm-main { padding: 1rem 16px; }
+  .gm-party-actions { width: 100%; }
+  .gm-party-actions button { flex: 1; }
+  .gm-vital-controls button { padding: .55rem 0; }
+}

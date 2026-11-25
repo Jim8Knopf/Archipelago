@@ -99,8 +99,10 @@ function skillRowHtml(d, skill, { tiers, castCosts, magnitude, catId }) {
   // onto the same skill object as the name/points/magnitude inputs.
   const noteRow = isSpell
     ? `<tr class="spell-note-row" data-id="${skill.id}"${catAttr} data-edit-control="true">
-        <td colspan="${columnCount}"><textarea data-field="note" rows="1"
-          placeholder="Spell notes — effect, range, duration, components…">${escapeHtml(skill.note || "")}</textarea></td>
+        <td colspan="${columnCount}"><div class="spell-note-wrap"><textarea data-field="note" rows="1"
+          placeholder="Spell notes — effect, range, duration, components…">${escapeHtml(skill.note || "")}</textarea>
+          <label class="inline-checkbox" title="Casting this spell offers to bottle it as a potion">
+            <input type="checkbox" data-field="brewable" ${skill.brewable ? "checked" : ""}> Brewable</label></div></td>
       </tr>`
     : "";
 
@@ -248,6 +250,9 @@ function normalize(d) {
     resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
+    potions: d.potions || [],
+    bottlesMax: d.bottlesMax ?? 0,
+    bottlesBroken: d.bottlesBroken ?? 0,
     usedSkillIds: d.usedSkillIds || [],
     notes: { ...def.notes, ...(d.notes || {}) }
   };
@@ -283,6 +288,7 @@ function render() {
   renderTraits(d.traits);
   renderInventory(d.inventory);
   renderNotes(d.notes);
+  renderPotions(d);
 
   // Auto-hide sections with nothing in them — View mode only, so Edit mode
   // always shows every section (you need to see an empty one to add its
@@ -298,6 +304,7 @@ function render() {
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
   hideWhenEmpty("inventory-section", d.inventory.length === 0);
+  hideWhenEmpty("potions-section", d.bottlesMax <= 0 && d.potions.length === 0);
   refreshSpellInfo();
 }
 
@@ -470,6 +477,8 @@ document.getElementById("magic-section").addEventListener("click", (e) => {
     return;
   }
   saveField({ currentMana: current - cost });
+  const spell = findSpell(castEl.dataset.skillId);
+  if (spell?.brewable) showBottlePrompt(spell);
 });
 
 // ---- Spell info panel ----
@@ -835,6 +844,9 @@ function wireCategoryContainer(container, dataKey) {
     const catId = input.closest("[data-cat]").dataset.cat;
     const row = input.closest("tr");
     const TEXT_FIELDS = ["name", "note"];
+    const value = input.type === "checkbox"
+      ? input.checked
+      : TEXT_FIELDS.includes(input.dataset.field) ? input.value : (parseFloat(input.value) || 0);
 
     const updatedList = currentData[dataKey].map(cat => {
       if (cat.id !== catId) return cat;
@@ -842,10 +854,7 @@ function wireCategoryContainer(container, dataKey) {
         const skillId = row.dataset.id;
         return {
           ...cat,
-          skills: cat.skills.map(s => s.id === skillId
-            ? { ...s, [input.dataset.field]: TEXT_FIELDS.includes(input.dataset.field) ? input.value : (parseFloat(input.value) || 0) }
-            : s
-          )
+          skills: cat.skills.map(s => s.id === skillId ? { ...s, [input.dataset.field]: value } : s)
         };
       }
       return { ...cat, [input.dataset.field]: input.value };
@@ -1129,6 +1138,138 @@ document.getElementById("inventory-weapon-list").addEventListener("click", (e) =
   if (!btn) return;
   const id = btn.closest("li").dataset.id;
   saveField({ inventory: currentData.inventory.filter(i => i.id !== id) });
+});
+
+// ---- Potions & bottles (Section 9.1) ----
+//
+// Brewing is casting: tapping a cast cell of a spell ticked "Brewable"
+// spends the Mana as usual, then offers to bottle the result. The brew
+// happens in the cauldron, so a failed cast costs Mana but never a bottle —
+// the player just doesn't press "Bottle it". Potions with the same spell
+// and magnitude stack into one line. Drink / Pour out give the bottle back
+// (empty); Throw breaks it. Broken bottles only come back with the GM's
+// New Island button.
+
+function renderPotions(d) {
+  const { max, full, empty, broken } = R.bottleCounts(d);
+
+  const maxInput = document.getElementById("bottles-max-input");
+  if (document.activeElement !== maxInput) maxInput.value = d.bottlesMax;
+
+  const pips = [
+    ...Array(Math.min(full, max)).fill("full"),
+    ...Array(empty).fill("empty"),
+    ...Array(Math.max(0, Math.min(broken, max - full))).fill("broken")
+  ].map(s => `<span class="bottle-pip ${s}"></span>`).join("");
+  // More potions than bottles only happens if Max bottles was lowered
+  // after brewing — say so instead of hiding it.
+  const over = full > max ? ` · <strong>${full - max} over max</strong>` : "";
+  document.getElementById("bottle-bar").innerHTML = `
+    <span class="bottle-pips" aria-hidden="true">${pips}</span>
+    <span class="muted">${full} full · ${empty} empty · ${broken} broken — ${max} bottle${max === 1 ? "" : "s"}${over}</span>`;
+  document.getElementById("break-bottle-btn").disabled = empty === 0;
+
+  const list = document.getElementById("potion-list");
+  if (d.potions.length === 0) {
+    list.innerHTML = `<li class="empty-state">No potions brewed.</li>`;
+    return;
+  }
+  list.innerHTML = d.potions.map(p => {
+    const note = (findSpell(p.spellId)?.note || "").trim();
+    return `
+      <li data-id="${p.id}" class="potion-row">
+        <span class="item-name"${note ? ` title="${escapeHtml(note)}"` : ""}><span class="magnitude-tag" title="Magnitude ${p.magnitude}">${toRoman(p.magnitude)}</span>${escapeHtml(p.name)}</span>
+        <span class="item-qty">×${p.qty}</span>
+        <span class="row" style="gap:0.3rem;display:inline-flex;">
+          <button class="small brass" data-action="drink" title="Drink it — the bottle stays, empty">Drink</button>
+          <button class="small brass" data-action="throw" title="Throw it — the bottle breaks">Throw</button>
+          <button class="small" data-action="pour" data-edit-control="true" title="Pour it out — the bottle stays, empty">Pour out</button>
+        </span>
+      </li>`;
+  }).join("");
+}
+
+// Takes one potion off a stack (dropping the stack at 0). `breakBottle`
+// also counts its bottle as broken — both in one write.
+function usePotion(id, breakBottle) {
+  const potion = currentData.potions.find(p => p.id === id);
+  if (!potion) return;
+  const potions = potion.qty > 1
+    ? currentData.potions.map(p => p.id === id ? { ...p, qty: p.qty - 1 } : p)
+    : currentData.potions.filter(p => p.id !== id);
+  const updates = { potions };
+  if (breakBottle) updates.bottlesBroken = (currentData.bottlesBroken || 0) + 1;
+  saveField(updates);
+}
+
+document.getElementById("potion-list").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.closest("li").dataset.id;
+  usePotion(id, btn.dataset.action === "throw");
+});
+
+document.getElementById("break-bottle-btn").addEventListener("click", () => {
+  if (R.bottleCounts(currentData).empty === 0) return;
+  if (!confirm("Break an empty bottle? It's gone until the next island.")) return;
+  saveField({ bottlesBroken: (currentData.bottlesBroken || 0) + 1 });
+});
+
+document.getElementById("bottles-max-input").addEventListener("change", (e) => {
+  saveField({ bottlesMax: Math.max(0, parseInt(e.target.value, 10) || 0) });
+});
+
+function bottlePotion(spell) {
+  if (R.bottleCounts(currentData).empty === 0) {
+    flash(sheetStatus, "No empty bottle left.");
+    return;
+  }
+  const magnitude = R.magnitudeOf(spell);
+  const stack = currentData.potions.find(p => p.spellId === spell.id && p.magnitude === magnitude);
+  const potions = stack
+    ? currentData.potions.map(p => p === stack ? { ...p, qty: p.qty + 1, name: spell.name } : p)
+    : [...currentData.potions, { id: R.makeId(), spellId: spell.id, name: spell.name, magnitude, qty: 1 }];
+  saveField({ potions });
+  flash(sheetStatus, `Bottled ${spell.name}.`);
+}
+
+// A small bar at the bottom of the screen, shown right after casting a
+// brewable spell. It goes away on its own, so a failed brew needs no click.
+const bottlePrompt = document.createElement("div");
+bottlePrompt.className = "bottle-prompt";
+bottlePrompt.hidden = true;
+document.body.appendChild(bottlePrompt);
+let bottlePromptTimer = null;
+let bottlePromptSpellId = null;
+
+function hideBottlePrompt() {
+  clearTimeout(bottlePromptTimer);
+  bottlePrompt.hidden = true;
+  bottlePromptSpellId = null;
+}
+
+function showBottlePrompt(spell) {
+  const { empty } = R.bottleCounts(currentData);
+  bottlePromptSpellId = spell.id;
+  bottlePrompt.innerHTML = empty > 0
+    ? `<span>🧪 Bottle <strong>${escapeHtml(spell.name)}</strong>? <span class="muted">(${empty} empty)</span></span>
+       <button class="small brass" data-action="bottle">Bottle it</button>
+       <button class="small" data-action="dismiss" aria-label="Dismiss">✕</button>`
+    : `<span>🧪 No empty bottle for <strong>${escapeHtml(spell.name)}</strong>.</span>
+       <button class="small" data-action="dismiss" aria-label="Dismiss">✕</button>`;
+  bottlePrompt.hidden = false;
+  clearTimeout(bottlePromptTimer);
+  bottlePromptTimer = setTimeout(hideBottlePrompt, 15000);
+}
+
+bottlePrompt.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  if (btn.dataset.action === "bottle") {
+    const spell = findSpell(bottlePromptSpellId);
+    if (spell) bottlePotion(spell);
+  }
+  hideBottlePrompt();
 });
 
 initSheet();
