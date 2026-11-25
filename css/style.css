@@ -873,3 +873,20 @@ footer.foot {
   font-size: 1.3rem;
   color: var(--brass-dim);
 }
+
+/* ---- Notes ----
+   Editable in both modes, so these textareas never get `readonly`. */
+.notes-heading { margin-bottom: .3rem; }
+.notes-heading h4 { margin: 0; }
+.notes-input {
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.4;
+}
+.notes-saved {
+  min-height: 1.2em;
+  font-size: .8rem;
+  text-align: right;
+}

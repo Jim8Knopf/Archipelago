@@ -249,16 +249,19 @@ function normalize(d) {
     resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
-    usedSkillIds: d.usedSkillIds || []
+    usedSkillIds: d.usedSkillIds || [],
+    notes: { ...def.notes, ...(d.notes || {}) }
   };
 }
 
 async function saveField(fields) {
   try {
     await updateDoc(charRef, fields);
+    return true;
   } catch (err) {
     console.error(err);
     flash(sheetStatus, "Couldn't save — check your connection.");
+    return false;
   }
 }
 
@@ -280,6 +283,7 @@ function render() {
   renderMagicCategories(d);
   renderTraits(d.traits);
   renderInventory(d.inventory);
+  renderNotes(d.notes);
 
   // Auto-hide sections with nothing in them — View mode only, so Edit mode
   // always shows every section (you need to see an empty one to add its
@@ -934,6 +938,55 @@ document.getElementById("add-trait-btn").addEventListener("click", () => {
   saveField({
     traits: [...currentData.traits, { id: R.makeId(), name: "New Trait", type: "advantage", tier: "minor", description: "" }]
   });
+});
+
+// ---- Notes ----
+//
+// Two free-text boxes, editable in both modes. They save as you type
+// (debounced), and each box writes only its own dotted field so typing in
+// one never overwrites the other from a stale copy. A box you're typing in
+// is never overwritten by an incoming snapshot.
+
+const notesInputs = {
+  session: document.getElementById("session-notes-input"),
+  character: document.getElementById("character-notes-input")
+};
+const notesSaved = document.getElementById("notes-saved");
+const NOTES_SAVE_DELAY = 800;
+const notesTimers = {};
+
+function renderNotes(notes) {
+  Object.entries(notesInputs).forEach(([key, input]) => {
+    if (document.activeElement !== input && !notesTimers[key]) input.value = notes[key] || "";
+  });
+  document.getElementById("clear-session-notes-btn").disabled = !notes.session;
+}
+
+async function saveNote(key) {
+  clearTimeout(notesTimers[key]);
+  delete notesTimers[key];
+  const value = notesInputs[key].value;
+  if (currentData && value === currentData.notes[key]) return;
+  notesSaved.textContent = "Saving…";
+  const ok = await saveField({ [`notes.${key}`]: value });
+  notesSaved.textContent = ok ? "Saved" : "Not saved";
+}
+
+Object.entries(notesInputs).forEach(([key, input]) => {
+  input.addEventListener("input", () => {
+    notesSaved.textContent = "";
+    clearTimeout(notesTimers[key]);
+    notesTimers[key] = setTimeout(() => saveNote(key), NOTES_SAVE_DELAY);
+  });
+  // Flush on blur so leaving the box (or the page) never drops the last edit.
+  input.addEventListener("blur", () => saveNote(key));
+});
+window.addEventListener("pagehide", () => Object.keys(notesTimers).forEach(saveNote));
+
+document.getElementById("clear-session-notes-btn").addEventListener("click", () => {
+  if (!confirm("Clear this session's notes? Character notes are kept.")) return;
+  notesInputs.session.value = "";
+  saveNote("session");
 });
 
 // ---- Inventory: three typed lists (item / armor / weapon) ----
