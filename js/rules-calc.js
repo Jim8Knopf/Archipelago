@@ -212,7 +212,7 @@ export function longRestRecover(current, max) {
 }
 
 // Mana pool = (Mana Modifier points invested) × (sum of all Magic category
-// transfer bonuses) / 2. E.g. 15 Mana Modifier points with a Fire category bonus
+// transfer bonuses) / 2, rounded down. E.g. 15 Mana Modifier points with a Fire category bonus
 // of +10 gives a pool of 75. With multiple magic categories, their bonuses
 // add together, since there's still just one shared pool (Section 5.1).
 export function magicBonusTotal(categories) {
@@ -221,7 +221,7 @@ export function magicBonusTotal(categories) {
 }
 
 export function manaPoolFromPoints(manaPoints, categories) {
-  return (Number(manaPoints) || 0) * magicBonusTotal(categories) / 2;
+  return Math.floor((Number(manaPoints) || 0) * magicBonusTotal(categories) / 2);
 }
 
 // Section 5.2: a spell's magnitude, clamped to the valid 1-8 range. Pulled

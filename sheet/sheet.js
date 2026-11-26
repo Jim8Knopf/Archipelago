@@ -273,6 +273,8 @@ function normalize(d) {
     resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
+    // Older documents may hold a fractional currentMana (Max Mana wasn't rounded down).
+    currentMana: Math.floor(d.currentMana ?? 0),
     potions: [],
     bottlesMax: d.bottlesMax ?? 0,
     bottlesBroken: d.bottlesBroken ?? 0,

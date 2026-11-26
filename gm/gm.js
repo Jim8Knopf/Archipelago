@@ -796,7 +796,12 @@ watchConnection(collection(db, "campaigns", campaign, "characters"));
 // Live sync — updates the dashboard whenever anyone changes a character.
 onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
   charsById = {};
-  snap.docs.forEach(d => { charsById[d.id] = d.data(); });
+  snap.docs.forEach(d => {
+    const data = d.data();
+    // Older documents may hold a fractional currentMana (Max Mana wasn't rounded down).
+    if (data.currentMana != null) data.currentMana = Math.floor(data.currentMana);
+    charsById[d.id] = data;
+  });
   renderAll();
 }, (err) => {
   console.error(err);
