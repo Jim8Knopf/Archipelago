@@ -7,6 +7,7 @@ import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
+import { SHEET_SECTIONS, defaultLayout, normalizeLayout, moveSection, isDefaultLayout } from "../js/sheet-layout.js";
 
 const params = new URLSearchParams(window.location.search);
 const loaderCard = document.getElementById("loader-card");
@@ -277,6 +278,7 @@ function normalize(d) {
     bottlesMax: d.bottlesMax ?? 0,
     bottlesBroken: d.bottlesBroken ?? 0,
     usedSkillIds: d.usedSkillIds || [],
+    layout: normalizeLayout(d.layout),
     notes: { ...def.notes, ...(d.notes || {}) }
   };
 }
@@ -326,8 +328,151 @@ function render() {
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
   hideWhenEmpty("inventory-section", d.inventory.length === 0 && !showPotions(d));
+  applyLayout(d.layout);
   refreshSpellInfo();
 }
+
+// ---- Sheet layout: each player's own section order, collapsed, hidden ----
+//
+// Every section card sits in a .sheet-section wrapper keyed by
+// data-section; the layout is saved on the character as `layout` (see
+// js/sheet-layout.js), so it follows the player to any device. Collapsing
+// works in both modes through the card's own <details>/<summary>. Moving
+// and hiding are Edit-mode buttons added to each wrapper here; hidden
+// sections come back from the layout bar under the header. applyLayout()
+// runs on every render, so it only touches what actually changed — DOM
+// nodes move only when the order differs, which keeps focus and scroll.
+
+const layoutBar = document.getElementById("layout-bar");
+const sectionEls = Object.fromEntries(
+  [...document.querySelectorAll(".sheet-section[data-section]")].map(el => [el.dataset.section, el])
+);
+const sectionLabel = (key) => SHEET_SECTIONS.find(s => s.key === key)?.label || key;
+let layoutBarHtml = "";
+
+// Updates the local copy straight away (so the next render doesn't flip it
+// back) and saves just the one part that changed.
+function saveLayout(part, value) {
+  currentData.layout = { ...currentData.layout, [part]: value };
+  applyLayout(currentData.layout);
+  return saveField({ [`layout.${part}`]: value });
+}
+
+function applyLayout(layout) {
+  const visible = layout.order.filter(k => !layout.hidden.includes(k));
+  layout.order.forEach(key => {
+    const el = sectionEls[key];
+    if (!el) return;
+    el.hidden = layout.hidden.includes(key);
+    const details = el.querySelector("details");
+    const open = !layout.collapsed.includes(key);
+    if (details.open !== open) details.open = open;
+    el.querySelector('[data-layout="up"]').disabled = visible[0] === key;
+    el.querySelector('[data-layout="down"]').disabled = visible[visible.length - 1] === key;
+  });
+
+  const domOrder = [...sheetCard.querySelectorAll(":scope > .sheet-section")].map(el => el.dataset.section);
+  if (domOrder.join() !== layout.order.join()) {
+    // Moving a node blurs whatever is focused inside it, so put focus (and
+    // the caret) back afterwards, and keep it at the same spot on screen.
+    // Nodes already in place aren't touched.
+    const active = document.activeElement;
+    const activeTop = active && active !== document.body ? active.getBoundingClientRect().top : null;
+    let caret = null;
+    try { caret = active && active.selectionStart != null ? [active.selectionStart, active.selectionEnd] : null; } catch { /* no caret on this input type */ }
+    let anchor = layoutBar;
+    layout.order.forEach(key => {
+      const el = sectionEls[key];
+      if (!el) return;
+      if (anchor.nextElementSibling !== el) anchor.after(el);
+      anchor = el;
+    });
+    if (active && active !== document.activeElement && active.isConnected) {
+      active.focus({ preventScroll: true });
+      if (caret) try { active.setSelectionRange(...caret); } catch { /* not a text field */ }
+    }
+    if (activeTop != null && active.isConnected) window.scrollBy(0, active.getBoundingClientRect().top - activeTop);
+  }
+
+  renderLayoutBar(layout);
+}
+
+function renderLayoutBar(layout) {
+  const hidden = layout.order.filter(k => layout.hidden.includes(k));
+  const text = hidden.length
+    ? `${hidden.length} hidden section${hidden.length === 1 ? "" : "s"} — show:`
+    : "Arrange your sheet with ↑ ↓ and Hide on each section.";
+  const html = `
+    <span class="layout-bar-text">${text}</span>
+    ${hidden.map(k => `<button type="button" class="small" data-show="${k}">+ ${escapeHtml(sectionLabel(k))}</button>`).join("")}
+    <button type="button" class="small" data-action="reset-layout" ${isDefaultLayout(layout) ? "disabled" : ""}>Reset layout</button>`;
+  // Rebuild only when it changed, so a focused button isn't replaced.
+  if (html === layoutBarHtml) return;
+  layoutBar.innerHTML = html;
+  layoutBarHtml = html;
+}
+
+SHEET_SECTIONS.forEach(({ key, label }) => {
+  const el = sectionEls[key];
+  if (!el) return;
+  const name = escapeHtml(label);
+  const tools = document.createElement("div");
+  tools.className = "section-tools";
+  tools.dataset.editControl = "true";
+  tools.innerHTML = `
+    <button type="button" class="small" data-layout="up" aria-label="Move ${name} up" title="Move up">↑</button>
+    <button type="button" class="small" data-layout="down" aria-label="Move ${name} down" title="Move down">↓</button>
+    <button type="button" class="small" data-layout="hide" aria-label="Hide ${name}" title="Hide this section — bring it back from the bar at the top">Hide</button>`;
+  el.prepend(tools);
+
+  tools.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-layout]");
+    if (!btn || !currentData) return;
+    const layout = currentData.layout;
+    if (btn.dataset.layout === "hide") {
+      if (layout.hidden.includes(key)) return;
+      saveLayout("hidden", [...layout.hidden, key]);
+      layoutBar.querySelector(`[data-show="${key}"]`)?.focus({ preventScroll: true });
+      return;
+    }
+    const order = moveSection(layout, key, btn.dataset.layout === "up" ? -1 : 1);
+    if (order === layout.order) return;
+    saveLayout("order", order);
+    // At the top/bottom now: keep keyboard focus on a usable button.
+    if (btn.disabled) tools.querySelector(`[data-layout="${btn.dataset.layout === "up" ? "down" : "up"}"]`).focus();
+  });
+
+  // Fires for the player's own clicks and for applyLayout() setting `open`;
+  // the latter already matches the saved state, so nothing is written.
+  const details = el.querySelector("details");
+  details.addEventListener("toggle", () => {
+    if (!currentData) return;
+    const collapsed = currentData.layout.collapsed;
+    if (collapsed.includes(key) === !details.open) return;
+    saveLayout("collapsed", details.open ? collapsed.filter(k => k !== key) : [...collapsed, key]);
+  });
+});
+
+layoutBar.addEventListener("click", async (e) => {
+  if (!currentData) return;
+  const show = e.target.closest("button[data-show]");
+  if (show) {
+    const key = show.dataset.show;
+    saveLayout("hidden", currentData.layout.hidden.filter(k => k !== key));
+    const hideBtn = sectionEls[key]?.querySelector('[data-layout="hide"]');
+    hideBtn?.focus({ preventScroll: true });
+    sectionEls[key]?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (!e.target.closest('[data-action="reset-layout"]')) return;
+  if (!await confirmDialog({
+    message: "Reset this sheet's layout? Every section comes back, open, in the default order.",
+    confirmLabel: "Reset layout"
+  })) return;
+  currentData.layout = defaultLayout();
+  applyLayout(currentData.layout);
+  saveField({ layout: currentData.layout });
+});
 
 // ---- Character name ----
 

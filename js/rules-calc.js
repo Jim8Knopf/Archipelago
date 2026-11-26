@@ -3,6 +3,8 @@
 // No Firestore/DOM code here, so both sheet.js and gm.js can share it.
 // ============================================================
 
+import { defaultLayout } from "./sheet-layout.js";
+
 // Section 2: HP — largest n such that n(n+1)/2 <= points invested
 export function hpFromPoints(points) {
   const p = Number(points) || 0;
@@ -305,7 +307,10 @@ export function defaultCharacter(name) {
     usedSkillIds: [],
     // Free-text player notes. `session` is for the current game night,
     // `character` for longer-lived things like backstory and goals.
-    notes: { session: "", character: "" }
+    notes: { session: "", character: "" },
+    // The player's own arrangement of their sheet's sections (order,
+    // collapsed, hidden). Display only — see js/sheet-layout.js.
+    layout: defaultLayout()
   };
 }
 
