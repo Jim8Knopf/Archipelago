@@ -309,8 +309,9 @@ function render() {
   const hideWhenEmpty = (id, isEmpty) => {
     document.getElementById(id).style.display = (currentMode === "view" && isEmpty) ? "none" : "";
   };
-  // Basic Skills always shows: the five fixed groups are always there
-  // (Section 3.1), even before they hold a skill.
+  // Empty skill groups don't show in View mode, so the whole section hides
+  // until at least one group has a skill.
+  hideWhenEmpty("skills-section", !catsOfType(d.categories, "skill").some(c => (c.skills || []).length > 0));
   hideWhenEmpty("weapons-section", catsOfType(d.categories, "weapon").length === 0);
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
@@ -797,12 +798,13 @@ function renderCategoryGroup(containerId, allCategories, type) {
 
 // ---- Basic Skills: fixed groups, own groups, No group (Section 3.1) ----
 //
-// Physical, Social, Nature, Knowledge and Crafting are always there, in
-// both modes, even when empty — they can't be renamed or removed. Below
+// Physical, Social, Nature, Knowledge and Crafting are always there and
+// can't be renamed or removed. View mode only shows groups that have a
+// skill; Edit mode shows every group, so a first skill can be added. Below
 // them come the player's own groups (no `group` key): renamable in Edit
 // mode, and removing one moves its skills to "No group" rather than
 // deleting them. "No group" holds skills that don't cross-train at all
-// (transfer bonus 0); it only shows when it has a skill, or in Edit mode.
+// (transfer bonus 0).
 // Every skill row has an edit-only dropdown to move it to another group.
 function renderSkillGroups(d) {
   const container = document.getElementById("skills-container");
@@ -819,7 +821,7 @@ function renderSkillGroups(d) {
 
   const card = (cat, kind) => {
     const skills = cat.skills || [];
-    if (kind === "none" && currentMode === "view" && skills.length === 0) return "";
+    if (currentMode === "view" && skills.length === 0) return "";
     const bonus = R.groupBonus(cat);
     const rows = skills.map(s => {
       const eff = R.categorySkillEffective(s, bonus);
