@@ -5,6 +5,7 @@ import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash as flashEl, toRoman, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
+import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 
 // ============================================================
 // GM dashboard.
@@ -27,6 +28,11 @@ const checkResults = document.getElementById("check-results");
 const spellbookEl = document.getElementById("spellbook");
 const spellbookFilter = document.getElementById("spellbook-filter");
 const playerLinksEl = document.getElementById("player-links");
+
+// Save/offline marker in the sticky toolbar, between the skill check and
+// the party actions, so it stays in view while scrolling the cards.
+const partyActionsEl = document.querySelector(".gm-party-actions");
+mountSyncStatus(partyActionsEl.parentElement, partyActionsEl);
 
 let campaign = getCampaignId();
 campaignInput.value = campaign;
@@ -103,9 +109,9 @@ document.getElementById("add-char-btn").addEventListener("click", async () => {
     // that yields at least the requested max. Mana is set up on the sheet.
     let hpPoints = 0;
     while (R.hpFromPoints(hpPoints) < maxHP) hpPoints++;
-    await addDoc(collection(db, "campaigns", campaign, "characters"), {
+    await trackWrite(addDoc(collection(db, "campaigns", campaign, "characters"), {
       ...base, hpPoints, currentHP: R.hpFromPoints(hpPoints)
-    });
+    }));
     document.getElementById("new-char-name").value = "";
     flash(`Created "${name}" — their player link is under Player links.`);
   } catch (err) {
@@ -664,7 +670,7 @@ async function handleAction(btn) {
   if (action === "delete") {
     if (!confirm(`Remove ${charsById[id]?.name || "this character"} for good?`)) return;
     try {
-      await deleteDoc(doc(db, "campaigns", campaign, "characters", id));
+      await trackWrite(deleteDoc(doc(db, "campaigns", campaign, "characters", id)));
       benched.delete(id);
       saveBenched();
       flash("Character removed.");
@@ -688,7 +694,7 @@ async function handleAction(btn) {
     const newVal = Math.max(0, Math.min(max, (data[curField] ?? 0) + delta));
     if (newVal === (data[curField] ?? 0)) return;
     try {
-      await updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal });
+      await trackWrite(updateDoc(doc(db, "campaigns", campaign, "characters", id), { [curField]: newVal }));
     } catch (err) {
       console.error(err);
       flash("Couldn't save — check firestore.rules.");
@@ -703,7 +709,7 @@ async function handleAction(btn) {
 
   if (action === "reset-used") {
     try {
-      await updateDoc(doc(db, "campaigns", campaign, "characters", id), { usedSkillIds: [] });
+      await trackWrite(updateDoc(doc(db, "campaigns", campaign, "characters", id), { usedSkillIds: [] }));
       flash("Used-skill markers reset.");
     } catch (err) {
       console.error(err);
@@ -735,7 +741,7 @@ document.getElementById("new-island-btn").addEventListener("click", async () => 
         usedSkillIds: []
       });
     });
-    await batch.commit();
+    await trackWrite(batch.commit());
     flash("New island — everyone fully restored.");
   } catch (err) {
     console.error(err);
@@ -755,7 +761,7 @@ async function restCharacters(ids, type) {
   fresh.forEach(id => { charsById[id] = restedLocally(charsById[id], type); });
   if (fresh.length) renderAll();
 
-  const results = await Promise.allSettled(fresh.map(id => restCharacter(campaign, id, type)));
+  const results = await Promise.allSettled(fresh.map(id => trackWrite(restCharacter(campaign, id, type))));
   const failed = results.filter(r => r.status === "rejected");
   failed.forEach(r => console.error(r.reason));
   const skipped = skippedLocally + results.filter(r => r.status === "fulfilled" && r.value === false).length;
@@ -774,6 +780,9 @@ document.querySelectorAll("button[data-party-rest]").forEach((btn) => {
     restCharacters(ids, btn.dataset.partyRest);
   });
 });
+
+// Connection marker: watches the same query for metadata changes only.
+watchConnection(collection(db, "campaigns", campaign, "characters"));
 
 // Live sync — updates the dashboard whenever anyone changes a character.
 onSnapshot(collection(db, "campaigns", campaign, "characters"), (snap) => {
