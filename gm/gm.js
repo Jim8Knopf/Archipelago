@@ -141,7 +141,7 @@ function skillEntries(data) {
   const out = [];
   ["skill", "weapon", "magic"].forEach(type => {
     R.categoriesOfType(cats, type).forEach(cat => {
-      const bonus = R.categoryBonus(cat.skills);
+      const bonus = R.groupBonus(cat); // 0 for Basic Skills in "No group"
       (cat.skills || []).forEach(s => {
         const eff = R.categorySkillEffective(s, bonus);
         out.push({ id: s.id, name: s.name || "", group: cat.name || "", type, bonus, eff, ladder: R.ladder(eff), skill: s });

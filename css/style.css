@@ -1255,3 +1255,12 @@ footer.foot {
   .gm-party-actions button { flex: 1; }
   .gm-vital-controls button { padding: .55rem 0; }
 }
+
+/* Inventory add row: labelled fields side by side, button lined up with
+   the inputs. Each field shrinks to fit on a phone. */
+.add-item-row {
+  align-items: flex-end;
+  margin: 0.5rem 0 1rem;
+}
+.add-item-row .field { flex: 1; min-width: 6rem; margin-bottom: 0; }
+.add-item-row button { margin-bottom: 2px; }

@@ -183,8 +183,9 @@
 
       <details class="card shared-section" open id="skills-section">
         <summary><h3 style="display:inline;">Basic Skills</h3></summary>
-        <p class="muted">Skills sit in five groups — Physical, Social, Nature, Knowledge, Crafting. Skills in the same group partially train each other — bonus = (sum of raw points in group) ÷ 10. Use the Group dropdown to move a skill.</p>
+        <p class="muted">Skills sit in five fixed groups — Physical, Social, Nature, Knowledge, Crafting — or in groups of your own. Skills in the same group partially train each other — bonus = (sum of raw points in group) ÷ 10. A skill in “No group” gets no bonus. Use the Group dropdown to move a skill.</p>
         <div id="skills-container"></div>
+        <button class="small brass" id="add-skill-group-btn" data-edit-control="true">+ Add own skill group</button>
       </details>
 
       <details class="card shared-section" open id="weapons-section">
@@ -254,18 +255,36 @@
 
         <!-- One add row for every kind of item. The type decides which of the
              extra fields show (data-for lists the types each field is for). -->
-        <div class="row" data-edit-control="true" style="margin:0.5rem 0 1rem;">
-          <select id="item-type-input" aria-label="Item type">
-            <option value="item">Item</option>
-            <option value="potion">Potion</option>
-            <option value="armor">Armor</option>
-            <option value="weapon">Weapon</option>
-          </select>
-          <input type="text" id="item-name-input" placeholder="Item name" style="flex:2;">
-          <input type="number" id="item-magnitude-input" data-for="potion" placeholder="Magnitude" title="Magnitude (1–8)" value="1" min="1" max="8" style="flex:1;">
-          <input type="number" id="item-qty-input" data-for="item potion" placeholder="Qty" title="Quantity" value="1" min="1" style="flex:1;">
-          <input type="number" id="item-armor-input" data-for="armor" placeholder="Armor value" title="Armor value" value="1" min="0" style="flex:1;">
-          <input type="text" id="item-dice-input" data-for="weapon" placeholder="Wound dice e.g. 1d6" title="Wound dice" style="flex:1;">
+        <div class="row add-item-row" data-edit-control="true">
+          <div class="field">
+            <label for="item-type-input">Type</label>
+            <select id="item-type-input">
+              <option value="item">Item</option>
+              <option value="potion">Potion</option>
+              <option value="armor">Armor</option>
+              <option value="weapon">Weapon</option>
+            </select>
+          </div>
+          <div class="field" style="flex:2;">
+            <label for="item-name-input">Name</label>
+            <input type="text" id="item-name-input" placeholder="Item name">
+          </div>
+          <div class="field" data-for="potion">
+            <label for="item-magnitude-input">Magnitude (1–8)</label>
+            <input type="number" id="item-magnitude-input" value="1" min="1" max="8">
+          </div>
+          <div class="field" data-for="item potion">
+            <label for="item-qty-input">Quantity</label>
+            <input type="number" id="item-qty-input" value="1" min="1">
+          </div>
+          <div class="field" data-for="armor">
+            <label for="item-armor-input">Armor value</label>
+            <input type="number" id="item-armor-input" value="1" min="0">
+          </div>
+          <div class="field" data-for="weapon">
+            <label for="item-dice-input">Wound dice</label>
+            <input type="text" id="item-dice-input" placeholder="e.g. 1d6">
+          </div>
           <button class="brass small" id="add-item-btn">Add item</button>
         </div>
 

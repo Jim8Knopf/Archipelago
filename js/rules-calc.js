@@ -57,6 +57,12 @@ export function categoryBonus(skills) {
   return Math.floor(sum / 10);
 }
 
+// The transfer bonus of a whole category. Basic Skills in "No group"
+// (Section 3.1) don't cross-train, so that group's bonus is always 0.
+export function groupBonus(cat) {
+  return cat?.group === NO_GROUP ? 0 : categoryBonus(cat?.skills);
+}
+
 // Effective value of a skill within a cross-training category.
 export function categorySkillEffective(skill, bonus) {
   return Math.floor((Number(skill.points) || 0) + bonus);
@@ -92,6 +98,8 @@ export function migrateBasicSkills(basicSkills, categories) {
 // Section 3.1: the five fixed skill groups (after DSA's Körper-,
 // Gesellschafts-, Natur-, Wissens- and Handwerkstalente). `match` lists name
 // fragments that map an older, freely named group onto a fixed one.
+export const NO_GROUP = "none";
+
 export const SKILL_GROUPS = [
   { key: "physical", name: "Physical", match: ["physical", "body", "körper", "koerper"] },
   { key: "social", name: "Social", match: ["social", "gesellschaft"] },
@@ -106,6 +114,11 @@ export const SKILL_GROUPS = [
 // added with a deterministic id (`skill-<key>`), so running this on every
 // load always produces the same ids. Older groups that match nothing stay
 // as they are, so their skills can be moved into a fixed group by hand.
+//
+// Groups without a `group` key are the player's own groups: they keep their
+// name, can be renamed and removed. Every character also gets one "No group"
+// holder (`group: "none"`, id `skill-none`) for skills that don't
+// cross-train at all.
 export function ensureSkillGroups(categories) {
   let cats = [...(categories || [])];
   SKILL_GROUPS.forEach(g => {
@@ -118,6 +131,9 @@ export function ensureSkillGroups(categories) {
       cats.push({ id: `skill-${g.key}`, name: g.name, type: "skill", group: g.key, skills: [] });
     }
   });
+  if (!cats.some(c => c.type === "skill" && c.group === NO_GROUP)) {
+    cats.push({ id: "skill-none", name: "No group", type: "skill", group: NO_GROUP, skills: [] });
+  }
   return cats;
 }
 

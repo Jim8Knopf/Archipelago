@@ -33,7 +33,7 @@ A 100-point investment yields Movement 10 — reasonably fast, nowhere near absu
 ## 3. Skills
 
 ### 3.1 Basic Skills
-Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Each skill is bought individually, and every skill belongs to one of five fixed **skill groups**:
+Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid, Ship Steering, etc.). Each skill is bought individually, and is sorted into one of five fixed **skill groups**:
 
 | Group | Covers | Examples |
 |---|---|---|
@@ -45,6 +45,9 @@ Freeform, player-defined (Stealth, Perception, Swim, Sleight of Hand, First Aid,
 
 The player decides (with the GM) which group a new skill fits best. Skills in the same group partially train each other with the same transfer bonus as weapons and magic (Section 3.2). Standard normal/hard/extreme ladder applies.
 
+- **Own groups**: the five groups are the default, but a player can add a group of their own (with the GM's OK) when several skills clearly belong together and fit none of the five, e.g. **Seafaring**: Swim, Ship Steering, Knots. An own group cross-trains like any other.
+- **No group**: a skill can also stay outside every group. It then gets **no transfer bonus** and gives none to other skills, so its value is just its own points.
+
 **Skill Transfer (using a related skill instead):** a character can attempt a task with a skill they don't have, using a related one instead, if the GM allows it — always at a **malus** the GM sets on the spot, based on:
 - **How closely related** the skill is to the task — a near-perfect match gets a small malus, a stretch gets a bigger one.
 - **How general the skill itself is** — a broad, catch-all skill (e.g. a player-defined "Dexterity" instead of specific skills like Sleight of Hand, Lockpicking, or Acrobatics) can be used for almost anything, but that breadth is exactly what earns it a bigger malus every time. A narrowly defined skill (e.g. "Pick Pockets") never needs a malus for its one specific use, but also can't cover anything else.
@@ -54,7 +57,7 @@ GM-decided rather than formula-derived — quick at the table, no lookup table n
 ### 3.2 Cross-Training — Skill Groups, Weapons, Magic and Languages
 All four share one mechanic: skills within the same **category** partially train each other.
 
-- Basic skills go into one of the five fixed skill groups (Section 3.1); group weapons/spells/languages into categories (e.g. **Physical**: Swim, Climbing; **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball). All languages form a single category.
+- Basic skills go into one of the five fixed skill groups, an own group, or no group at all (Section 3.1); group weapons/spells/languages into categories (e.g. **Physical**: Swim, Climbing; **Sword**: Saber, Longsword; **Pistol**: Single Barrel, Gun; **Fire magic**: Spark, Dry Cloths, Fireball). All languages form a single category.
 - Each category has a **transfer bonus** = (sum of *raw* invested points across all skills in that category) ÷ 10, rounded down.
 - That bonus is added on top of each individual skill's raw value to get its **effective** value.
 - The bonus must be calculated from raw invested points, not effective values — otherwise it compounds on itself every time it's recalculated.

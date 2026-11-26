@@ -309,10 +309,8 @@ function render() {
   const hideWhenEmpty = (id, isEmpty) => {
     document.getElementById(id).style.display = (currentMode === "view" && isEmpty) ? "none" : "";
   };
-  // A skill group with no skills in it is still noise in View mode, so the
-  // section hides unless at least one group actually has a skill.
-  const skillGroups = catsOfType(d.categories, "skill");
-  hideWhenEmpty("skills-section", !skillGroups.some(c => (c.skills || []).length > 0));
+  // Basic Skills always shows: the five fixed groups are always there
+  // (Section 3.1), even before they hold a skill.
   hideWhenEmpty("weapons-section", catsOfType(d.categories, "weapon").length === 0);
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
@@ -797,57 +795,65 @@ function renderCategoryGroup(containerId, allCategories, type) {
   }
 }
 
-// ---- Basic Skills: the five fixed groups (Section 3.1) ----
+// ---- Basic Skills: fixed groups, own groups, No group (Section 3.1) ----
 //
-// Physical, Social, Nature, Knowledge and Crafting are always there and
-// can't be renamed or removed. Every skill row has an edit-only dropdown
-// right after its name to move it into another group. A freely named group
-// left over from before the fixed groups shows below them, so its skills
-// can be moved out; once it's empty it can be removed.
+// Physical, Social, Nature, Knowledge and Crafting are always there, in
+// both modes, even when empty — they can't be renamed or removed. Below
+// them come the player's own groups (no `group` key): renamable in Edit
+// mode, and removing one moves its skills to "No group" rather than
+// deleting them. "No group" holds skills that don't cross-train at all
+// (transfer bonus 0); it only shows when it has a skill, or in Edit mode.
+// Every skill row has an edit-only dropdown to move it to another group.
 function renderSkillGroups(d) {
   const container = document.getElementById("skills-container");
   const all = catsOfType(d.categories, "skill");
   const fixed = R.SKILL_GROUPS.map(g => all.find(c => c.group === g.key)).filter(Boolean);
-  const legacy = all.filter(c => !c.group);
-  const targets = [...fixed, ...legacy];
+  const own = all.filter(c => !c.group);
+  const none = all.find(c => c.group === R.NO_GROUP);
+  const targets = [...fixed, ...own, ...(none ? [none] : [])];
+  const ro = currentMode === "view" ? "readonly" : "";
 
   const groupSelect = (cat) => `<select data-action="move-skill" aria-label="Skill group">${
     targets.map(t => `<option value="${t.id}" ${t.id === cat.id ? "selected" : ""}>${escapeHtml(t.name || "Unnamed")}</option>`).join("")
   }</select>`;
 
-  const card = (cat, isLegacy) => {
+  const card = (cat, kind) => {
     const skills = cat.skills || [];
-    // View mode only shows groups that have something in them.
-    if (currentMode === "view" && skills.length === 0) return "";
-    const bonus = R.categoryBonus(skills);
+    if (kind === "none" && currentMode === "view" && skills.length === 0) return "";
+    const bonus = R.groupBonus(cat);
     const rows = skills.map(s => {
       const eff = R.categorySkillEffective(s, bonus);
       const l = R.ladder(eff);
       return skillRowHtml(d, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id, groupSelect: groupSelect(cat) });
     }).join("");
-    const removeBtn = isLegacy && skills.length === 0
-      ? `<button class="small danger" data-action="remove-category" data-edit-control="true">✕ Group</button>`
-      : "";
-    const legacyNote = isLegacy
-      ? `<p class="muted" data-edit-control="true">Old group — move these skills into one of the five groups above.</p>`
-      : "";
+    const title = kind === "own"
+      ? `<input type="text" data-field="name" placeholder="Group name" value="${escapeHtml(cat.name)}" ${ro}>
+         <button class="small danger" data-action="remove-skill-group" data-edit-control="true">✕ Group</button>`
+      : `<h4 class="cat-title">${escapeHtml(cat.name || "Unnamed")}</h4>`;
+    const bonusLine = kind === "none"
+      ? `<div class="cat-bonus">No transfer bonus</div>`
+      : `<div class="cat-bonus">Transfer bonus: +${bonus}</div>`;
+    const addLabel = kind === "none" ? "+ Add skill without a group" : `+ Add ${escapeHtml(cat.name || "")} skill`;
     return `
       <div class="category-card" data-cat="${cat.id}">
-        <div class="cat-header"><h4 class="cat-title">${escapeHtml(cat.name || "Unnamed")}</h4>${removeBtn}</div>
-        ${legacyNote}
-        <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+        <div class="cat-header">${title}</div>
+        ${bonusLine}
         <div class="table-scroll">
           <table class="skill-table">
             <thead><tr><th>Skill</th><th data-edit-control="true">Group</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
-        ${isLegacy ? "" : `<button class="small brass" data-action="add-skill" data-edit-control="true">+ Add ${escapeHtml(cat.name)} skill</button>`}
+        <button class="small brass" data-action="add-skill" data-edit-control="true">${addLabel}</button>
       </div>
     `;
   };
 
-  container.innerHTML = fixed.map(c => card(c, false)).join("") + legacy.map(c => card(c, true)).join("");
+  container.innerHTML = [
+    ...fixed.map(c => card(c, "fixed")),
+    ...own.map(c => card(c, "own")),
+    ...(none ? [card(none, "none")] : [])
+  ].join("");
 
   if (!container.dataset.wired) {
     // Moving a skill runs before the generic handler, which ignores <select>.
@@ -868,10 +874,29 @@ function renderSkillGroups(d) {
         })
       });
     });
+    // Removing an own group keeps its skills: they move to "No group".
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action='remove-skill-group']");
+      if (!btn) return;
+      const catId = btn.closest("[data-cat]").dataset.cat;
+      const cat = currentData.categories.find(c => c.id === catId);
+      if (!cat) return;
+      const skills = cat.skills || [];
+      if (skills.length && !confirm(`Remove the group "${cat.name}"? Its ${skills.length} skill(s) move to "No group".`)) return;
+      saveField({
+        categories: currentData.categories
+          .filter(c => c.id !== catId)
+          .map(c => c.type === "skill" && c.group === R.NO_GROUP ? { ...c, skills: [...(c.skills || []), ...skills] } : c)
+      });
+    });
     wireCategoryContainer(container, "categories");
     container.dataset.wired = "1";
   }
 }
+
+document.getElementById("add-skill-group-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Skill Group", type: "skill", skills: [] }] });
+});
 
 // ---- Magic: same category structure, plus a Magnitude field per spell ----
 
