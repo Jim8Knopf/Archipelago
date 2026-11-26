@@ -100,12 +100,21 @@
         </div>
       </div>
 
+      <!-- Edit mode only: hidden sections to bring back, and Reset layout.
+           Filled by sheet.js. -->
+      <div class="layout-bar" id="layout-bar" data-edit-control="true"></div>
+
       <!-- ================= SHARED CHARACTER DATA ================= -->
       <!-- Every card below is rendered once and reused for both modes.
            sheet.js hides anything marked data-edit-control="true" in View
            mode, and marks name-type fields readonly so they read as plain
-           clickable text instead of an editable box. -->
+           clickable text instead of an editable box.
+           Each card sits in a .sheet-section wrapper whose data-section key
+           is what the player's saved layout (order, collapsed, hidden)
+           refers to — see js/sheet-layout.js. sheet.js adds the move/hide
+           buttons to each wrapper. -->
 
+      <div class="sheet-section" data-section="basic">
       <details class="card shared-section" open>
         <summary><h3 style="display:inline;">Basic Info &amp; Attributes</h3></summary>
 
@@ -180,21 +189,27 @@
         <div id="languages-container"></div>
         <button class="small brass" id="add-language-btn" data-edit-control="true">+ Add language</button>
       </details>
+      </div>
 
+      <div class="sheet-section" data-section="skills">
       <details class="card shared-section" open id="skills-section">
         <summary><h3 style="display:inline;">Basic Skills</h3></summary>
         <p class="muted">Skills sit in five fixed groups — Physical, Social, Nature, Knowledge, Crafting — or in groups of your own. Skills in the same group partially train each other — bonus = (sum of raw points in group) ÷ 10. A skill in “No group” gets no bonus. Use the Group dropdown to move a skill.</p>
         <div id="skills-container"></div>
         <button class="small brass" id="add-skill-group-btn" data-edit-control="true">+ Add own skill group</button>
       </details>
+      </div>
 
+      <div class="sheet-section" data-section="weapons">
       <details class="card shared-section" open id="weapons-section">
         <summary><h3 style="display:inline;">Weapons</h3></summary>
         <p class="muted">Skills in the same category partially train each other — bonus = (sum of raw points in category) ÷ 10.</p>
         <div id="weapons-container"></div>
         <button class="small brass" id="add-weapon-category-btn" data-edit-control="true">+ Add weapon category</button>
       </details>
+      </div>
 
+      <div class="sheet-section" data-section="magic">
       <details class="card shared-section" open id="magic-section">
         <summary><h3 style="display:inline;">Magic <span class="muted" data-edit-control="true" style="font-family:'Spectral',Georgia,serif;font-size:0.8rem;">(optional — hidden in View mode until used)</span></h3></summary>
 
@@ -224,15 +239,19 @@
         <div id="magic-container"></div>
         <button class="small brass" id="add-magic-category-btn" data-edit-control="true">+ Add magic category</button>
       </details>
+      </div>
 
+      <div class="sheet-section" data-section="traits">
       <details class="card shared-section" open id="traits-section">
         <summary><h3 style="display:inline;">Traits</h3></summary>
         <div id="traits-container"></div>
         <button class="small brass" id="add-trait-btn" data-edit-control="true">+ Add trait</button>
       </details>
+      </div>
 
       <!-- Notes — free text, editable in both modes so players can jot
            things down mid-session without switching to Edit. -->
+      <div class="sheet-section" data-section="notes">
       <details class="card shared-section" open id="notes-section">
         <summary><h3 style="display:inline;">Notes</h3></summary>
 
@@ -248,8 +267,10 @@
         <textarea id="character-notes-input" class="notes-input" placeholder="Backstory, goals, relationships, anything worth remembering…"></textarea>
         <div class="muted notes-saved" id="notes-saved"></div>
       </details>
+      </div>
 
       <!-- Inventory — kept last in source order so it lands on the right/bottom of the packed layout. -->
+      <div class="sheet-section" data-section="inventory">
       <details class="card shared-section" open id="inventory-section">
         <summary><h3 style="display:inline;">Inventory</h3></summary>
 
@@ -318,6 +339,7 @@
         <h4 style="margin-bottom:0.3rem;">Weapons</h4>
         <ul class="inventory-list" id="inventory-weapon-list"></ul>
       </details>
+      </div>
 
       <div class="status-msg" id="sheet-status"></div>
     </div>
