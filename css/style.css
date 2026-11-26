@@ -1049,6 +1049,41 @@ a.button-link.brass:hover { background: var(--brass-light); }
   flex: none;
 }
 
+/* Import preview table: scrolls sideways on its own on a narrow phone
+   instead of widening the page. */
+.admin-table-wrap { overflow-x: auto; margin: .5rem 0; }
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: .35rem .5rem;
+  text-align: left;
+  border-bottom: 1px dashed var(--brass-dim);
+  vertical-align: middle;
+}
+
+.admin-table th {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-soft);
+  font-weight: normal;
+}
+
+.admin-table code { overflow-wrap: anywhere; }
+
+.admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  white-space: nowrap;
+}
+
 .admin-badge {
   display: inline-block;
   margin: .15rem .3rem 0 0;
