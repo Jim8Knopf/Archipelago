@@ -57,6 +57,12 @@ export function categoryBonus(skills) {
   return Math.floor(sum / 10);
 }
 
+// The transfer bonus of a whole category. Basic Skills in "No group"
+// (Section 3.1) don't cross-train, so that group's bonus is always 0.
+export function groupBonus(cat) {
+  return cat?.group === NO_GROUP ? 0 : categoryBonus(cat?.skills);
+}
+
 // Effective value of a skill within a cross-training category.
 export function categorySkillEffective(skill, bonus) {
   return Math.floor((Number(skill.points) || 0) + bonus);
@@ -92,6 +98,8 @@ export function migrateBasicSkills(basicSkills, categories) {
 // Section 3.1: the five fixed skill groups (after DSA's Körper-,
 // Gesellschafts-, Natur-, Wissens- and Handwerkstalente). `match` lists name
 // fragments that map an older, freely named group onto a fixed one.
+export const NO_GROUP = "none";
+
 export const SKILL_GROUPS = [
   { key: "physical", name: "Physical", match: ["physical", "body", "körper", "koerper"] },
   { key: "social", name: "Social", match: ["social", "gesellschaft"] },
@@ -106,6 +114,11 @@ export const SKILL_GROUPS = [
 // added with a deterministic id (`skill-<key>`), so running this on every
 // load always produces the same ids. Older groups that match nothing stay
 // as they are, so their skills can be moved into a fixed group by hand.
+//
+// Groups without a `group` key are the player's own groups: they keep their
+// name, can be renamed and removed. Every character also gets one "No group"
+// holder (`group: "none"`, id `skill-none`) for skills that don't
+// cross-train at all.
 export function ensureSkillGroups(categories) {
   let cats = [...(categories || [])];
   SKILL_GROUPS.forEach(g => {
@@ -118,6 +131,9 @@ export function ensureSkillGroups(categories) {
       cats.push({ id: `skill-${g.key}`, name: g.name, type: "skill", group: g.key, skills: [] });
     }
   });
+  if (!cats.some(c => c.type === "skill" && c.group === NO_GROUP)) {
+    cats.push({ id: "skill-none", name: "No group", type: "skill", group: NO_GROUP, skills: [] });
+  }
   return cats;
 }
 
@@ -276,13 +292,11 @@ export function defaultCharacter(name) {
     languages: [],
     traits: [],
     // Inventory items are typed: "item" (name, qty), "armor" (name,
-    // armorValue, worn), "weapon" (name, woundDice).
+    // armorValue, worn), "weapon" (name, woundDice), "potion" (name,
+    // magnitude, qty, and spellId when brewed — Section 9.1).
     inventory: [],
-    // Potions (Section 9.1): stacks of { id, spellId, name, magnitude, qty },
-    // brewed from a spell marked brewable. Name and magnitude are copied
-    // from the spell at brew time. Bottles: a max the player sets, plus a
-    // broken count that only the GM's New Island button resets.
-    potions: [],
+    // Potion bottles (Section 9.1): a max, plus a broken count that only the
+    // GM's New Island button resets. Full/empty are derived — bottleCounts().
     bottlesMax: 0,
     bottlesBroken: 0,
     // "Used this session" markers — one-way toggle set from the sheet, only
@@ -298,10 +312,12 @@ export function defaultCharacter(name) {
 // Section 9.1: potion bottles. Full = one per potion carried, broken =
 // thrown or smashed (back at the Island Reset), empty = what's left of the
 // max. Drinking or pouring out a potion turns a full bottle back into an
-// empty one, so only `potions` and `bottlesBroken` are ever stored.
+// empty one, so only the potion items and `bottlesBroken` are ever stored.
+export const potionsOf = (d) => (d?.inventory || []).filter(i => i.type === "potion");
+
 export function bottleCounts(d) {
   const max = Math.max(0, Number(d?.bottlesMax) || 0);
-  const full = (d?.potions || []).reduce((n, p) => n + Math.max(0, Number(p.qty) || 0), 0);
+  const full = potionsOf(d).reduce((n, p) => n + Math.max(0, Number(p.qty) || 0), 0);
   const broken = Math.max(0, Number(d?.bottlesBroken) || 0);
   return { max, full, broken, empty: Math.max(0, max - full - broken) };
 }

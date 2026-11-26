@@ -1255,3 +1255,19 @@ footer.foot {
   .gm-party-actions button { flex: 1; }
   .gm-vital-controls button { padding: .55rem 0; }
 }
+
+/* Inventory add row: labelled fields side by side, button lined up with
+   the inputs. Each field shrinks to fit on a phone. */
+.add-item-row {
+  align-items: flex-end;
+  margin: 0.5rem 0 1rem;
+}
+.add-item-row .field { margin-bottom: 0; min-width: 0; }
+.add-item-row .type-field { flex: 0 0 auto; }
+/* The name takes all the room that's left; the number fields stay just
+   wide enough for a few digits, side by side. */
+.add-item-row .name-field { flex: 1 1 10rem; }
+.add-item-row .num-field { flex: 0 0 4.5rem; }
+.add-item-row .num-field input { width: 100%; }
+.add-item-row .dice-field { flex: 0 0 6.5rem; }
+.add-item-row button { margin-bottom: 2px; }

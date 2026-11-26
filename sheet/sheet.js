@@ -206,6 +206,11 @@ function initSheet() {
     if ((raw.basicSkills || []).length > 0) {
       saveField({ basicSkills: [], categories: currentData.categories });
     }
+    // Same for potions saved by the first version of this feature as a
+    // separate `potions` list: they're inventory items now.
+    if ((raw.potions || []).length > 0) {
+      saveField({ potions: [], inventory: currentData.inventory });
+    }
   }, (err) => {
     console.error(err);
     flash(loaderStatus, "Connection error — check firestore.rules allows access.");
@@ -231,7 +236,11 @@ function normalize(d) {
   const basicSkills = rawBasicSkills.filter(s => s !== legacyEvasionSkill);
   const evasionPoints = d.evasionPoints ?? (legacyEvasionSkill ? legacyEvasionSkill.points : 0);
 
-  const inventory = (d.inventory || []).map(item => item.type ? item : { ...item, type: "item" });
+  const inventory = [
+    ...(d.inventory || []).map(item => item.type ? item : { ...item, type: "item" }),
+    // A separate `potions` list (first version of Section 9.1) -> potion items.
+    ...(d.potions || []).map(p => ({ ...p, type: "potion" }))
+  ];
 
   // Basic Skills are groups now (type "skill" categories). Any flat list
   // left on an older document is folded into a group here, and `basicSkills`
@@ -254,7 +263,7 @@ function normalize(d) {
     resiliencePoints: d.resiliencePoints ?? 0,
     imageUrl: d.imageUrl || "",
     manaPoints: d.manaPoints ?? 0,
-    potions: d.potions || [],
+    potions: [],
     bottlesMax: d.bottlesMax ?? 0,
     bottlesBroken: d.bottlesBroken ?? 0,
     usedSkillIds: d.usedSkillIds || [],
@@ -300,15 +309,13 @@ function render() {
   const hideWhenEmpty = (id, isEmpty) => {
     document.getElementById(id).style.display = (currentMode === "view" && isEmpty) ? "none" : "";
   };
-  // A skill group with no skills in it is still noise in View mode, so the
-  // section hides unless at least one group actually has a skill.
-  const skillGroups = catsOfType(d.categories, "skill");
-  hideWhenEmpty("skills-section", !skillGroups.some(c => (c.skills || []).length > 0));
+  // Empty skill groups don't show in View mode, so the whole section hides
+  // until at least one group has a skill.
+  hideWhenEmpty("skills-section", !catsOfType(d.categories, "skill").some(c => (c.skills || []).length > 0));
   hideWhenEmpty("weapons-section", catsOfType(d.categories, "weapon").length === 0);
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
-  hideWhenEmpty("inventory-section", d.inventory.length === 0);
-  hideWhenEmpty("potions-section", d.bottlesMax <= 0 && d.potions.length === 0);
+  hideWhenEmpty("inventory-section", d.inventory.length === 0 && !showPotions(d));
   refreshSpellInfo();
 }
 
@@ -789,57 +796,66 @@ function renderCategoryGroup(containerId, allCategories, type) {
   }
 }
 
-// ---- Basic Skills: the five fixed groups (Section 3.1) ----
+// ---- Basic Skills: fixed groups, own groups, No group (Section 3.1) ----
 //
 // Physical, Social, Nature, Knowledge and Crafting are always there and
-// can't be renamed or removed. Every skill row has an edit-only dropdown
-// right after its name to move it into another group. A freely named group
-// left over from before the fixed groups shows below them, so its skills
-// can be moved out; once it's empty it can be removed.
+// can't be renamed or removed. View mode only shows groups that have a
+// skill; Edit mode shows every group, so a first skill can be added. Below
+// them come the player's own groups (no `group` key): renamable in Edit
+// mode, and removing one moves its skills to "No group" rather than
+// deleting them. "No group" holds skills that don't cross-train at all
+// (transfer bonus 0).
+// Every skill row has an edit-only dropdown to move it to another group.
 function renderSkillGroups(d) {
   const container = document.getElementById("skills-container");
   const all = catsOfType(d.categories, "skill");
   const fixed = R.SKILL_GROUPS.map(g => all.find(c => c.group === g.key)).filter(Boolean);
-  const legacy = all.filter(c => !c.group);
-  const targets = [...fixed, ...legacy];
+  const own = all.filter(c => !c.group);
+  const none = all.find(c => c.group === R.NO_GROUP);
+  const targets = [...fixed, ...own, ...(none ? [none] : [])];
+  const ro = currentMode === "view" ? "readonly" : "";
 
   const groupSelect = (cat) => `<select data-action="move-skill" aria-label="Skill group">${
     targets.map(t => `<option value="${t.id}" ${t.id === cat.id ? "selected" : ""}>${escapeHtml(t.name || "Unnamed")}</option>`).join("")
   }</select>`;
 
-  const card = (cat, isLegacy) => {
+  const card = (cat, kind) => {
     const skills = cat.skills || [];
-    // View mode only shows groups that have something in them.
     if (currentMode === "view" && skills.length === 0) return "";
-    const bonus = R.categoryBonus(skills);
+    const bonus = R.groupBonus(cat);
     const rows = skills.map(s => {
       const eff = R.categorySkillEffective(s, bonus);
       const l = R.ladder(eff);
       return skillRowHtml(d, s, { tiers: [eff, l.hard, l.extreme], catId: cat.id, groupSelect: groupSelect(cat) });
     }).join("");
-    const removeBtn = isLegacy && skills.length === 0
-      ? `<button class="small danger" data-action="remove-category" data-edit-control="true">✕ Group</button>`
-      : "";
-    const legacyNote = isLegacy
-      ? `<p class="muted" data-edit-control="true">Old group — move these skills into one of the five groups above.</p>`
-      : "";
+    const title = kind === "own"
+      ? `<input type="text" data-field="name" placeholder="Group name" value="${escapeHtml(cat.name)}" ${ro}>
+         <button class="small danger" data-action="remove-skill-group" data-edit-control="true">✕ Group</button>`
+      : `<h4 class="cat-title">${escapeHtml(cat.name || "Unnamed")}</h4>`;
+    const bonusLine = kind === "none"
+      ? `<div class="cat-bonus">No transfer bonus</div>`
+      : `<div class="cat-bonus">Transfer bonus: +${bonus}</div>`;
+    const addLabel = kind === "none" ? "+ Add skill without a group" : `+ Add ${escapeHtml(cat.name || "")} skill`;
     return `
       <div class="category-card" data-cat="${cat.id}">
-        <div class="cat-header"><h4 class="cat-title">${escapeHtml(cat.name || "Unnamed")}</h4>${removeBtn}</div>
-        ${legacyNote}
-        <div class="cat-bonus">Transfer bonus: +${bonus}</div>
+        <div class="cat-header">${title}</div>
+        ${bonusLine}
         <div class="table-scroll">
           <table class="skill-table">
             <thead><tr><th>Skill</th><th data-edit-control="true">Group</th><th data-edit-control="true">Points</th><th>Effective</th><th>Hard</th><th>Extreme</th><th data-edit-control="true"></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
-        ${isLegacy ? "" : `<button class="small brass" data-action="add-skill" data-edit-control="true">+ Add ${escapeHtml(cat.name)} skill</button>`}
+        <button class="small brass" data-action="add-skill" data-edit-control="true">${addLabel}</button>
       </div>
     `;
   };
 
-  container.innerHTML = fixed.map(c => card(c, false)).join("") + legacy.map(c => card(c, true)).join("");
+  container.innerHTML = [
+    ...fixed.map(c => card(c, "fixed")),
+    ...own.map(c => card(c, "own")),
+    ...(none ? [card(none, "none")] : [])
+  ].join("");
 
   if (!container.dataset.wired) {
     // Moving a skill runs before the generic handler, which ignores <select>.
@@ -860,10 +876,29 @@ function renderSkillGroups(d) {
         })
       });
     });
+    // Removing an own group keeps its skills: they move to "No group".
+    container.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action='remove-skill-group']");
+      if (!btn) return;
+      const catId = btn.closest("[data-cat]").dataset.cat;
+      const cat = currentData.categories.find(c => c.id === catId);
+      if (!cat) return;
+      const skills = cat.skills || [];
+      if (skills.length && !confirm(`Remove the group "${cat.name}"? Its ${skills.length} skill(s) move to "No group".`)) return;
+      saveField({
+        categories: currentData.categories
+          .filter(c => c.id !== catId)
+          .map(c => c.type === "skill" && c.group === R.NO_GROUP ? { ...c, skills: [...(c.skills || []), ...skills] } : c)
+      });
+    });
     wireCategoryContainer(container, "categories");
     container.dataset.wired = "1";
   }
 }
+
+document.getElementById("add-skill-group-btn").addEventListener("click", () => {
+  saveField({ categories: [...currentData.categories, { id: R.makeId(), name: "New Skill Group", type: "skill", skills: [] }] });
+});
 
 // ---- Magic: same category structure, plus a Magnitude field per spell ----
 
@@ -1101,16 +1136,58 @@ function renderInventoryItems(inventory) {
   `).join("");
 }
 
-document.getElementById("add-item-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("item-name-input");
-  const qtyInput = document.getElementById("item-qty-input");
+// One add row for all inventory types. Each type needs different extra
+// fields — the inputs carry data-for="<types>" and only show for theirs.
+const ADD_ITEM_LABELS = {
+  item: { name: "Item name", button: "Add item" },
+  potion: { name: "Potion name", button: "Add potion" },
+  armor: { name: "Armor name", button: "Add armor" },
+  weapon: { name: "Weapon name", button: "Add weapon" }
+};
+const itemTypeInput = document.getElementById("item-type-input");
+const itemField = (id) => document.getElementById(id);
+
+function syncAddItemRow() {
+  const type = itemTypeInput.value;
+  document.querySelectorAll("#inventory-section [data-for]").forEach(el => {
+    el.style.display = el.dataset.for.split(" ").includes(type) ? "" : "none";
+  });
+  itemField("item-name-input").placeholder = ADD_ITEM_LABELS[type].name;
+  itemField("add-item-btn").textContent = ADD_ITEM_LABELS[type].button;
+}
+itemTypeInput.addEventListener("change", syncAddItemRow);
+syncAddItemRow();
+
+function addInventoryItem() {
+  const nameInput = itemField("item-name-input");
   const name = nameInput.value.trim();
-  const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
   if (!name) return;
-  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "item", name, qty }] });
+  const type = itemTypeInput.value;
+  const qty = Math.max(1, parseInt(itemField("item-qty-input").value, 10) || 1);
+  const add = (item) => saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type, name, ...item }] });
+
+  if (type === "potion") {
+    addPotion({ name, magnitude: R.magnitudeOf({ magnitude: itemField("item-magnitude-input").value }) }, qty, { bringsBottle: true });
+  } else if (type === "armor") {
+    add({ armorValue: Math.max(0, parseInt(itemField("item-armor-input").value, 10) || 0), worn: false });
+  } else if (type === "weapon") {
+    add({ woundDice: itemField("item-dice-input").value.trim() });
+  } else {
+    add({ qty });
+  }
+
+  // Clear the name and the per-item numbers; keep the type and magnitude,
+  // so several potions or items of one kind go in quickly.
   nameInput.value = "";
-  qtyInput.value = "1";
+  itemField("item-qty-input").value = "1";
+  itemField("item-armor-input").value = "1";
+  itemField("item-dice-input").value = "";
   nameInput.focus();
+}
+
+itemField("add-item-btn").addEventListener("click", addInventoryItem);
+itemField("item-name-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") addInventoryItem();
 });
 
 document.getElementById("inventory-item-list").addEventListener("click", (e) => {
@@ -1153,18 +1230,6 @@ function renderInventoryArmor(inventory) {
   `).join("");
 }
 
-document.getElementById("add-armor-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("armor-name-input");
-  const valueInput = document.getElementById("armor-value-input");
-  const name = nameInput.value.trim();
-  const armorValue = Math.max(0, parseInt(valueInput.value, 10) || 0);
-  if (!name) return;
-  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "armor", name, armorValue, worn: false }] });
-  nameInput.value = "";
-  valueInput.value = "1";
-  nameInput.focus();
-});
-
 document.getElementById("inventory-armor-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action='remove']");
   if (!btn) return;
@@ -1196,18 +1261,6 @@ function renderInventoryWeapons(inventory) {
   `).join("");
 }
 
-document.getElementById("add-weapon-item-btn").addEventListener("click", () => {
-  const nameInput = document.getElementById("weapon-name-input");
-  const diceInput = document.getElementById("weapon-dice-input");
-  const name = nameInput.value.trim();
-  const woundDice = diceInput.value.trim();
-  if (!name) return;
-  saveField({ inventory: [...currentData.inventory, { id: R.makeId(), type: "weapon", name, woundDice }] });
-  nameInput.value = "";
-  diceInput.value = "";
-  nameInput.focus();
-});
-
 document.getElementById("inventory-weapon-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action='remove']");
   if (!btn) return;
@@ -1217,15 +1270,28 @@ document.getElementById("inventory-weapon-list").addEventListener("click", (e) =
 
 // ---- Potions & bottles (Section 9.1) ----
 //
-// Brewing is casting: tapping a cast cell of a spell ticked "Brewable"
-// spends the Mana as usual, then offers to bottle the result. The brew
-// happens in the cauldron, so a failed cast costs Mana but never a bottle —
-// the player just doesn't press "Bottle it". Potions with the same spell
-// and magnitude stack into one line. Drink / Pour out give the bottle back
-// (empty); Throw breaks it. Broken bottles only come back with the GM's
-// New Island button.
+// Potions are inventory items of type "potion": { name, magnitude, qty },
+// plus `spellId` when brewed. They get there two ways:
+//  - Added by hand in the Items row with type "Potion" (bought, found, a
+//    starting potion). Such a potion brings its own bottle, so Max bottles
+//    goes up with it.
+//  - Brewed: tapping a cast cell of a spell ticked "Brewable" spends the
+//    Mana as usual, then offers to bottle the result into an empty bottle.
+//    The brew happens in the cauldron, so a failed cast costs Mana but never
+//    a bottle — the player just doesn't press "Bottle it".
+// Same name (or spell) and magnitude stack into one line. Drink / Pour out
+// leave the bottle empty; Throw breaks it. Broken bottles only come back
+// with the GM's New Island button.
+
+// The Potions list only shows for a character who has a potion, bottles,
+// or a spell ticked Brewable — everyone else never sees it.
+function showPotions(d) {
+  return R.potionsOf(d).length > 0 || d.bottlesMax > 0 ||
+    catsOfType(d.categories, "magic").some(c => (c.skills || []).some(s => s.brewable));
+}
 
 function renderPotions(d) {
+  document.getElementById("inventory-potions").style.display = showPotions(d) ? "" : "none";
   const { max, full, empty, broken } = R.bottleCounts(d);
 
   const maxInput = document.getElementById("bottles-max-input");
@@ -1237,23 +1303,25 @@ function renderPotions(d) {
     ...Array(Math.max(0, Math.min(broken, max - full))).fill("broken")
   ].map(s => `<span class="bottle-pip ${s}"></span>`).join("");
   // More potions than bottles only happens if Max bottles was lowered
-  // after brewing — say so instead of hiding it.
+  // afterwards — say so instead of hiding it.
   const over = full > max ? ` · <strong>${full - max} over max</strong>` : "";
   document.getElementById("bottle-bar").innerHTML = `
     <span class="bottle-pips" aria-hidden="true">${pips}</span>
     <span class="muted">${full} full · ${empty} empty · ${broken} broken — ${max} bottle${max === 1 ? "" : "s"}${over}</span>`;
   document.getElementById("break-bottle-btn").disabled = empty === 0;
 
+  const potions = R.potionsOf(d);
   const list = document.getElementById("potion-list");
-  if (d.potions.length === 0) {
-    list.innerHTML = `<li class="empty-state">No potions brewed.</li>`;
+  if (potions.length === 0) {
+    list.innerHTML = `<li class="empty-state">No potions right now.</li>`;
     return;
   }
-  list.innerHTML = d.potions.map(p => {
+  list.innerHTML = potions.map(p => {
     const note = (findSpell(p.spellId)?.note || "").trim();
+    const magnitude = R.magnitudeOf(p);
     return `
       <li data-id="${p.id}" class="potion-row">
-        <span class="item-name"${note ? ` title="${escapeHtml(note)}"` : ""}><span class="magnitude-tag" title="Magnitude ${p.magnitude}">${toRoman(p.magnitude)}</span>${escapeHtml(p.name)}</span>
+        <span class="item-name"${note ? ` title="${escapeHtml(note)}"` : ""}><span class="magnitude-tag" title="Magnitude ${magnitude}">${toRoman(magnitude)}</span>${escapeHtml(p.name)}</span>
         <span class="item-qty">×${p.qty}</span>
         <span class="row" style="gap:0.3rem;display:inline-flex;">
           <button class="small brass" data-action="drink" title="Drink it — the bottle stays, empty">Drink</button>
@@ -1264,15 +1332,30 @@ function renderPotions(d) {
   }).join("");
 }
 
+// Adds `qty` potions, stacking onto a potion with the same magnitude and the
+// same spell (or, for hand-added ones, the same name). `bringsBottle` is
+// for bought/found potions: each comes in a bottle of its own.
+function addPotion({ name, magnitude, spellId = null }, qty, { bringsBottle = false } = {}) {
+  const sameName = (a, b) => (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
+  const stack = R.potionsOf(currentData).find(p => R.magnitudeOf(p) === magnitude &&
+    ((spellId && p.spellId === spellId) || sameName(p.name, name)));
+  const inventory = stack
+    ? currentData.inventory.map(i => i === stack ? { ...i, qty: i.qty + qty, name, ...(spellId ? { spellId } : {}) } : i)
+    : [...currentData.inventory, { id: R.makeId(), type: "potion", name, magnitude, qty, ...(spellId ? { spellId } : {}) }];
+  const updates = { inventory };
+  if (bringsBottle) updates.bottlesMax = (currentData.bottlesMax || 0) + qty;
+  saveField(updates);
+}
+
 // Takes one potion off a stack (dropping the stack at 0). `breakBottle`
 // also counts its bottle as broken — both in one write.
 function usePotion(id, breakBottle) {
-  const potion = currentData.potions.find(p => p.id === id);
+  const potion = currentData.inventory.find(i => i.id === id && i.type === "potion");
   if (!potion) return;
-  const potions = potion.qty > 1
-    ? currentData.potions.map(p => p.id === id ? { ...p, qty: p.qty - 1 } : p)
-    : currentData.potions.filter(p => p.id !== id);
-  const updates = { potions };
+  const inventory = potion.qty > 1
+    ? currentData.inventory.map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i)
+    : currentData.inventory.filter(i => i.id !== id);
+  const updates = { inventory };
   if (breakBottle) updates.bottlesBroken = (currentData.bottlesBroken || 0) + 1;
   saveField(updates);
 }
@@ -1299,12 +1382,7 @@ function bottlePotion(spell) {
     flash(sheetStatus, "No empty bottle left.");
     return;
   }
-  const magnitude = R.magnitudeOf(spell);
-  const stack = currentData.potions.find(p => p.spellId === spell.id && p.magnitude === magnitude);
-  const potions = stack
-    ? currentData.potions.map(p => p === stack ? { ...p, qty: p.qty + 1, name: spell.name } : p)
-    : [...currentData.potions, { id: R.makeId(), spellId: spell.id, name: spell.name, magnitude, qty: 1 }];
-  saveField({ potions });
+  addPotion({ name: spell.name, magnitude: R.magnitudeOf(spell), spellId: spell.id }, 1);
   flash(sheetStatus, `Bottled ${spell.name}.`);
 }
 
