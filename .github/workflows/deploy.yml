@@ -88,6 +88,27 @@ jobs:
           };
           EOF
 
+      # The admin page's password gate (admin/admin.js) compares against a
+      # SHA-256 hash of a fixed prefix + the ADMIN_PASSWORD secret. Only the
+      # hash is written to js/admin-config.js. The password stays in an env
+      # var: it is never echoed, passed as a command-line argument (printf is
+      # a shell builtin) or written to a file, and the step doesn't use
+      # `set -x`. The prefix must match ADMIN_SALT in admin/admin-auth.js.
+      # Without the secret, the committed placeholder stays and the admin
+      # page says the password isn't configured.
+      - name: Generate admin-config.js from the ADMIN_PASSWORD secret
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+        run: |
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::warning::ADMIN_PASSWORD secret is not set, so the admin page stays locked."
+            exit 0
+          fi
+          hash=$(printf '%s' "archipelago-admin:$ADMIN_PASSWORD" | sha256sum | cut -d ' ' -f 1)
+          cat > js/admin-config.js << EOF
+          export const ADMIN_PASSWORD_HASH = "$hash";
+          EOF
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:

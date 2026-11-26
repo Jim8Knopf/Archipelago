@@ -14,11 +14,20 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <main>
+  <!-- admin.js shows the password gate here, and only renders the admin UI
+       (from the template below) once the password is right. -->
+  <main id="admin-root">
+    <div class="card admin-gate"><p class="muted">Loading…</p></div>
+  </main>
+
+  <template id="admin-app-template">
     <div class="card full-width">
-      <h2>Admin</h2>
+      <div class="row spread">
+        <h2>Admin</h2>
+        <button type="button" class="small" id="admin-lock-btn">🔒 Lock</button>
+      </div>
       <p class="muted">Every campaign and character in this Firebase project, across the whole database — not just one Campaign ID. Useful for cleanup, or finding a campaign ID you forgot.</p>
-      <p class="muted">⚠️ This page has no access control beyond the same open Firestore rules the rest of the prototype uses — anyone with the link can see and reach everything listed here. Don't share this link outside your table. See the setup guide for hardening options.</p>
+      <p class="muted">⚠️ The password only hides this page. The Firestore rules are still open, so anyone with a campaign ID (or the know-how to query the database directly) can read and change everything listed here.</p>
       <div class="status-msg" id="admin-status"></div>
     </div>
 
@@ -27,7 +36,7 @@
     <div id="admin-content">
       <div class="card"><p class="muted">Loading…</p></div>
     </div>
-  </main>
+  </template>
 
   <footer class="foot">Fair winds. ⚓</footer>
 

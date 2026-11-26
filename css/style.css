@@ -200,6 +200,7 @@ details.card {
 
 input[type="text"],
 input[type="number"],
+input[type="password"],
 textarea {
   font-family: 'Spectral', Georgia, serif;
   font-size: 1rem;
@@ -793,6 +794,21 @@ input[readonly][data-skill-id] { cursor: pointer; }
   border-radius: 3px;
   padding: 0 0.3em;
   margin-right: 0.4em;
+}
+
+/* ---- Admin password gate (admin/admin.js) ---- */
+.admin-gate {
+  display: block;
+  column-span: all;
+  max-width: 420px;
+  margin: 2rem auto;
+}
+.admin-gate-form input { width: 100%; }
+.admin-gate-error {
+  min-height: 1.2em;
+  margin: .75rem 0 0;
+  color: var(--danger);
+  font-weight: 600;
 }
 
 /* ---- Admin panel ----
