@@ -41,8 +41,9 @@ export function restUpdates(d, type) {
   const recover = type === "long" ? R.longRestRecover : R.shortRestRecover;
   const updates = { currentHP: recover(d.currentHP ?? 0, R.hpFromPoints(d.hpPoints)) };
   if (R.hasMagic(d)) {
-    const maxMana = Math.floor(R.manaPoolFromPoints(d.manaPoints, d.categories));
-    updates.currentMana = recover(d.currentMana ?? 0, maxMana);
+    const maxMana = R.manaPoolFromPoints(d.manaPoints, d.categories);
+    // Floor: older documents may hold a fractional currentMana.
+    updates.currentMana = recover(Math.floor(d.currentMana ?? 0), maxMana);
   }
   return updates;
 }
