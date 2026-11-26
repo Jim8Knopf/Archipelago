@@ -5,12 +5,17 @@ import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
+import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 
 const params = new URLSearchParams(window.location.search);
 const loaderCard = document.getElementById("loader-card");
 const sheetCard = document.getElementById("sheet-card");
 const loaderStatus = document.getElementById("loader-status");
 const sheetStatus = document.getElementById("sheet-status");
+
+// Save/offline marker in the page header, next to the brand.
+const siteHeader = document.querySelector("header.top");
+mountSyncStatus(siteHeader, siteHeader.querySelector("#site-nav"));
 
 let currentData = null;
 let charRef = null;
@@ -166,7 +171,7 @@ document.getElementById("open-btn").addEventListener("click", async () => {
     if (!existing.exists()) {
       const create = confirm(`No character named "${name}" exists yet in "${campaign}". Create a new one?`);
       if (!create) return;
-      await setDoc(ref, R.defaultCharacter(name));
+      await trackWrite(setDoc(ref, R.defaultCharacter(name)));
     }
     const url = new URL(window.location.href);
     url.searchParams.set("campaign", campaign);
@@ -187,6 +192,7 @@ function initSheet() {
 
   charRef = doc(db, "campaigns", campaign, "characters", charId);
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
+  watchConnection(charRef);
 
   onSnapshot(charRef, (snap) => {
     if (!snap.exists()) {
@@ -273,7 +279,7 @@ function normalize(d) {
 
 async function saveField(fields) {
   try {
-    await updateDoc(charRef, fields);
+    await trackWrite(updateDoc(charRef, fields));
     return true;
   } catch (err) {
     console.error(err);
@@ -436,7 +442,7 @@ Object.entries(restButtons).forEach(([type, btn]) => {
     currentData = restedLocally(currentData, type);
     render();
     try {
-      const healed = await restCharacter(getCampaignId(), params.get("char"), type);
+      const healed = await trackWrite(restCharacter(getCampaignId(), params.get("char"), type));
       if (!healed) flash(sheetStatus, "Already rested just now.");
     } catch (err) {
       console.error(err);

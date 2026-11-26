@@ -91,6 +91,50 @@ header.top nav .nav-current {
   padding-bottom: 1px;
 }
 
+/* ---- Sync status marker (js/sync-status.js) ----
+   Small dot + word: Saving… / Saved / Couldn't save / Offline. Idle fades
+   out but keeps its space, so nothing around it shifts. */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  gap: .35em;
+  min-width: 7.5em;
+  font-size: .8rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--brass-light);
+  transition: opacity .6s ease, visibility .6s;
+}
+
+.sync-status::before {
+  content: "";
+  width: .55em;
+  height: .55em;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.sync-status[data-state="idle"] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sync-status[data-state="saving"]::before { animation: sync-pulse 1s ease-in-out infinite alternate; }
+.sync-status[data-state="saved"] { color: var(--success-light); }
+.sync-status[data-state="error"],
+.sync-status[data-state="offline"] { color: var(--danger-light); }
+
+@keyframes sync-pulse { from { opacity: 1; } to { opacity: .3; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-status { transition: none; }
+  .sync-status[data-state="saving"]::before { animation: none; }
+}
+
+/* Sheet: sits right after the brand; the nav keeps to the right. */
+header.top .sync-status { margin-right: auto; }
+
 /* ---- Layout: CSS multi-column ("masonry") instead of a row-based grid.A row-based grid forces every card in a row to the height of the tallestone, wasting space when e.g. Magic is much shorter than Skills. Columnslet shorter cards pack into the gaps naturally, and collapse to a singlecolumn on narrow/phone widths automatically (no media query needed). ---- */
 main {
   max-width: 1300px;
@@ -1250,6 +1294,7 @@ footer.foot {
 
 @media (max-width: 480px) {
   .gm-toolbar { padding: .5rem 16px; }
+  .gm-check-input { flex-basis: 10rem; }
   .gm-main { padding: 1rem 16px; }
   .gm-party-actions { width: 100%; }
   .gm-party-actions button { flex: 1; }
