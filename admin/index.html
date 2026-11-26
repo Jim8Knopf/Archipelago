@@ -20,22 +20,28 @@
     <div class="card admin-gate"><p class="muted">Loading…</p></div>
   </main>
 
+  <!-- The admin UI. Rendered by admin-app.js only after the password gate:
+       a toolbar, the campaign list (left) and the detail pane (right). On a
+       phone the list drills into the detail, with a "‹ Campaigns" link back. -->
   <template id="admin-app-template">
-    <div class="card full-width">
-      <div class="row spread">
-        <h2>Admin</h2>
-        <button type="button" class="small" id="admin-lock-btn">🔒 Lock</button>
+    <div class="gm-toolbar admin-toolbar">
+      <div class="gm-toolbar-row">
+        <h2 class="admin-toolbar-title">Admin</h2>
+        <div class="admin-toolbar-actions">
+          <button type="button" class="small" id="admin-lock-btn" title="Lock the admin page again in this tab">🔒 Lock</button>
+        </div>
       </div>
-      <p class="muted">Every campaign and character in this Firebase project, across the whole database — not just one Campaign ID. Useful for cleanup, or finding a campaign ID you forgot.</p>
-      <p class="muted">⚠️ The password only hides this page. The Firestore rules are still open, so anyone with a campaign ID (or the know-how to query the database directly) can read and change everything listed here.</p>
-      <div class="status-msg" id="admin-status"></div>
     </div>
 
-    <!-- One card per campaign, packed into the same multi-column flow as
-         the player sheet (display: contents lets the cards join main's columns). -->
-    <div id="admin-content">
-      <div class="card"><p class="muted">Loading…</p></div>
+    <div class="admin-main" id="admin-main" data-view="list">
+      <nav class="card admin-list" aria-label="Campaigns">
+        <input type="search" id="admin-filter" class="admin-filter" placeholder="Filter campaigns…" aria-label="Filter campaigns" autocomplete="off">
+        <div id="admin-list"></div>
+      </nav>
+      <section class="admin-detail" id="admin-detail"></section>
     </div>
+
+    <div class="gm-toast" id="admin-toast" role="status" aria-live="polite"></div>
   </template>
 
   <footer class="foot">Fair winds. ⚓</footer>
