@@ -255,6 +255,18 @@ button.small {
   font-size: .75rem;
 }
 
+/* Disabled buttons (e.g. "Bottle it" with no empty bottle) look it, and
+   don't light up on hover or press. */
+button:disabled,
+button:disabled:hover {
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}
+button.brass:disabled:hover { background: var(--brass); }
+button.danger:disabled:hover { background: var(--danger); }
+button:not(.brass):not(.danger):disabled:hover { background: var(--navy); }
+
 .row {
   display: flex;
   gap: .5rem;
@@ -857,6 +869,16 @@ footer.foot {
   align-items: center;
 }
 .name-wrap input { flex: 1; min-width: 6rem; }
+
+/* Brewable spell marker (View mode): whether it can be bottled right now. */
+.brew-tag {
+  flex: none;
+  margin-left: .5rem;
+  font-size: .8rem;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+.brew-tag.unavailable { font-style: italic; opacity: .8; }
 
 .spell-info-btn {
   flex: none;
