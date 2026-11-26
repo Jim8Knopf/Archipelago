@@ -292,6 +292,18 @@ async function saveField(fields) {
   }
 }
 
+// Saves a points or magic-category change together with the current HP/Mana
+// it drags along (see R.currentAfterMaxChange), in a single write.
+function saveWithVitals(fields) {
+  const next = { ...currentData, ...fields };
+  const updates = { ...fields };
+  const hp = R.currentAfterMaxChange(currentData.currentHP, R.hpFromPoints(currentData.hpPoints), R.hpFromPoints(next.hpPoints));
+  if (hp !== (currentData.currentHP ?? 0)) updates.currentHP = hp;
+  const mana = R.currentAfterMaxChange(currentData.currentMana, getMaxMana(currentData), getMaxMana(next));
+  if (mana !== (currentData.currentMana ?? 0)) updates.currentMana = mana;
+  return saveField(updates);
+}
+
 // ---- Master render ----
 
 function render() {
@@ -664,11 +676,7 @@ function renderAttributes(d) {
 }
 
 document.getElementById("hp-points-input").addEventListener("change", (e) => {
-  const newPoints = Math.max(0, parseInt(e.target.value, 10) || 0);
-  const newMax = R.hpFromPoints(newPoints);
-  const updates = { hpPoints: newPoints };
-  if ((currentData.currentHP ?? 0) > newMax) updates.currentHP = newMax;
-  saveField(updates);
+  saveWithVitals({ hpPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
 document.getElementById("move-points-input").addEventListener("change", (e) => {
@@ -688,11 +696,7 @@ document.getElementById("resilience-points-input").addEventListener("change", (e
 });
 
 document.getElementById("mana-points-input").addEventListener("change", (e) => {
-  const newPoints = Math.max(0, parseInt(e.target.value, 10) || 0);
-  const updates = { manaPoints: newPoints };
-  const newMax = R.manaPoolFromPoints(newPoints, currentData.categories);
-  if ((currentData.currentMana ?? 0) > newMax) updates.currentMana = newMax;
-  saveField(updates);
+  saveWithVitals({ manaPoints: Math.max(0, parseInt(e.target.value, 10) || 0) });
 });
 
 function renderMagicStats(d) {
@@ -989,7 +993,7 @@ function wireCategoryContainer(container, dataKey) {
       }
       return { ...cat, [input.dataset.field]: input.value };
     });
-    saveField({ [dataKey]: updatedList });
+    saveWithVitals({ [dataKey]: updatedList });
   });
 
   container.addEventListener("click", (e) => {
@@ -998,14 +1002,14 @@ function wireCategoryContainer(container, dataKey) {
     const catId = btn.closest("[data-cat]").dataset.cat;
 
     if (btn.dataset.action === "remove-category") {
-      saveField({ [dataKey]: currentData[dataKey].filter(c => c.id !== catId) });
+      saveWithVitals({ [dataKey]: currentData[dataKey].filter(c => c.id !== catId) });
     }
     if (btn.dataset.action === "add-skill") {
       const updatedList = currentData[dataKey].map(cat => cat.id === catId
         ? { ...cat, skills: [...(cat.skills || []), { id: R.makeId(), name: "New Skill", points: 0, magnitude: 1 }] }
         : cat
       );
-      saveField({ [dataKey]: updatedList });
+      saveWithVitals({ [dataKey]: updatedList });
     }
     if (btn.dataset.action === "remove-skill") {
       const skillId = btn.closest("tr").dataset.id;
@@ -1013,7 +1017,7 @@ function wireCategoryContainer(container, dataKey) {
         ? { ...cat, skills: cat.skills.filter(s => s.id !== skillId) }
         : cat
       );
-      saveField({ [dataKey]: updatedList });
+      saveWithVitals({ [dataKey]: updatedList });
     }
   });
 }

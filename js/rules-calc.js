@@ -265,6 +265,17 @@ export function hasMagic(char) {
   return manaPoolFromPoints(char.manaPoints, char.categories) > 0 || magicSkillPoints;
 }
 
+// Where current HP/Mana should land when a points change moves the max.
+// A character who was full (current >= old max) stays full, so buying points
+// fills the new max; 0/0 counts as full, which is how a fresh character
+// starts fully restored. A wounded character keeps their value, and a lower
+// max still clamps it.
+export function currentAfterMaxChange(current, oldMax, newMax) {
+  const cur = Number(current) || 0;
+  if (newMax > oldMax && cur >= oldMax) return newMax;
+  return Math.min(cur, newMax);
+}
+
 // Default shape for a brand-new character document.
 export function defaultCharacter(name) {
   return {
