@@ -81,7 +81,7 @@ Archipelago/
 │   ├── index.html          GM dashboard
 │   └── gm.js
 ├── admin/
-│   ├── admin-index.html    admin page — all campaigns and characters
+│   ├── index.html          admin page — all campaigns and characters
 │   └── admin.js
 ├── firestore.rules         paste into Firebase console
 ├── .github/workflows/

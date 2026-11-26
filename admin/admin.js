@@ -21,14 +21,14 @@ function escapeHtml(str) {
 }
 
 function sheetUrl(campaignId, charId) {
-  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/?$/, "sheet/"));
+  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/(index\.html)?$/, "sheet/"));
   url.searchParams.set("campaign", campaignId);
   url.searchParams.set("char", charId);
   return url.toString();
 }
 
 function gmUrl(campaignId) {
-  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/?$/, "gm/"));
+  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/(index\.html)?$/, "gm/"));
   url.searchParams.set("campaign", campaignId);
   return url.toString();
 }
