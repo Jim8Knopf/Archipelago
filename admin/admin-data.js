@@ -1,11 +1,15 @@
 // ============================================================
 // Pure helpers for the admin page: backup JSON (with Firestore Timestamps
-// in a tagged form), import planning, ID checks and batch chunking.
+// in a tagged form), import planning, ID checks, batch chunking, the legacy
+// data scan and junk hints.
 //
 // No DOM and no Firebase imports, so everything here can be tested in
 // Node. Where a Firestore Timestamp has to be created (on import), the
 // caller passes a factory in.
 // ============================================================
+
+import * as R from "../js/rules-calc.js";
+import { normalize } from "../js/normalize.js";
 
 export const BACKUP_FORMAT = "archipelago-backup";
 export const BACKUP_VERSION = 1;
@@ -191,4 +195,83 @@ export function importWrites(plan, overwrite) {
     }
   });
   return { writes, created, overwritten, skipped };
+}
+
+// ---- Legacy data ----
+
+// Why a stored character still has an old shape that normalize()
+// (js/normalize.js) migrates on every load. Empty = nothing to migrate.
+export function legacyReasons(raw) {
+  const reasons = [];
+  const cats = Array.isArray(raw.categories) ? raw.categories : [];
+  if ((raw.basicSkills || []).length) reasons.push("flat Basic Skills list");
+  if ((raw.potions || []).length) reasons.push("separate potions list");
+  if ((raw.inventory || []).some(item => !item?.type)) reasons.push("inventory items without a type");
+  if (cats.some(c => c?.type === "language")) reasons.push("language categories");
+  if (raw.armor != null && raw.armorCustom == null) reasons.push("old armor field");
+  if (typeof raw.currentMana === "number" && raw.currentMana !== Math.floor(raw.currentMana)) reasons.push("fractional Mana");
+  const hasGroup = (key) => cats.some(c => c?.type === "skill" && c.group === key);
+  if (!R.SKILL_GROUPS.every(g => hasGroup(g.key)) || !hasGroup(R.NO_GROUP)) reasons.push("missing skill groups");
+  return reasons;
+}
+
+function sameValue(a, b) {
+  if (a === b) return true;
+  if (isTimestamp(a) && isTimestamp(b)) return a.seconds === b.seconds && a.nanoseconds === b.nanoseconds;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a), kb = Object.keys(b);
+  return ka.length === kb.length && ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && sameValue(a[k], b[k]));
+}
+
+// The top-level fields that change when a character is normalized: what
+// "Migrate all" writes back with an update, so fields it doesn't touch
+// (and edits a player makes meanwhile to other fields) are left alone.
+export function migrationUpdate(raw) {
+  const next = normalize(raw);
+  const update = {};
+  Object.entries(next).forEach(([key, value]) => {
+    if (value === undefined || sameValue(raw[key], value)) return;
+    // A missing list and an empty one mean the same (e.g. the `potions: []`
+    // normalize() always adds) — not worth a write.
+    if (raw[key] === undefined && Array.isArray(value) && value.length === 0) return;
+    update[key] = value;
+  });
+  return update;
+}
+
+// ---- Junk hints ----
+
+const PLACEHOLDER_CAMPAIGN = /^(default-campaign|default|test(ing)?|demo|example|tmp|temp|sandbox|asdf|foo|bar)([-_ ]?\d+)?$/i;
+const PLACEHOLDER_NAME = /^(new character|unnamed|test(ing)?|asdf|foo|bar|x+)( ?\d+)?$/i;
+
+// True for a character nobody ever filled in: no points spent, nothing
+// carried, no traits, portrait, notes or basic info.
+function isUntouched(raw) {
+  const d = normalize(raw);
+  const blank = (v) => !String(v ?? "").trim();
+  return R.pointsSpent(d) === 0
+    && d.inventory.length === 0
+    && d.traits.length === 0
+    && blank(d.imageUrl)
+    && blank(d.notes.session) && blank(d.notes.character)
+    && Object.values(d.basicInfo).every(blank);
+}
+
+export function charJunkReasons(raw) {
+  const reasons = [];
+  const name = String(raw.name ?? "").trim();
+  if (!name) reasons.push("no name");
+  else if (PLACEHOLDER_NAME.test(name)) reasons.push("placeholder name");
+  if (isUntouched(raw)) reasons.push("never filled in");
+  return reasons;
+}
+
+// chars: Map(charId -> data)
+export function campaignJunkReasons(campaignId, chars) {
+  const reasons = [];
+  if (PLACEHOLDER_CAMPAIGN.test(campaignId)) reasons.push("placeholder campaign ID");
+  const all = [...chars.values()];
+  if (all.length && all.every(d => charJunkReasons(d).length)) reasons.push("only placeholder characters");
+  return reasons;
 }

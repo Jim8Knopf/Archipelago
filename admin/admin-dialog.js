@@ -12,6 +12,58 @@
 
 let dialogCount = 0;
 
+// Read-only text viewer (the raw JSON of a character), with a Copy button.
+// The text goes in via textContent, so it needs no escaping.
+export function textDialog({ title, text, onCopy }) {
+  const previousFocus = document.activeElement;
+  const n = ++dialogCount;
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "confirm-dialog admin-text-dialog";
+  dialog.setAttribute("aria-labelledby", `admin-dialog-title-${n}`);
+
+  const form = document.createElement("form");
+  form.method = "dialog";
+  form.className = "confirm-dialog-body";
+
+  const heading = document.createElement("h3");
+  heading.className = "confirm-dialog-title";
+  heading.id = `admin-dialog-title-${n}`;
+  heading.textContent = title;
+
+  const pre = document.createElement("pre");
+  pre.className = "admin-json";
+  pre.tabIndex = 0;
+  pre.textContent = text;
+
+  const actions = document.createElement("div");
+  actions.className = "confirm-dialog-actions";
+  const copyBtn = document.createElement("button");
+  copyBtn.type = "button";
+  copyBtn.textContent = "Copy";
+  copyBtn.addEventListener("click", () => onCopy?.(text));
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "submit";
+  closeBtn.className = "brass";
+  closeBtn.textContent = "Close";
+  actions.append(copyBtn, closeBtn);
+
+  form.append(heading, pre, actions);
+  dialog.appendChild(form);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (previousFocus && typeof previousFocus.focus === "function" && previousFocus.isConnected) {
+      previousFocus.focus();
+    }
+  }, { once: true });
+  dialog.showModal();
+  closeBtn.focus();
+}
+
 export function formDialog({
   title,
   bodyHtml,

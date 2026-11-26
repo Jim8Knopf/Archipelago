@@ -8,9 +8,10 @@ import { confirmDialog } from "../js/confirm.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import {
   BATCH_LIMIT, chunk, buildBackup, backupFileName, validateBackup, planImport,
-  importWrites, fromJsonValue, idProblem
+  importWrites, fromJsonValue, toJsonValue, idProblem, legacyReasons, migrationUpdate,
+  charJunkReasons, campaignJunkReasons
 } from "./admin-data.js";
-import { formDialog } from "./admin-dialog.js";
+import { formDialog, textDialog } from "./admin-dialog.js";
 
 // ============================================================
 // Admin page UI. Loaded by admin.js only after the password gate.
@@ -32,6 +33,32 @@ let campaigns = new Map();
 let ignoredDocs = 0;
 let loaded = false;
 let loadError = false;
+
+// Legacy scan and junk hints, worked out once per snapshot.
+const charKey = (campaignId, charId) => `${campaignId}/${charId}`;
+let scan = { legacy: [], legacyByKey: new Map(), junkChars: [], junkByKey: new Map(), junkCampaigns: new Map() };
+
+function computeScan() {
+  const next = { legacy: [], legacyByKey: new Map(), junkChars: [], junkByKey: new Map(), junkCampaigns: new Map() };
+  campaignIds().forEach(campaignId => {
+    const chars = campaigns.get(campaignId);
+    const campaignReasons = campaignJunkReasons(campaignId, chars);
+    if (campaignReasons.length) next.junkCampaigns.set(campaignId, campaignReasons);
+    charsOf(campaignId).forEach(({ id, data }) => {
+      const legacy = legacyReasons(data);
+      if (legacy.length) {
+        next.legacy.push({ campaignId, charId: id, data, reasons: legacy });
+        next.legacyByKey.set(charKey(campaignId, id), legacy);
+      }
+      const junk = charJunkReasons(data);
+      if (junk.length) {
+        next.junkChars.push({ campaignId, charId: id, data, reasons: junk });
+        next.junkByKey.set(charKey(campaignId, id), junk);
+      }
+    });
+  });
+  scan = next;
+}
 
 const ui = {
   // { kind: "tools" } | { kind: "campaign", id } | null (nothing picked:
@@ -378,9 +405,11 @@ function target(campaignId, charId) {
 function listItemHtml(id) {
   const n = campaigns.get(id).size;
   const current = ui.selected?.kind === "campaign" && ui.selected.id === id;
+  const junk = scan.junkCampaigns.get(id);
   return `
     <button type="button" class="admin-list-item" data-action="select-campaign" ${target(id)}${current ? ' aria-current="true"' : ""}>
       <span class="admin-list-name">${escapeHtml(id)}</span>
+      ${junk ? `<span class="admin-list-flag" title="${escapeHtml("Looks like junk: " + junk.join(", "))}">🧹</span>` : ""}
       <span class="gm-count" title="${n} character${n === 1 ? "" : "s"}">${n}</span>
     </button>
   `;
@@ -433,9 +462,13 @@ function charRowHtml(campaignId, { id, data }) {
   const name = data.name || "Unnamed";
   const buttons = `
     <button type="button" class="small" data-action="copy-link" ${target(campaignId, id)}>Copy player link</button>
+    <button type="button" class="small" data-action="view-json" ${target(campaignId, id)}>View raw JSON</button>
     <button type="button" class="small" data-action="move-char" ${target(campaignId, id)}>Move / copy to campaign…</button>
     <button type="button" class="small danger" data-action="delete-char" ${target(campaignId, id)}>Delete character</button>
   `;
+  const key = charKey(campaignId, id);
+  const legacy = scan.legacyByKey.get(key);
+  const junk = scan.junkByKey.get(key);
   return `
     <div class="admin-char-row">
       <span class="admin-char-name">
@@ -443,6 +476,8 @@ function charRowHtml(campaignId, { id, data }) {
         <span class="admin-char-text">
           <b>${escapeHtml(name)}</b> <span class="muted">${escapeHtml(vitalsText(data))}</span>
           <code class="admin-char-id">${escapeHtml(id)}</code>
+          ${legacy ? `<span class="admin-badge" title="${escapeHtml(legacy.join(", "))}">legacy data</span>` : ""}
+          ${junk ? `<span class="admin-badge warn" title="${escapeHtml(junk.join(", "))}">junk? ${escapeHtml(junk.join(", "))}</span>` : ""}
         </span>
       </span>
       <span class="admin-char-actions">
@@ -465,6 +500,7 @@ function campaignMenuButtons(campaignId) {
 function campaignDetailHtml(campaignId) {
   const chars = charsOf(campaignId);
   const lastRest = lastRestOf(campaignId);
+  const junkReasons = scan.junkCampaigns.get(campaignId);
   return `
     <div class="card admin-head">
       <div class="admin-head-row">
@@ -479,6 +515,11 @@ function campaignDetailHtml(campaignId) {
       <div class="row">
         <a class="button-link brass" href="${escapeHtml(gmUrl(campaignId))}" target="_blank" rel="noopener">GM dashboard ↗</a>
       </div>
+      ${junkReasons ? `
+        <div class="admin-hint">
+          <p>🧹 This looks like junk: ${escapeHtml(junkReasons.join(", "))}.</p>
+          <button type="button" class="small danger" data-action="delete-campaign" ${target(campaignId)}>Delete campaign…</button>
+        </div>` : ""}
     </div>
 
     <div class="card admin-chars">
@@ -510,6 +551,65 @@ function toolsDetailHtml() {
         <button type="button" class="brass" data-action="export-all"${charCount() ? "" : " disabled"}>Export everything</button>
         <button type="button" data-action="import-choose">Import from a backup…</button>
       </div>
+    </div>
+
+    ${legacyCardHtml()}
+    ${junkCardHtml()}
+  `;
+}
+
+const LIST_LIMIT = 50;
+
+function moreHtml(total) {
+  return total > LIST_LIMIT ? `<p class="muted">…and ${total - LIST_LIMIT} more.</p>` : "";
+}
+
+function charLabelHtml(campaignId, charId, data) {
+  return `<b>${escapeHtml(data.name || "Unnamed")}</b> <code>${escapeHtml(campaignId)} / ${escapeHtml(charId)}</code>`;
+}
+
+function legacyCardHtml() {
+  const items = scan.legacy;
+  const list = items.slice(0, LIST_LIMIT).map(({ campaignId, charId, data, reasons }) => `
+    <li>${charLabelHtml(campaignId, charId, data)} <span class="muted">— ${escapeHtml(reasons.join(", "))}</span></li>
+  `).join("");
+  return `
+    <div class="card">
+      <h3>Legacy data</h3>
+      <p class="muted">Characters still stored in an older shape. The sheet converts these every time it loads them; <b>Migrate all</b> writes the converted fields back, exactly as the sheet would show them, so the old shapes are gone for good. Only the changed fields are written.</p>
+      ${items.length ? `<ul class="admin-card-list">${list}</ul>${moreHtml(items.length)}` : `<p>✓ No legacy data found.</p>`}
+      <button type="button" class="brass" data-action="migrate-all"${items.length ? "" : " disabled"}>Migrate all${items.length ? ` (${items.length})` : ""}</button>
+    </div>
+  `;
+}
+
+function junkCardHtml() {
+  const camps = [...scan.junkCampaigns.entries()].sort((a, b) => byText(a[0], b[0]));
+  const chars = scan.junkChars.filter(c => !scan.junkCampaigns.has(c.campaignId));
+  const campList = camps.slice(0, LIST_LIMIT).map(([id, reasons]) => `
+    <li>
+      <code>${escapeHtml(id)}</code> <span class="muted">(${campaigns.get(id).size}) — ${escapeHtml(reasons.join(", "))}</span>
+      <span class="admin-inline-actions">
+        <button type="button" class="small" data-action="select-campaign" ${target(id)}>Open</button>
+        <button type="button" class="small danger" data-action="delete-campaign" ${target(id)}>Delete…</button>
+      </span>
+    </li>
+  `).join("");
+  const charList = chars.slice(0, LIST_LIMIT).map(({ campaignId, charId, data, reasons }) => `
+    <li>
+      ${charLabelHtml(campaignId, charId, data)} <span class="muted">— ${escapeHtml(reasons.join(", "))}</span>
+      <span class="admin-inline-actions">
+        <button type="button" class="small danger" data-action="delete-char" ${target(campaignId, charId)}>Delete…</button>
+      </span>
+    </li>
+  `).join("");
+  return `
+    <div class="card">
+      <h3>Junk hints</h3>
+      <p class="muted">Guesses, not facts: placeholder campaign IDs like <code>default-campaign</code> or <code>test</code>, and characters with no name, a placeholder name or nothing filled in. Check before deleting — every delete asks first.</p>
+      ${!camps.length && !chars.length ? `<p>✓ Nothing looks like junk.</p>` : ""}
+      ${camps.length ? `<h4>Campaigns</h4><ul class="admin-card-list">${campList}</ul>${moreHtml(camps.length)}` : ""}
+      ${chars.length ? `<h4>Characters${camps.length ? " in other campaigns" : ""}</h4><ul class="admin-card-list">${charList}</ul>${moreHtml(chars.length)}` : ""}
     </div>
   `;
 }
@@ -783,6 +883,48 @@ async function deleteCampaign(campaignId) {
   }
 }
 
+// Read-only view of a character document as stored (Timestamps in the
+// same tagged form as a backup).
+function viewJson(campaignId, charId) {
+  const data = campaigns.get(campaignId)?.get(charId);
+  if (!data) return;
+  let text;
+  try {
+    text = JSON.stringify(toJsonValue(data), null, 2);
+  } catch (err) {
+    text = `Couldn't show this document as JSON: ${err.message}`;
+  }
+  textDialog({
+    title: `${data.name || "Unnamed"} — ${campaignId} / ${charId}`,
+    text,
+    onCopy: (t) => copyText(t, "JSON copied.")
+  });
+}
+
+// Writes the normalized form of every character the legacy scan found.
+async function migrateAll() {
+  const items = scan.legacy;
+  if (!items.length) return;
+  if (!await confirmDialog({
+    title: "Migrate legacy data?",
+    message: `Write the converted fields back for ${items.length} character(s)? Each one ends up exactly as the sheet already shows it; only the changed fields are written. A backup first doesn't hurt.`,
+    confirmLabel: "Migrate all"
+  })) return;
+  const ops = items
+    .map(({ campaignId, charId }) => {
+      const data = campaigns.get(campaignId)?.get(charId);
+      return data ? { type: "update", ref: charRef(campaignId, charId), data: migrationUpdate(data) } : null;
+    })
+    .filter(op => op && Object.keys(op.data).length);
+  try {
+    await commitInBatches(ops, "Migrating");
+    flash(`Migrated ${ops.length} character(s).`);
+  } catch (err) {
+    console.error(err);
+    flash(`Migrated ${err.done} of ${ops.length} — check firestore.rules.`);
+  }
+}
+
 async function copyText(text, message) {
   try {
     await navigator.clipboard.writeText(text);
@@ -809,11 +951,15 @@ const ACTIONS = {
   "copy-url": (btn) => copyText(btn.dataset.url, "Link copied."),
   "move-char": (btn) => moveOrCopyCharacter(btn.dataset.campaign, btn.dataset.char),
   "rename-campaign": (btn) => renameCampaign(btn.dataset.campaign),
-  "delete-campaign": (btn) => deleteCampaign(btn.dataset.campaign)
+  "delete-campaign": (btn) => deleteCampaign(btn.dataset.campaign),
+  "view-json": (btn) => viewJson(btn.dataset.campaign, btn.dataset.char),
+  "migrate-all": () => migrateAll()
 };
 
 // Actions that write; only one of these runs at a time.
-const WRITE_ACTIONS = new Set(["delete-char", "import-run", "move-char", "rename-campaign", "delete-campaign"]);
+const WRITE_ACTIONS = new Set([
+  "delete-char", "import-run", "move-char", "rename-campaign", "delete-campaign", "migrate-all"
+]);
 
 async function handleAction(btn) {
   const action = btn.dataset.action;
@@ -929,6 +1075,7 @@ export function startAdmin(root, { onLock }) {
     });
     campaigns = next;
     ignoredDocs = ignored;
+    computeScan();
     loaded = true;
     loadError = false;
     render();

@@ -1124,6 +1124,43 @@ a.button-link.brass:hover { background: var(--brass-light); }
 
 .admin-badge.warn { border-color: var(--danger-light); color: var(--danger); }
 
+.admin-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  margin-top: 1rem;
+  padding: .6rem .75rem;
+  border: 1px dashed var(--danger-light);
+  border-radius: var(--radius);
+}
+.admin-hint p { margin: 0; flex: 1 1 14rem; }
+
+.admin-main h4 { margin: 1rem 0 .3rem; }
+
+.admin-inline-actions {
+  display: inline-flex;
+  gap: .3rem;
+  margin-left: .3rem;
+  vertical-align: middle;
+}
+
+/* Raw JSON viewer (admin/admin-dialog.js textDialog). */
+dialog.admin-text-dialog { width: min(760px, calc(100vw - 32px)); }
+
+.admin-json {
+  max-height: min(60vh, 600px);
+  overflow: auto;
+  margin: 0 0 1rem;
+  padding: .75rem;
+  background: #fffaf0;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  font-size: .8rem;
+  line-height: 1.4;
+  white-space: pre;
+}
+
 @media (max-width: 720px) {
   .admin-main {
     display: block;
