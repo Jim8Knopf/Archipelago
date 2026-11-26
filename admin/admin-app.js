@@ -8,8 +8,9 @@ import { confirmDialog } from "../js/confirm.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import {
   BATCH_LIMIT, chunk, buildBackup, backupFileName, validateBackup, planImport,
-  importWrites, fromJsonValue
+  importWrites, fromJsonValue, idProblem
 } from "./admin-data.js";
+import { formDialog } from "./admin-dialog.js";
 
 // ============================================================
 // Admin page UI. Loaded by admin.js only after the password gate.
@@ -432,6 +433,7 @@ function charRowHtml(campaignId, { id, data }) {
   const name = data.name || "Unnamed";
   const buttons = `
     <button type="button" class="small" data-action="copy-link" ${target(campaignId, id)}>Copy player link</button>
+    <button type="button" class="small" data-action="move-char" ${target(campaignId, id)}>Move / copy to campaign…</button>
     <button type="button" class="small danger" data-action="delete-char" ${target(campaignId, id)}>Delete character</button>
   `;
   return `
@@ -455,6 +457,8 @@ function campaignMenuButtons(campaignId) {
   return `
     <button type="button" class="small" data-action="copy-gm-link" ${target(campaignId)}>Copy GM link</button>
     <button type="button" class="small" data-action="export-campaign" ${target(campaignId)}>Export campaign (JSON)</button>
+    <button type="button" class="small" data-action="rename-campaign" ${target(campaignId)}>Rename campaign…</button>
+    <button type="button" class="small danger" data-action="delete-campaign" ${target(campaignId)}>Delete campaign</button>
   `;
 }
 
@@ -552,6 +556,233 @@ async function deleteCharacter(campaignId, charId) {
   }
 }
 
+// A link plus a copy button, for notices.
+function linkLineHtml(label, url) {
+  return `
+    <li>${label}: <a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(url)}</a>
+      <button type="button" class="small" data-action="copy-url" data-url="${escapeHtml(url)}">Copy</button></li>
+  `;
+}
+
+function campaignOptionsHtml(exclude = null) {
+  return `<datalist id="admin-campaign-options">${campaignIds()
+    .filter(id => id !== exclude)
+    .map(id => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist>`;
+}
+
+// Move or copy one character to another (new or existing) campaign. The
+// copy keeps the raw document as it is (Timestamps included); a move then
+// deletes the original in the same batch, so it's all-or-nothing.
+async function moveOrCopyCharacter(campaignId, charId) {
+  const data = campaigns.get(campaignId)?.get(charId);
+  if (!data) return;
+  const name = data.name || "Unnamed";
+
+  const values = await formDialog({
+    title: "Move or copy character",
+    confirmLabel: "Continue",
+    bodyHtml: `
+      <p><b>${escapeHtml(name)}</b> <code>${escapeHtml(campaignId)} / ${escapeHtml(charId)}</code></p>
+      <fieldset class="admin-radio">
+        <legend>What to do</legend>
+        <label><input type="radio" name="mode" value="copy" checked> Copy — the original stays</label>
+        <label><input type="radio" name="mode" value="move"> Move — the original is deleted</label>
+      </fieldset>
+      <div class="field">
+        <label for="admin-move-campaign">Target campaign (existing or new)</label>
+        <input type="text" id="admin-move-campaign" name="campaign" list="admin-campaign-options" autocomplete="off" spellcheck="false">
+        ${campaignOptionsHtml()}
+      </div>
+      <div class="field">
+        <label for="admin-move-id">Character ID there</label>
+        <input type="text" id="admin-move-id" name="charId" value="${escapeHtml(charId)}" autocomplete="off" spellcheck="false">
+      </div>
+      <p class="muted">The player link contains the campaign and character ID, so the player needs the new link afterwards.</p>
+    `,
+    validate: (v) => {
+      const c = (v.campaign || "").trim();
+      const id = (v.charId || "").trim();
+      const cp = idProblem(c);
+      if (cp) return `Target campaign ${cp}.`;
+      const ip = idProblem(id);
+      if (ip) return `Character ID ${ip}.`;
+      if (c === campaignId && id === charId) return "That's where the character already is.";
+      if (campaigns.get(c)?.has(id)) return `“${c}” already has a character with ID “${id}” — choose another ID.`;
+      return "";
+    }
+  });
+  if (!values) return;
+
+  const toCampaign = values.campaign.trim();
+  const toId = values.charId.trim();
+  const move = values.mode === "move";
+
+  if (move && !await confirmDialog({
+    message: `Move ${name} from “${campaignId}” to “${toCampaign}”? The old player link stops working; the player needs the new one.`,
+    confirmLabel: "Move",
+    danger: true
+  })) return;
+
+  // Check again: the target may have appeared while the dialogs were open.
+  if (campaigns.get(toCampaign)?.has(toId)) {
+    flash(`“${toCampaign}/${toId}” exists now — nothing was changed.`);
+    return;
+  }
+  const fresh = campaigns.get(campaignId)?.get(charId);
+  if (!fresh) { flash("The character is gone — nothing was changed."); return; }
+
+  const ops = [{ type: "set", ref: charRef(toCampaign, toId), data: fresh }];
+  if (move) ops.push({ type: "delete", ref: charRef(campaignId, charId) });
+  try {
+    await commitInBatches(ops);
+  } catch (err) {
+    console.error(err);
+    flash(`Couldn't ${move ? "move" : "copy"} — check firestore.rules.`);
+    return;
+  }
+  if (move) benchRemove(campaignId, [charId]);
+
+  ui.notice = {
+    title: move ? `${name} moved` : `${name} copied`,
+    html: `
+      <p>${move ? "Moved" : "Copied"} from <code>${escapeHtml(campaignId)} / ${escapeHtml(charId)}</code> to <code>${escapeHtml(toCampaign)} / ${escapeHtml(toId)}</code>.${move ? " The old player link no longer works." : ""}</p>
+      <ul>
+        ${linkLineHtml("New player link", sheetUrl(toCampaign, toId))}
+        ${linkLineHtml("GM dashboard", gmUrl(toCampaign))}
+      </ul>
+    `
+  };
+  flash(move ? "Character moved." : "Character copied.");
+  render();
+}
+
+// Rename = copy every character to the new campaign ID, then delete the
+// old ones. Copies go first, so a failure half-way leaves duplicates
+// rather than lost characters.
+async function renameCampaign(campaignId) {
+  const count = campaigns.get(campaignId)?.size || 0;
+  if (!count) return;
+
+  const values = await formDialog({
+    title: `Rename “${campaignId}”`,
+    confirmLabel: "Continue",
+    bodyHtml: `
+      <p>Copies all ${count} character(s) to a new campaign ID, then deletes them from <code>${escapeHtml(campaignId)}</code>.</p>
+      <ul class="admin-card-list">
+        <li>Every player link and the GM dashboard link for “${escapeHtml(campaignId)}” stop working. Send everyone the new links.</li>
+        <li>The GM dashboard's “Not playing today” list is stored per browser. It's carried over in this browser only; on every other device it's lost.</li>
+      </ul>
+      <div class="field">
+        <label for="admin-rename-id">New campaign ID</label>
+        <input type="text" id="admin-rename-id" name="campaign" value="${escapeHtml(campaignId)}" autocomplete="off" spellcheck="false">
+      </div>
+    `,
+    validate: (v) => {
+      const c = (v.campaign || "").trim();
+      const p = idProblem(c);
+      if (p) return `The new ID ${p}.`;
+      if (c === campaignId) return "That's the current ID.";
+      if (campaigns.has(c)) return `“${c}” already exists. To merge, move characters one at a time instead.`;
+      return "";
+    }
+  });
+  if (!values) return;
+  const newId = values.campaign.trim();
+
+  if (!await confirmDialog({
+    message: `Rename “${campaignId}” to “${newId}”? All ${count} player link(s) and the GM link change, and the old ones stop working.`,
+    confirmLabel: "Rename",
+    danger: true
+  })) return;
+  if (campaigns.has(newId)) { flash(`“${newId}” exists now — nothing was changed.`); return; }
+
+  const chars = [...(campaigns.get(campaignId) || new Map()).entries()];
+  const copies = chars.map(([id, data]) => ({ type: "set", ref: charRef(newId, id), data }));
+  const deletes = chars.map(([id]) => ({ type: "delete", ref: charRef(campaignId, id) }));
+
+  try {
+    await commitInBatches(copies, "Copying");
+  } catch (err) {
+    console.error(err);
+    ui.notice = {
+      title: "Rename stopped",
+      html: `<p>Only ${err.done} of ${copies.length} character(s) were copied to <code>${escapeHtml(newId)}</code>, and nothing was deleted: “${escapeHtml(campaignId)}” is unchanged. Delete the partial copy before trying again.</p>`
+    };
+    flash("Rename failed — check firestore.rules.");
+    render();
+    return;
+  }
+  try {
+    await commitInBatches(deletes, "Removing old");
+  } catch (err) {
+    console.error(err);
+    ui.notice = {
+      title: "Rename incomplete",
+      html: `<p>Every character was copied to <code>${escapeHtml(newId)}</code>, but only ${err.done} of ${deletes.length} were removed from <code>${escapeHtml(campaignId)}</code>. Delete the old campaign to finish.</p>`
+    };
+    flash("Couldn't remove all old characters.");
+    render();
+    return;
+  }
+
+  // Carry this browser's GM bench over to the new ID.
+  try {
+    const bench = localStorage.getItem(benchKey(campaignId));
+    if (bench) localStorage.setItem(benchKey(newId), bench);
+    localStorage.removeItem(benchKey(campaignId));
+  } catch { /* view-only setting */ }
+
+  const links = chars
+    .map(([id, data]) => ({ id, name: data.name || "Unnamed" }))
+    .sort((a, b) => byText(a.name, b.name))
+    .map(c => linkLineHtml(escapeHtml(c.name), sheetUrl(newId, c.id)))
+    .join("");
+  ui.notice = {
+    title: `Renamed to “${newId}”`,
+    html: `
+      <p>The old links for “${escapeHtml(campaignId)}” no longer work. New links:</p>
+      <ul>${linkLineHtml("GM dashboard", gmUrl(newId))}${links}</ul>
+    `
+  };
+  flash("Campaign renamed.");
+  navigate({ kind: "campaign", id: newId }, { replace: true });
+}
+
+// Deletes every character in a campaign (which is what makes the campaign
+// disappear), after offering a backup download.
+async function deleteCampaign(campaignId) {
+  const count = campaigns.get(campaignId)?.size || 0;
+  if (!count) return;
+
+  const wantsBackup = await confirmDialog({
+    title: "Back up first?",
+    message: `Download a JSON backup of “${campaignId}” (${count} character${count === 1 ? "" : "s"}) before deleting it?`,
+    confirmLabel: "Download backup",
+    cancelLabel: "No backup"
+  });
+  if (wantsBackup && !exportBackup(campaignId)) return;
+
+  if (!await confirmDialog({
+    message: `Delete all ${count} character(s) in “${campaignId}”? Their player links and the GM link stop working. This can't be undone${wantsBackup ? "" : " — and there's no backup"}.`,
+    confirmLabel: "Delete campaign",
+    danger: true
+  })) return;
+
+  const ids = [...(campaigns.get(campaignId) || new Map()).keys()];
+  try {
+    await commitInBatches(ids.map(id => ({ type: "delete", ref: charRef(campaignId, id) })), "Deleting");
+  } catch (err) {
+    console.error(err);
+    flash(`Deleted ${err.done} of ${ids.length} — check firestore.rules.`);
+    return;
+  }
+  try { localStorage.removeItem(benchKey(campaignId)); } catch { /* view-only setting */ }
+  flash(`Deleted “${campaignId}”.`);
+  if (ui.selected?.kind === "campaign" && ui.selected.id === campaignId) {
+    navigate({ kind: "tools" }, { replace: true });
+  }
+}
+
 async function copyText(text, message) {
   try {
     await navigator.clipboard.writeText(text);
@@ -574,11 +805,15 @@ const ACTIONS = {
   "export-campaign": (btn) => exportBackup(btn.dataset.campaign),
   "import-choose": () => { els.importFile.value = ""; els.importFile.click(); },
   "import-cancel": () => { ui.importDraft = null; renderDetail(); },
-  "import-run": () => runImport()
+  "import-run": () => runImport(),
+  "copy-url": (btn) => copyText(btn.dataset.url, "Link copied."),
+  "move-char": (btn) => moveOrCopyCharacter(btn.dataset.campaign, btn.dataset.char),
+  "rename-campaign": (btn) => renameCampaign(btn.dataset.campaign),
+  "delete-campaign": (btn) => deleteCampaign(btn.dataset.campaign)
 };
 
 // Actions that write; only one of these runs at a time.
-const WRITE_ACTIONS = new Set(["delete-char", "import-run"]);
+const WRITE_ACTIONS = new Set(["delete-char", "import-run", "move-char", "rename-campaign", "delete-campaign"]);
 
 async function handleAction(btn) {
   const action = btn.dataset.action;

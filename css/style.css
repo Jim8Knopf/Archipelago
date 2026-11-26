@@ -1077,6 +1077,34 @@ a.button-link.brass:hover { background: var(--brass-light); }
 
 .admin-table code { overflow-wrap: anywhere; }
 
+/* Form dialogs (admin/admin-dialog.js) reuse the confirm dialog's look. */
+.admin-dialog-content .field input { width: 100%; }
+.admin-dialog-content p { margin: 0 0 .75rem; overflow-wrap: anywhere; }
+.admin-dialog-error:empty { display: none; }
+.admin-dialog-error { margin: 0 0 .75rem; }
+
+.admin-radio {
+  margin: 0 0 .9rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+}
+
+.admin-radio legend {
+  padding: 0 .3rem;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-soft);
+}
+
+.admin-radio label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .2rem 0;
+}
+
 .admin-check {
   display: inline-flex;
   align-items: center;
