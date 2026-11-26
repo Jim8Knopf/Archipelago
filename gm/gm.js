@@ -6,6 +6,7 @@ import { escapeHtml, flash as flashEl, toRoman, portraitUrl } from "../js/format
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
+import { confirmDialog } from "../js/confirm.js";
 
 // ============================================================
 // GM dashboard.
@@ -668,7 +669,11 @@ async function handleAction(btn) {
   }
 
   if (action === "delete") {
-    if (!confirm(`Remove ${charsById[id]?.name || "this character"} for good?`)) return;
+    if (!await confirmDialog({
+      message: `Remove ${charsById[id]?.name || "this character"} for good?`,
+      confirmLabel: "Remove",
+      danger: true
+    })) return;
     try {
       await trackWrite(deleteDoc(doc(db, "campaigns", campaign, "characters", id)));
       benched.delete(id);
@@ -728,7 +733,11 @@ async function handleAction(btn) {
 document.getElementById("new-island-btn").addEventListener("click", async () => {
   const ids = Object.keys(charsById);
   if (ids.length === 0) { flash("No characters in this campaign yet."); return; }
-  if (!confirm(`Start a new island? This fully restores HP and Mana, repairs broken potion bottles, and clears used-skill markers, for all ${ids.length} character(s) in "${campaign}" — including anyone not playing today.`)) return;
+  if (!await confirmDialog({
+    message: `Start a new island? This fully restores HP and Mana, repairs broken potion bottles, and clears used-skill markers, for all ${ids.length} character(s) in "${campaign}" — including anyone not playing today.`,
+    confirmLabel: "Start new island",
+    danger: true
+  })) return;
 
   try {
     const batch = writeBatch(db);

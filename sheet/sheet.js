@@ -6,6 +6,7 @@ import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/f
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
+import { confirmDialog } from "../js/confirm.js";
 
 const params = new URLSearchParams(window.location.search);
 const loaderCard = document.getElementById("loader-card");
@@ -169,7 +170,10 @@ document.getElementById("open-btn").addEventListener("click", async () => {
     const ref = doc(db, "campaigns", campaign, "characters", charId);
     const existing = await getDoc(ref);
     if (!existing.exists()) {
-      const create = confirm(`No character named "${name}" exists yet in "${campaign}". Create a new one?`);
+      const create = await confirmDialog({
+        message: `No character named "${name}" exists yet in "${campaign}". Create a new one?`,
+        confirmLabel: "Create character"
+      });
       if (!create) return;
       await trackWrite(setDoc(ref, R.defaultCharacter(name)));
     }
@@ -883,14 +887,21 @@ function renderSkillGroups(d) {
       });
     });
     // Removing an own group keeps its skills: they move to "No group".
-    container.addEventListener("click", (e) => {
+    container.addEventListener("click", async (e) => {
       const btn = e.target.closest("button[data-action='remove-skill-group']");
       if (!btn) return;
       const catId = btn.closest("[data-cat]").dataset.cat;
+      const before = currentData.categories.find(c => c.id === catId);
+      if (!before) return;
+      if ((before.skills || []).length && !await confirmDialog({
+        message: `Remove the group "${before.name}"? Its ${before.skills.length} skill(s) move to "No group".`,
+        confirmLabel: "Remove group",
+        danger: true
+      })) return;
+      // Re-read after the dialog: a live update may have changed the group.
       const cat = currentData.categories.find(c => c.id === catId);
       if (!cat) return;
       const skills = cat.skills || [];
-      if (skills.length && !confirm(`Remove the group "${cat.name}"? Its ${skills.length} skill(s) move to "No group".`)) return;
       saveField({
         categories: currentData.categories
           .filter(c => c.id !== catId)
@@ -1108,8 +1119,12 @@ Object.entries(notesInputs).forEach(([key, input]) => {
 });
 window.addEventListener("pagehide", () => Object.keys(notesTimers).forEach(saveNote));
 
-document.getElementById("clear-session-notes-btn").addEventListener("click", () => {
-  if (!confirm("Clear this session's notes? Character notes are kept.")) return;
+document.getElementById("clear-session-notes-btn").addEventListener("click", async () => {
+  if (!await confirmDialog({
+    message: "Clear this session's notes? Character notes are kept.",
+    confirmLabel: "Clear notes",
+    danger: true
+  })) return;
   notesInputs.session.value = "";
   saveNote("session");
 });
@@ -1373,9 +1388,15 @@ document.getElementById("potion-list").addEventListener("click", (e) => {
   usePotion(id, btn.dataset.action === "throw");
 });
 
-document.getElementById("break-bottle-btn").addEventListener("click", () => {
+document.getElementById("break-bottle-btn").addEventListener("click", async () => {
   if (R.bottleCounts(currentData).empty === 0) return;
-  if (!confirm("Break an empty bottle? It's gone until the next island.")) return;
+  if (!await confirmDialog({
+    message: "Break an empty bottle? It's gone until the next island.",
+    confirmLabel: "Break bottle",
+    danger: true
+  })) return;
+  // A snapshot may have landed while the dialog was open.
+  if (R.bottleCounts(currentData).empty === 0) return;
   saveField({ bottlesBroken: (currentData.bottlesBroken || 0) + 1 });
 });
 

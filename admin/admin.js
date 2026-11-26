@@ -4,6 +4,7 @@ import {
 import { db } from "../js/firebase-init.js";
 import * as R from "../js/rules-calc.js";
 import { portraitUrl } from "../js/format.js";
+import { confirmDialog } from "../js/confirm.js";
 
 const content = document.getElementById("admin-content");
 const statusEl = document.getElementById("admin-status");
@@ -98,7 +99,11 @@ content.addEventListener("click", async (e) => {
     const row = deleteCharLink.closest("[data-campaign][data-char]");
     const campaignId = row.dataset.campaign;
     const charId = row.dataset.char;
-    if (!confirm("Delete this character for good?")) return;
+    if (!await confirmDialog({
+      message: "Delete this character for good?",
+      confirmLabel: "Delete",
+      danger: true
+    })) return;
     try {
       await deleteDoc(doc(db, "campaigns", campaignId, "characters", charId));
       flash("Character deleted.");
@@ -115,7 +120,11 @@ content.addEventListener("click", async (e) => {
     const rows = content.querySelectorAll(`.admin-char-row[data-campaign="${CSS.escape(campaignId)}"]`);
     const charIds = Array.from(rows).map(r => r.dataset.char);
     if (charIds.length === 0) return;
-    if (!confirm(`Delete all ${charIds.length} character(s) in campaign "${campaignId}"? This can't be undone.`)) return;
+    if (!await confirmDialog({
+      message: `Delete all ${charIds.length} character(s) in campaign "${campaignId}"? This can't be undone.`,
+      confirmLabel: "Delete all",
+      danger: true
+    })) return;
     try {
       const batch = writeBatch(db);
       charIds.forEach(charId => batch.delete(doc(db, "campaigns", campaignId, "characters", charId)));

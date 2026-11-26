@@ -1316,3 +1316,46 @@ footer.foot {
 .add-item-row .num-field input { width: 100%; }
 .add-item-row .dice-field { flex: 0 0 6.5rem; }
 .add-item-row button { margin-bottom: 2px; }
+
+/* ---- Confirm dialog (js/confirm.js) ---- */
+
+dialog.confirm-dialog {
+  width: min(420px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+dialog.confirm-dialog::backdrop {
+  background: rgba(10, 24, 32, 0.7);
+}
+
+.confirm-dialog-body {
+  padding: 1.25rem;
+}
+
+.confirm-dialog-title {
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.confirm-dialog-message {
+  margin: 0 0 1.25rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+@media (max-width: 480px) {
+  .confirm-dialog-actions button { flex: 1 1 auto; }
+}
