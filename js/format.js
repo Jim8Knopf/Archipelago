@@ -7,10 +7,12 @@
 
 // Safe HTML-escaping for any user-entered text before it goes into
 // innerHTML (character names, item names, trait descriptions, ...).
+// Quotes are escaped too, so the result is also safe inside a quoted
+// attribute (data-id="...", aria-label="...", href="...").
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
 export function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
+  return String(str ?? "").replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
 }
 
 // Shows a short-lived status message in the given element, then clears it

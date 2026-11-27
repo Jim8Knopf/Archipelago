@@ -1,155 +1,111 @@
-import {
-  collectionGroup, doc, deleteDoc, onSnapshot, writeBatch
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import { db } from "../js/firebase-init.js";
-import * as R from "../js/rules-calc.js";
-import { portraitUrl } from "../js/format.js";
-import { confirmDialog } from "../js/confirm.js";
+// ============================================================
+// Admin page entry point: the password gate.
+//
+// Nothing about the database is loaded until the password is right: this
+// module imports neither Firebase nor the admin UI. Only after a correct
+// password (or a valid token from earlier in this tab) does it import
+// admin-app.js, which renders the UI and starts the Firestore listeners.
+//
+// This hides the admin UI from casual visitors. It does NOT secure the
+// database — see admin-auth.js and the Admin section of README.md.
+// ============================================================
 
-const content = document.getElementById("admin-content");
-const statusEl = document.getElementById("admin-status");
+import { ADMIN_PASSWORD_HASH } from "../js/admin-config.js";
+import { hashPassword, isConfigured, sessionToken, SESSION_KEY } from "./admin-auth.js";
+import { escapeHtml } from "../js/format.js";
 
-function flash(msg) {
-  statusEl.textContent = msg;
-  setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ""; }, 2500);
+const root = document.getElementById("admin-root");
+
+function readToken() {
+  try { return sessionStorage.getItem(SESSION_KEY); } catch { return null; }
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str ?? "";
-  return div.innerHTML;
+function writeToken(token) {
+  try { sessionStorage.setItem(SESSION_KEY, token); } catch { /* unlocks this page load only */ }
 }
 
-function sheetUrl(campaignId, charId) {
-  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/(index\.html)?$/, "sheet/"));
-  url.searchParams.set("campaign", campaignId);
-  url.searchParams.set("char", charId);
-  return url.toString();
+function clearToken() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* nothing stored */ }
 }
 
-function gmUrl(campaignId) {
-  const url = new URL(window.location.origin + window.location.pathname.replace(/admin\/(index\.html)?$/, "gm/"));
-  url.searchParams.set("campaign", campaignId);
-  return url.toString();
+function gateCard(inner) {
+  root.innerHTML = `<div class="card admin-gate">${inner}</div>`;
 }
 
-// Small portrait thumbnail next to each character's name. Only http(s)
-// URLs are used; anything else (or a broken link, see the error handler
-// below) falls back to the same anchor placeholder the sheet shows.
-function thumbHtml(imageUrl) {
-  const url = portraitUrl(imageUrl);
-  const safe = !!url;
-  return `
-    <span class="admin-thumb">
-      ${safe ? `<img src="${escapeHtml(url)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
-      <span class="admin-thumb-placeholder"${safe ? ' style="display:none;"' : ""}>⚓</span>
-    </span>
-  `;
+function renderNotConfigured() {
+  gateCard(`
+    <h2>🔒 Admin</h2>
+    <p class="admin-gate-error" role="alert">Admin password not configured — add the ADMIN_PASSWORD repository secret.</p>
+    <p class="muted">The deploy workflow turns that secret into a hash in <code>js/admin-config.js</code>. Until it's set (and locally, where the placeholder is never replaced), this page stays locked. See the Admin section of the README.</p>
+  `);
 }
 
-function render(byCampaign) {
-  const campaignIds = Object.keys(byCampaign).sort();
-
-  if (campaignIds.length === 0) {
-    content.innerHTML = `<div class="card empty-state">No campaigns found yet — create a character from the Character Sheet page to get started.</div>`;
-    return;
-  }
-
-  content.innerHTML = campaignIds.map(campaignId => {
-    const chars = byCampaign[campaignId];
-    const rows = chars.map(({ id, data }) => {
-      const maxHP = R.hpFromPoints(data.hpPoints);
-      return `
-        <div class="admin-char-row" data-campaign="${escapeHtml(campaignId)}" data-char="${id}">
-          <span class="admin-char-name">${thumbHtml(data.imageUrl)}<span>${escapeHtml(data.name || "Unnamed")} <span class="muted">— HP ${data.currentHP ?? 0}/${maxHP}${R.hasMagic(data) ? `, Mana ${Math.floor(data.currentMana ?? 0)}/${R.manaPoolFromPoints(data.manaPoints, data.categories)}` : ""}</span></span></span>
-          <span class="links">
-            <a href="${sheetUrl(campaignId, id)}" target="_blank">Open sheet</a>
-            <a href="#" data-action="delete-char">Delete</a>
-          </span>
-        </div>
-      `;
-    }).join("");
-
-    return `
-      <div class="card campaign-block" data-campaign="${escapeHtml(campaignId)}">
-        <h3>${escapeHtml(campaignId)} <span class="muted">(${chars.length} character${chars.length === 1 ? "" : "s"})</span></h3>
-        <div class="row campaign-actions">
-            <a href="${gmUrl(campaignId)}" target="_blank"><button class="small">GM Dashboard</button></a>
-          <button class="small danger" data-action="delete-campaign" data-campaign="${escapeHtml(campaignId)}">Delete all in campaign</button>
-        </div>
-        ${rows}
+function renderForm(error = "") {
+  gateCard(`
+    <h2>🔒 Admin</h2>
+    <p class="muted">Every campaign and character in this Firebase project. Enter the admin password to continue.</p>
+    <form id="admin-gate-form" class="admin-gate-form">
+      <div class="field">
+        <label for="admin-password">Password</label>
+        <input type="password" id="admin-password" autocomplete="current-password" required>
       </div>
-    `;
-  }).join("");
+      <button type="submit" class="brass">Unlock</button>
+      <p class="admin-gate-error" id="admin-gate-error" role="alert">${escapeHtml(error)}</p>
+    </form>
+  `);
+  const form = document.getElementById("admin-gate-form");
+  const input = document.getElementById("admin-password");
+  input.focus();
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const button = form.querySelector("button");
+    button.disabled = true;
+    const hash = await hashPassword(input.value);
+    if (hash === ADMIN_PASSWORD_HASH) {
+      writeToken(await sessionToken(ADMIN_PASSWORD_HASH));
+      unlock();
+    } else {
+      renderForm("Wrong password.");
+    }
+  });
 }
 
-// Broken portrait link → show the placeholder instead. "error" doesn't
-// bubble, so listen in the capture phase to catch it from every <img>.
-content.addEventListener("error", (e) => {
-  if (e.target.tagName !== "IMG") return;
-  e.target.style.display = "none";
-  const ph = e.target.nextElementSibling;
-  if (ph) ph.style.display = "";
-}, true);
+// Lock: forget the token and reload, which also tears down every listener.
+function lock() {
+  clearToken();
+  window.location.reload();
+}
 
-content.addEventListener("click", async (e) => {
-  const deleteCharLink = e.target.closest("a[data-action='delete-char']");
-  if (deleteCharLink) {
-    e.preventDefault();
-    const row = deleteCharLink.closest("[data-campaign][data-char]");
-    const campaignId = row.dataset.campaign;
-    const charId = row.dataset.char;
-    if (!await confirmDialog({
-      message: "Delete this character for good?",
-      confirmLabel: "Delete",
-      danger: true
-    })) return;
-    try {
-      await deleteDoc(doc(db, "campaigns", campaignId, "characters", charId));
-      flash("Character deleted.");
-    } catch (err) {
-      console.error(err);
-      flash("Couldn't delete — check firestore.rules.");
-    }
+async function unlock() {
+  root.innerHTML = `<div class="card admin-gate"><p class="muted">Loading…</p></div>`;
+  try {
+    const app = await import("./admin-app.js");
+    app.startAdmin(root, { onLock: lock });
+  } catch (err) {
+    // Typically js/firebase-config.js still holding its placeholders.
+    console.error(err);
+    gateCard(`
+      <h2>Admin</h2>
+      <p class="admin-gate-error" role="alert">Couldn't start the admin page.</p>
+      <p class="muted">${escapeHtml(err.message || String(err))}</p>
+      <button type="button" id="admin-lock-btn">🔒 Lock</button>
+    `);
+    document.getElementById("admin-lock-btn").addEventListener("click", lock);
+  }
+}
+
+async function init() {
+  if (!isConfigured(ADMIN_PASSWORD_HASH)) {
+    renderNotConfigured();
     return;
   }
-
-  const deleteCampaignBtn = e.target.closest("button[data-action='delete-campaign']");
-  if (deleteCampaignBtn) {
-    const campaignId = deleteCampaignBtn.dataset.campaign;
-    const rows = content.querySelectorAll(`.admin-char-row[data-campaign="${CSS.escape(campaignId)}"]`);
-    const charIds = Array.from(rows).map(r => r.dataset.char);
-    if (charIds.length === 0) return;
-    if (!await confirmDialog({
-      message: `Delete all ${charIds.length} character(s) in campaign "${campaignId}"? This can't be undone.`,
-      confirmLabel: "Delete all",
-      danger: true
-    })) return;
-    try {
-      const batch = writeBatch(db);
-      charIds.forEach(charId => batch.delete(doc(db, "campaigns", campaignId, "characters", charId)));
-      await batch.commit();
-      flash(`Deleted all characters in "${campaignId}".`);
-    } catch (err) {
-      console.error(err);
-      flash("Couldn't delete — check firestore.rules.");
-    }
+  const stored = readToken();
+  if (stored && stored === await sessionToken(ADMIN_PASSWORD_HASH)) {
+    unlock();
+  } else {
+    if (stored) clearToken();
+    renderForm();
   }
-});
+}
 
-// collectionGroup finds every "characters" subcollection across every
-// campaign in the project — this is what makes a true cross-campaign
-// admin view possible without knowing campaign IDs in advance.
-onSnapshot(collectionGroup(db, "characters"), (snap) => {
-  const byCampaign = {};
-  snap.docs.forEach(d => {
-    const campaignId = d.ref.parent.parent.id;
-    if (!byCampaign[campaignId]) byCampaign[campaignId] = [];
-    byCampaign[campaignId].push({ id: d.id, data: d.data() });
-  });
-  render(byCampaign);
-}, (err) => {
-  console.error(err);
-  flash("Connection error — check firebase-config.js and firestore.rules.");
-  content.innerHTML = `<div class="card empty-state">Couldn't load campaigns.</div>`;
-});
+init();

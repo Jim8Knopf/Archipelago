@@ -46,9 +46,11 @@ page) — nothing is hardcoded per-character, so the sheet stays correct as poin
   used-skill markers for every character in the campaign, benched ones included.
 - **Rules** (`rules/`) — two books: Core Rules (`rules.md`) and Ship Rules
   (`ships.md`, at `?book=ships`).
-- **Admin** (`admin/`) — every campaign and character across the whole Firebase
-  project, with links to each GM dashboard and sheet, and delete buttons for a
-  character or a whole campaign. No access control beyond the open Firestore rules.
+- **Admin** (`admin/`) — behind a password screen: every campaign and character
+  across the whole Firebase project, with JSON backup export/import, move/copy of
+  characters, campaign rename and delete, a legacy-data scan with **Migrate all**,
+  a raw JSON viewer and junk hints. See [Admin page](#admin-page) below. The
+  password only hides the page; it doesn't protect the database.
 
 ## Project structure
 
@@ -58,7 +60,10 @@ Archipelago/
 ├── css/style.css           shared theme
 ├── js/
 │   ├── firebase-config.js  Firebase project keys (generated from secrets on deploy)
+│   ├── admin-config.js     admin password hash (generated from ADMIN_PASSWORD on deploy)
 │   ├── firebase-init.js    shared Firebase bootstrap + ?campaign= lookup
+│   ├── normalize.js        fills in / migrates older character documents —
+│   │                       used by the sheet on load and by the admin legacy scan
 │   ├── rules-calc.js       pure formulas from the ruleset (HP curve, Movement,
 │   │                       cross-training bonus, the ladder, Mana, casting cost,
 │   │                       armor, bottles, points budget, default character) —
@@ -66,6 +71,9 @@ Archipelago/
 │   │                       lives in one place
 │   ├── rest.js             Short/Long Rest transaction with shared cooldown
 │   ├── nav.js              shared top navigation (marks the current page)
+│   ├── confirm.js          themed confirm dialog
+│   ├── sync-status.js      Saving… / Saved / Offline marker for every write
+│   ├── sheet-layout.js     each player's sheet section order / collapsed / hidden
 │   └── format.js           small helpers: escapeHtml, flash, roman numerals,
 │                           slugify, portrait URL clean-up
 ├── rules/
@@ -82,15 +90,21 @@ Archipelago/
 │   └── gm.js
 ├── admin/
 │   ├── index.html          admin page — all campaigns and characters
-│   └── admin.js
+│   ├── admin.js            password gate; loads the admin UI once unlocked
+│   ├── admin-auth.js       password / session-token hashing (WebCrypto)
+│   ├── admin-app.js        the admin UI: campaign list, detail pane, actions
+│   ├── admin-data.js       pure helpers: backup JSON, import plan, batching,
+│   │                       legacy scan, junk hints
+│   └── admin-dialog.js     form and read-only text dialogs
 ├── firestore.rules         paste into Firebase console
 ├── .github/workflows/
 │   └── deploy.yml          builds and deploys to GitHub Pages
 └── .nojekyll               tells GitHub Pages to serve files as-is
 ```
 
-No build step — it's plain HTML/CSS/JS using ES modules. The only thing the deploy
-workflow does before publishing is write `js/firebase-config.js` from repository secrets.
+No build step — it's plain HTML/CSS/JS using ES modules. The only things the deploy
+workflow does before publishing are write `js/firebase-config.js` from repository
+secrets and write the admin password hash into `js/admin-config.js`.
 
 ---
 
@@ -123,7 +137,8 @@ Deployment runs through `.github/workflows/deploy.yml`, not "Deploy from a branc
 2. In the repo: **Settings → Secrets and variables → Actions**, add these secrets from
    your `firebaseConfig`: `FIREBASE_API_KEY`, `FIREBASE_AUTH_DOMAIN`,
    `FIREBASE_PROJECT_ID`, `FIREBASE_STORAGE_BUCKET`, `FIREBASE_SENDER_ID`
-   (= `messagingSenderId`), `FIREBASE_APP_ID`.
+   (= `messagingSenderId`), `FIREBASE_APP_ID`. For the admin page, also add
+   `ADMIN_PASSWORD` (see [Admin page](#admin-page)).
 3. **Settings → Pages → Build and deployment → Source**: choose **GitHub Actions**.
 4. Push to `main`. The workflow writes `js/firebase-config.js` from the secrets,
    uploads the repo root as the Pages artifact and deploys it. GitHub gives you a URL
@@ -158,6 +173,78 @@ time; a newer one cancels one in progress.
 
 ---
 
+## Admin page
+
+`your-site-url/admin/` (the **Admin** link in the nav) shows every campaign and
+character in the Firebase project. Campaigns aren't stored on their own: a campaign
+is just the parent path of its characters, so it exists as long as it has at least
+one character.
+
+### Setting the admin password
+
+1. Pick a password. In the repo: **Settings → Secrets and variables → Actions →
+   New repository secret**. Name: `ADMIN_PASSWORD`, value: the password (exactly as
+   you'll type it — no extra spaces or line break at the end).
+2. Redeploy: push to `main`, or Actions → *Deploy to GitHub Pages* → *Run workflow*.
+   The workflow hashes the password (SHA-256 of `archipelago-admin:` + password) and
+   writes **only the hash** into `js/admin-config.js`. The password itself is never
+   written to a file or printed in the log.
+3. Open `/admin/`, enter the password. It stays unlocked until you close the tab, or
+   press **🔒 Lock**.
+
+To change the password, update the secret and redeploy; anyone unlocked with the old
+one is locked out on their next page load. Until the secret is set — and when you run
+the site locally, where `js/admin-config.js` keeps its placeholder — the page says
+*Admin password not configured*. To try the admin page locally, put a hash into your
+local copy of `js/admin-config.js` (e.g. from
+`printf '%s' 'archipelago-admin:yourpassword' | sha256sum`), and don't commit it.
+
+**What the password does and doesn't do:** it hides the admin UI from anyone who
+stumbles onto the link. It is *not* access control. The hash ships with the site, the
+check runs in the browser, and the Firestore rules don't know about it: anyone with a
+campaign ID, or who queries Firestore directly, can still read and change everything.
+See [Hardening later](#hardening-later-optional-once-the-prototype-is-proven-out) for
+real protection.
+
+### What it can do
+
+- **Campaign list and detail** — campaigns on the left with character counts (on a
+  phone, the list drills into the detail). Each campaign shows its ID, character count,
+  the last rest anyone took (the only activity timestamp stored), and links to the GM
+  dashboard and every sheet. Each character has a ⋯ menu.
+- **Backup / restore** — **Export everything** (Overview & tools) or **Export
+  campaign** (campaign ⋯ menu) downloads a JSON file. Timestamps are stored as
+  `{"__archipelagoType": "timestamp", "seconds": …, "nanoseconds": …}` and turned back
+  into Firestore timestamps on import. **Import from a backup…** previews, per campaign,
+  what would be created and what already exists. Existing characters are skipped
+  unless you tick **Overwrite** for their campaign. Nothing is written until you confirm.
+- **Move / copy a character** to another new or existing campaign. The player link
+  changes, so the new one is shown afterwards.
+- **Rename a campaign** — copies every character to the new ID, then deletes the old
+  ones. All player links and the GM link change. The GM's "Not playing today" list is
+  stored per browser: it's carried over in the browser you rename from, and lost on
+  every other device.
+- **Delete a campaign** — offers a backup download first, then deletes every
+  character in it. (Deleting single characters works here and on the GM dashboard.)
+- **Legacy data** — lists characters still stored in an older shape (see
+  [Data model](#data-model)). **Migrate all** writes back the fields `normalize()`
+  changes, so the document matches what the sheet already shows.
+- **View raw JSON** of any character, read-only.
+- **Junk hints** — flags placeholder campaign IDs (`default-campaign`, `test`, …) and
+  characters with no name, a placeholder name or nothing filled in. They're guesses;
+  every delete asks first.
+
+Every change goes through the same **Saving… / Saved** marker as the other pages, and
+large operations are written in batches of at most 500 (Firestore's batch limit).
+Batches after the first aren't atomic with it: a rename copies everything before it
+deletes anything, so a failure leaves duplicates rather than lost characters.
+
+The list relies on the `match /{path=**}/characters/{characterId}` read rule in
+`firestore.rules` (a collection-group query) — make sure the rules in the Firebase
+console include it.
+
+---
+
 ## Picking a Campaign ID
 
 Anyone who knows your Campaign ID can read and write every character in it — the
@@ -187,8 +274,9 @@ just the rules file and a small amount of added auth-init code.
 
 ## Data model
 
-New documents start from `defaultCharacter()` in `js/rules-calc.js`; the sheet's
-`normalize()` (`sheet/sheet.js`) fills in anything missing on older documents.
+New documents start from `defaultCharacter()` in `js/rules-calc.js`; `normalize()`
+(`js/normalize.js`) fills in anything missing on older documents when the sheet
+loads them. The admin page's **Migrate all** writes that result back.
 
 ```
 campaigns/{campaignId}/characters/{characterId}
