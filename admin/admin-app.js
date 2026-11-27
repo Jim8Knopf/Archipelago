@@ -9,9 +9,9 @@ import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.
 import {
   BATCH_LIMIT, chunk, buildBackup, backupFileName, validateBackup, planImport,
   importWrites, fromJsonValue, toJsonValue, idProblem, legacyReasons, migrationUpdate,
-  charJunkReasons, campaignJunkReasons
+  charJunkReasons, campaignJunkReasons, EXTRA_COLLECTIONS
 } from "./admin-data.js";
-import { formDialog, textDialog } from "./admin-dialog.js";
+import { formDialog, textDialog } from "../js/dialogs.js";
 
 // ============================================================
 // Admin page UI. Loaded by admin.js only after the password gate.
@@ -30,6 +30,10 @@ let els = {};
 // campaigns/{campaignId}/characters/{charId} count; any other collection
 // that happens to be called "characters" is ignored (and counted).
 let campaigns = new Map();
+// campaignId -> { ships: Map(id -> data), settings: Map(id -> data) }: the
+// crew's ships and the campaign settings, carried along by backups,
+// renames and deletes. Kept by their own collection-group listeners.
+let extras = new Map();
 let ignoredDocs = 0;
 let loaded = false;
 let loadError = false;
@@ -122,6 +126,22 @@ function charCount() {
 }
 
 const charRef = (campaignId, charId) => doc(db, "campaigns", campaignId, "characters", charId);
+const campaignDocRef = (campaignId, collection, docId) => doc(db, "campaigns", campaignId, collection, docId);
+
+// Every ship and settings document of a campaign, as [collection, id, data].
+function extraDocsOf(campaignId) {
+  const e = extras.get(campaignId);
+  if (!e) return [];
+  return EXTRA_COLLECTIONS.flatMap(col => [...(e[col] || new Map()).entries()].map(([id, data]) => [col, id, data]));
+}
+
+function extrasIdsMap() {
+  const out = new Map();
+  extras.forEach((e, campaignId) => {
+    out.set(campaignId, Object.fromEntries(EXTRA_COLLECTIONS.map(col => [col, new Set((e[col] || new Map()).keys())])));
+  });
+  return out;
+}
 
 function toMillis(ts) {
   if (ts == null) return null;
@@ -209,10 +229,11 @@ function downloadJson(data, fileName) {
 function exportBackup(campaignId = null) {
   try {
     const now = new Date();
-    const backup = buildBackup(campaigns, { only: campaignId == null ? null : [campaignId], now });
+    const backup = buildBackup(campaigns, { only: campaignId == null ? null : [campaignId], now, extras });
     downloadJson(backup, backupFileName(campaignId, now));
     const n = Object.values(backup.campaigns).reduce((a, c) => a + Object.keys(c.characters).length, 0);
-    flash(`Backup downloaded: ${n} character${n === 1 ? "" : "s"}.`);
+    const ships = Object.values(backup.campaigns).reduce((a, c) => a + Object.keys(c.ships || {}).length, 0);
+    flash(`Backup downloaded: ${n} character${n === 1 ? "" : "s"}${ships ? `, ${ships} ship${ships === 1 ? "" : "s"}` : ""}.`);
     return true;
   } catch (err) {
     console.error(err);
@@ -249,8 +270,9 @@ async function readBackupFile(file) {
 function importPreviewHtml() {
   const draft = ui.importDraft;
   if (!draft) return "";
-  const plan = planImport(draft.backup, campaigns);
-  const { created, overwritten, skipped } = importWrites(plan, draft.overwrite);
+  const plan = planImport(draft.backup, campaigns, extrasIdsMap());
+  const { created, overwritten, skipped, extraCreated, extraOverwritten, extraSkipped } = importWrites(plan, draft.overwrite);
+  const extraExisting = (p) => EXTRA_COLLECTIONS.reduce((n, col) => n + p.extras[col].existing.length, 0);
   const rows = plan.map(p => `
     <tr>
       <td><code>${escapeHtml(p.campaignId)}</code>${p.isNewCampaign ? ` <span class="admin-badge">new campaign</span>` : ""}</td>
@@ -258,7 +280,7 @@ function importPreviewHtml() {
       <td>${p.existing.length}</td>
       <td>
         <label class="admin-check">
-          <input type="checkbox" data-import-overwrite="${escapeHtml(p.campaignId)}"${draft.overwrite.has(p.campaignId) ? " checked" : ""}${p.existing.length ? "" : " disabled"}>
+          <input type="checkbox" data-import-overwrite="${escapeHtml(p.campaignId)}"${draft.overwrite.has(p.campaignId) ? " checked" : ""}${p.existing.length || extraExisting(p) ? "" : " disabled"}>
           Overwrite
         </label>
       </td>
@@ -276,9 +298,10 @@ function importPreviewHtml() {
         </table>
       </div>
       <p>Will create <b>${created}</b>${overwritten ? `, overwrite <b>${overwritten}</b>` : ""}${skipped ? `, and skip <b>${skipped}</b> that already exist` : ""}.</p>
-      <p class="muted">Characters that already exist are skipped unless you tick Overwrite for their campaign. Overwriting replaces the whole character with the version in the file.</p>
+      ${extraCreated + extraOverwritten + extraSkipped ? `<p>Ships and campaign settings: create <b>${extraCreated}</b>${extraOverwritten ? `, overwrite <b>${extraOverwritten}</b>` : ""}${extraSkipped ? `, skip <b>${extraSkipped}</b> that already exist` : ""}.</p>` : ""}
+      <p class="muted">Characters, ships and settings that already exist are skipped unless you tick Overwrite for their campaign. Overwriting replaces the whole document with the version in the file.</p>
       <div class="row">
-        <button type="button" class="brass" data-action="import-run"${created + overwritten ? "" : " disabled"}>Import</button>
+        <button type="button" class="brass" data-action="import-run"${created + overwritten + extraCreated + extraOverwritten ? "" : " disabled"}>Import</button>
         <button type="button" data-action="import-cancel">Cancel</button>
       </div>
     </div>
@@ -289,15 +312,18 @@ async function runImport() {
   const draft = ui.importDraft;
   if (!draft) return;
   // Plan again against the data as it is right now.
-  const plan = planImport(draft.backup, campaigns);
-  const { writes, created, overwritten, skipped } = importWrites(plan, draft.overwrite);
+  const plan = planImport(draft.backup, campaigns, extrasIdsMap());
+  const { writes, created, overwritten, skipped, extraCreated, extraOverwritten } = importWrites(plan, draft.overwrite);
   if (writes.length === 0) { flash("Nothing to import."); return; }
   const campaignCount = new Set(writes.map(w => w.campaignId)).size;
+  const extraText = extraCreated + extraOverwritten
+    ? ` Ships and settings: create ${extraCreated}${extraOverwritten ? `, overwrite ${extraOverwritten}` : ""}.`
+    : "";
   if (!await confirmDialog({
     title: "Import backup?",
-    message: `Create ${created} character(s)${overwritten ? `, overwrite ${overwritten} existing one(s)` : ""}${skipped ? `, skip ${skipped} that already exist` : ""}, in ${campaignCount} campaign(s).${overwritten ? " Overwritten characters can't be brought back unless you have a backup of them." : ""}`,
-    confirmLabel: overwritten ? "Import and overwrite" : "Import",
-    danger: overwritten > 0
+    message: `Create ${created} character(s)${overwritten ? `, overwrite ${overwritten} existing one(s)` : ""}${skipped ? `, skip ${skipped} that already exist` : ""}, in ${campaignCount} campaign(s).${extraText}${overwritten + extraOverwritten ? " Overwritten documents can't be brought back unless you have a backup of them." : ""}`,
+    confirmLabel: overwritten + extraOverwritten ? "Import and overwrite" : "Import",
+    danger: overwritten + extraOverwritten > 0
   })) return;
 
   let ops;
@@ -305,8 +331,8 @@ async function runImport() {
     const makeTs = (seconds, nanoseconds) => new Timestamp(seconds, nanoseconds);
     ops = writes.map(w => ({
       type: "set",
-      ref: charRef(w.campaignId, w.charId),
-      data: fromJsonValue(draft.backup.campaigns[w.campaignId].characters[w.charId], makeTs, `${w.campaignId}/${w.charId}`)
+      ref: campaignDocRef(w.campaignId, w.collection, w.docId),
+      data: fromJsonValue(draft.backup.campaigns[w.campaignId][w.collection][w.docId], makeTs, `${w.campaignId}/${w.collection}/${w.docId}`)
     }));
   } catch (err) {
     flash(`Can't import: ${err.message}`);
@@ -325,7 +351,7 @@ async function runImport() {
     console.error(err);
     ui.notice = {
       title: "Import stopped",
-      html: `<p>${err.done} of ${ops.length} character(s) were written before an error. The preview below shows what's still missing.</p>`
+      html: `<p>${err.done} of ${ops.length} document(s) were written before an error. The preview below shows what's still missing.</p>`
     };
     flash("Import failed — check firestore.rules.");
   }
@@ -767,7 +793,7 @@ async function renameCampaign(campaignId) {
     title: `Rename “${campaignId}”`,
     confirmLabel: "Continue",
     bodyHtml: `
-      <p>Copies all ${count} character(s) to a new campaign ID, then deletes them from <code>${escapeHtml(campaignId)}</code>.</p>
+      <p>Copies all ${count} character(s)${extraDocsOf(campaignId).length ? ", the ships and the campaign settings" : ""} to a new campaign ID, then deletes them from <code>${escapeHtml(campaignId)}</code>.</p>
       <ul class="admin-card-list">
         <li>Every player link and the GM dashboard link for “${escapeHtml(campaignId)}” stop working. Send everyone the new links.</li>
         <li>The GM dashboard's “Not playing today” list is stored per browser. It's carried over in this browser only; on every other device it's lost.</li>
@@ -797,8 +823,15 @@ async function renameCampaign(campaignId) {
   if (campaigns.has(newId)) { flash(`“${newId}” exists now — nothing was changed.`); return; }
 
   const chars = [...(campaigns.get(campaignId) || new Map()).entries()];
-  const copies = chars.map(([id, data]) => ({ type: "set", ref: charRef(newId, id), data }));
-  const deletes = chars.map(([id]) => ({ type: "delete", ref: charRef(campaignId, id) }));
+  const others = extraDocsOf(campaignId);
+  const copies = [
+    ...chars.map(([id, data]) => ({ type: "set", ref: charRef(newId, id), data })),
+    ...others.map(([col, id, data]) => ({ type: "set", ref: campaignDocRef(newId, col, id), data }))
+  ];
+  const deletes = [
+    ...chars.map(([id]) => ({ type: "delete", ref: charRef(campaignId, id) })),
+    ...others.map(([col, id]) => ({ type: "delete", ref: campaignDocRef(campaignId, col, id) }))
+  ];
 
   try {
     await commitInBatches(copies, "Copying");
@@ -806,7 +839,7 @@ async function renameCampaign(campaignId) {
     console.error(err);
     ui.notice = {
       title: "Rename stopped",
-      html: `<p>Only ${err.done} of ${copies.length} character(s) were copied to <code>${escapeHtml(newId)}</code>, and nothing was deleted: “${escapeHtml(campaignId)}” is unchanged. Delete the partial copy before trying again.</p>`
+      html: `<p>Only ${err.done} of ${copies.length} document(s) were copied to <code>${escapeHtml(newId)}</code>, and nothing was deleted: “${escapeHtml(campaignId)}” is unchanged. Delete the partial copy before trying again.</p>`
     };
     flash("Rename failed — check firestore.rules.");
     render();
@@ -818,7 +851,7 @@ async function renameCampaign(campaignId) {
     console.error(err);
     ui.notice = {
       title: "Rename incomplete",
-      html: `<p>Every character was copied to <code>${escapeHtml(newId)}</code>, but only ${err.done} of ${deletes.length} were removed from <code>${escapeHtml(campaignId)}</code>. Delete the old campaign to finish.</p>`
+      html: `<p>Everything was copied to <code>${escapeHtml(newId)}</code>, but only ${err.done} of ${deletes.length} document(s) were removed from <code>${escapeHtml(campaignId)}</code>. Delete the old campaign to finish.</p>`
     };
     flash("Couldn't remove all old characters.");
     render();
@@ -863,17 +896,24 @@ async function deleteCampaign(campaignId) {
   if (wantsBackup && !exportBackup(campaignId)) return;
 
   if (!await confirmDialog({
-    message: `Delete all ${count} character(s) in “${campaignId}”? Their player links and the GM link stop working. This can't be undone${wantsBackup ? "" : " — and there's no backup"}.`,
+    message: `Delete all ${count} character(s)${extras.get(campaignId)?.ships?.size ? ` and ${extras.get(campaignId).ships.size} ship(s)` : ""} in “${campaignId}”? Their player links and the GM link stop working. This can't be undone${wantsBackup ? "" : " — and there's no backup"}.`,
     confirmLabel: "Delete campaign",
     danger: true
   })) return;
 
   const ids = [...(campaigns.get(campaignId) || new Map()).keys()];
+  // Ships and settings first, characters last: if a delete fails half-way,
+  // the campaign is still listed (it has characters left) and can be
+  // deleted again, instead of leaving ships nobody can see here.
+  const ops = [
+    ...extraDocsOf(campaignId).map(([col, id]) => ({ type: "delete", ref: campaignDocRef(campaignId, col, id) })),
+    ...ids.map(id => ({ type: "delete", ref: charRef(campaignId, id) }))
+  ];
   try {
-    await commitInBatches(ids.map(id => ({ type: "delete", ref: charRef(campaignId, id) })), "Deleting");
+    await commitInBatches(ops, "Deleting");
   } catch (err) {
     console.error(err);
-    flash(`Deleted ${err.done} of ${ids.length} — check firestore.rules.`);
+    flash(`Deleted ${err.done} of ${ops.length} — check firestore.rules.`);
     return;
   }
   try { localStorage.removeItem(benchKey(campaignId)); } catch { /* view-only setting */ }
@@ -1084,5 +1124,25 @@ export function startAdmin(root, { onLock }) {
     loadError = true;
     flash("Connection error — check firebase-config.js and firestore.rules.");
     render();
+  });
+
+  // Ships and campaign settings, so backups, renames and deletes carry
+  // them along. Needs the matching collection-group read rules in
+  // firestore.rules; without them, the admin page still works on the
+  // characters alone.
+  EXTRA_COLLECTIONS.forEach(col => {
+    onSnapshot(collectionGroup(db, col), (snap) => {
+      extras.forEach(e => { e[col] = new Map(); });
+      snap.docs.forEach(d => {
+        const parts = d.ref.path.split("/");
+        if (parts.length !== 4 || parts[0] !== "campaigns") return;
+        if (!extras.has(parts[1])) extras.set(parts[1], { ships: new Map(), settings: new Map() });
+        extras.get(parts[1])[col].set(d.id, d.data());
+      });
+      render();
+    }, (err) => {
+      console.error(err);
+      flash(`Couldn't load ${col} — add the ${col} collection-group rule from firestore.rules.`);
+    });
   });
 }

@@ -17,7 +17,9 @@ export const SHEET_SECTIONS = [
   { key: "magic", label: "Magic" },
   { key: "traits", label: "Traits" },
   { key: "notes", label: "Notes" },
-  { key: "inventory", label: "Inventory" }
+  { key: "inventory", label: "Inventory" },
+  { key: "ship", label: "Ship" },
+  { key: "hold", label: "Ship's hold" }
 ];
 
 const KEYS = SHEET_SECTIONS.map(s => s.key);

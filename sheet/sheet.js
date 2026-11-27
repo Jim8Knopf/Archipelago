@@ -13,6 +13,9 @@ import { confirmDialog } from "../js/confirm.js";
 import { compressPortrait, importFromUrl, isStoredPortrait, PortraitError } from "../js/portrait-image.js";
 import { SHEET_SECTIONS, defaultLayout, moveSection, isDefaultLayout } from "../js/sheet-layout.js";
 import { normalize } from "../js/normalize.js";
+import { settingsRef, shipRef, depositItem, shipErrorMessage, ShipError } from "../js/ship.js";
+import { normalizeShip, shipCondition, guardStoneTier, qtyOf } from "../js/ship-calc.js";
+import { createHoldView, askQuantity } from "../js/hold-ui.js";
 
 const params = new URLSearchParams(window.location.search);
 const loaderCard = document.getElementById("loader-card");
@@ -239,6 +242,7 @@ function initSheet() {
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
   initDefaultCharButton(campaign, charId);
   watchConnection(charRef);
+  watchShip(campaign, charId);
 
   onSnapshot(charRef, (snap) => {
     if (!snap.exists()) {
@@ -327,6 +331,7 @@ function render() {
   hideWhenEmpty("magic-section", !R.hasMagic(d));
   hideWhenEmpty("traits-section", d.traits.length === 0);
   hideWhenEmpty("inventory-section", d.inventory.length === 0 && !showPotions(d));
+  renderShip();
   applyLayout(d.layout);
   refreshSpellInfo();
 }
@@ -1331,6 +1336,11 @@ document.getElementById("clear-session-notes-btn").addEventListener("click", asy
 
 // ---- Inventory: three typed lists (item / armor / weapon) ----
 
+// On every inventory row (potions too): puts it in the ship's hold. Only
+// shows while the campaign has an active ship (body.has-ship, set by
+// renderShip()), in both modes — it's play, not editing.
+const TO_SHIP_BTN = `<button class="small to-ship-btn" data-action="to-ship" title="Put it in the ship's hold" aria-label="Put in the ship's hold">⛵</button>`;
+
 function renderInventory(inventory) {
   renderInventoryItems(inventory);
   renderInventoryArmor(inventory);
@@ -1348,6 +1358,7 @@ function renderInventoryItems(inventory) {
     <li data-id="${item.id}">
       <span class="item-name">${escapeHtml(item.name)}</span>
       <span class="item-qty">×${item.qty}</span>
+      ${TO_SHIP_BTN}
       <span class="row" data-edit-control="true" style="gap:0.3rem;display:inline-flex;">
         <button class="small" data-action="qty-dec">−</button>
         <button class="small" data-action="qty-inc">+</button>
@@ -1413,7 +1424,7 @@ itemField("item-name-input").addEventListener("keydown", (e) => {
 
 document.getElementById("inventory-item-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
+  if (!btn || btn.dataset.action === "to-ship") return;
   const id = btn.closest("li").dataset.id;
   const inventory = currentData.inventory.map(i => {
     if (i.id !== id) return i;
@@ -1446,6 +1457,7 @@ function renderInventoryArmor(inventory) {
       <label class="row" style="gap:0.3rem;">
         <input type="checkbox" data-action="toggle-worn" ${item.worn ? "checked" : ""} ${disabled}> Worn
       </label>
+      ${TO_SHIP_BTN}
       <span data-edit-control="true"><button class="small danger" data-action="remove">✕</button></span>
     </li>
   `).join("");
@@ -1477,6 +1489,7 @@ function renderInventoryWeapons(inventory) {
     <li data-id="${item.id}">
       <span class="item-name">${escapeHtml(item.name)}</span>
       <span class="muted">${escapeHtml(item.woundDice || "")}</span>
+      ${TO_SHIP_BTN}
       <span data-edit-control="true"><button class="small danger" data-action="remove">✕</button></span>
     </li>
   `).join("");
@@ -1550,6 +1563,7 @@ function renderPotions(d) {
         <span class="row" style="gap:0.3rem;display:inline-flex;">
           <button class="small brass" data-action="drink" title="Drink it — the bottle stays, empty">Drink</button>
           <button class="small brass" data-action="throw" title="Throw it — the bottle breaks">Throw</button>
+          ${TO_SHIP_BTN}
           <button class="small" data-action="pour" data-edit-control="true" title="Pour it out — the bottle stays, empty">Pour out</button>
         </span>
       </li>`;
@@ -1586,7 +1600,7 @@ function usePotion(id, breakBottle) {
 
 document.getElementById("potion-list").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-action]");
-  if (!btn) return;
+  if (!btn || btn.dataset.action === "to-ship") return;
   const id = btn.closest("li").dataset.id;
   usePotion(id, btn.dataset.action === "throw");
 });
@@ -1665,6 +1679,149 @@ bottlePrompt.addEventListener("click", (e) => {
     if (spell && !bottlePotion(spell)) { renderBottlePrompt(); return; }
   }
   hideBottlePrompt();
+});
+
+// ---- The crew's ship and its hold ----
+//
+// The GM picks which ship is the crew's (campaigns/{id}/settings/main →
+// activeShipId); the sheet follows that pointer and listens to that one
+// ship. The hull is shown as a word plus a five-step bar (js/ship-calc.js),
+// never as numbers. The hold is shared by everyone in the campaign; every
+// change goes through a transaction (js/ship.js).
+
+const shipToast = document.getElementById("ship-toast");
+const shipFlash = (msg) => flash(shipToast, msg, 3500);
+const shipStatusEl = document.getElementById("ship-status");
+const holdContainer = document.getElementById("hold-container");
+let activeShipId = null;
+let activeShip = null;
+let holdView = null;
+let shipStatusSig = "";
+let shownCondition = null;
+
+function watchShip(campaign, charId) {
+  holdView = createHoldView(holdContainer, {
+    campaign,
+    mode: "player",
+    getCharacter: () => currentData ? { id: charId, name: currentData.name || "" } : null,
+    flash: shipFlash
+  });
+  let unsubShip = null;
+  onSnapshot(settingsRef(campaign), (snap) => {
+    const id = (snap.exists() && snap.data().activeShipId) || null;
+    if (id !== activeShipId) {
+      unsubShip?.();
+      unsubShip = null;
+      activeShipId = id;
+      activeShip = null;
+      shownCondition = null;
+      if (id) {
+        unsubShip = onSnapshot(shipRef(campaign, id), (s) => {
+          activeShip = s.exists() ? normalizeShip(s.data()) : null;
+          renderShip();
+        }, (err) => console.error(err));
+      }
+    }
+    renderShip();
+  }, (err) => console.error(err));
+}
+
+function shipStatusHtml(s) {
+  const cond = shipCondition(s.hullCurrent, s.hullMax);
+  const segs = Array.from({ length: 5 }, (_, i) => `<span class="ship-seg${i < 5 - cond.level ? " on" : ""}"></span>`).join("");
+  const stat = (label, value, title = "") => value === "" || value == null ? "" : `
+    <div class="ship-stat"${title ? ` title="${escapeHtml(title)}"` : ""}>
+      <span class="ship-stat-label">${label}</span>
+      <span class="ship-stat-value">${escapeHtml(String(value))}</span>
+    </div>`;
+  const stones = s.guardStones.map(g => {
+    const tier = guardStoneTier(g.tier);
+    return `${escapeHtml(tier.label)}${g.element ? ` (${escapeHtml(g.element)})` : ""} — ${tier.effect}`;
+  });
+  return `
+    <div class="ship-head">
+      <span class="ship-name">${escapeHtml(s.name)}</span>
+      <span class="muted">${escapeHtml(s.typeName || "")}</span>
+    </div>
+    <div class="ship-condition cond-${cond.key}" data-ship-condition title="The GM keeps the exact hull count">
+      <span class="ship-segs" aria-hidden="true">${segs}</span>
+      <span class="ship-cond-label">${escapeHtml(cond.label)}</span>
+    </div>
+    <div class="ship-stats">
+      ${stat("Armor", s.armor)}
+      ${stat("Max Speed", `${s.maxSpeed} m/s`)}
+      ${stat("Handling", s.handling, "Most one Speed action can change the speed")}
+      ${stat("Turn Rate", `${s.turnRate}°`, "Most one Steer action can turn the ship")}
+      ${stat("Maneuverability", s.maneuverability, "Added to Ship Steering rolls against hazards")}
+      ${stat("Broadside", s.broadside)}
+      ${stat("Chasers", s.chasers)}
+      ${stat("Crew", s.crew || "")}
+      ${stat("Cargo", s.cargo)}
+    </div>
+    ${s.traits.length ? `<p class="ship-line"><strong>Traits:</strong> ${s.traits.map(escapeHtml).join(", ")}</p>` : ""}
+    ${s.terminalSlots > 0 ? `<p class="ship-line"><strong>Guard Stone Terminal</strong> (${stones.length} of ${s.terminalSlots} slot${s.terminalSlots === 1 ? "" : "s"})${stones.length ? `: ${stones.join("; ")}` : " — empty"}</p>` : ""}
+    ${s.storyChanges.trim() ? `<p class="ship-line"><strong>Story changes:</strong> ${escapeHtml(s.storyChanges)}</p>` : ""}
+    ${s.notes.trim() ? `<p class="ship-line ship-notes">${escapeHtml(s.notes)}</p>` : ""}`;
+}
+
+function renderShip() {
+  if (!holdView) return;
+  const has = !!activeShip;
+  document.body.classList.toggle("has-ship", has);
+  // No ship: both sections hide in View mode; Edit mode says why.
+  const hide = currentMode === "view" && !has;
+  document.getElementById("ship-section").style.display = hide ? "none" : "";
+  document.getElementById("hold-section").style.display = hide ? "none" : "";
+  holdContainer.hidden = !has;
+
+  if (!has) {
+    shipStatusSig = "";
+    shipStatusEl.innerHTML = `<p class="empty-state">No ship yet — the GM picks the crew's ship on the GM Dashboard.</p>`;
+    holdView.update(null, null);
+    return;
+  }
+
+  // Rebuild the status only when something on it changed, so the hold
+  // changing doesn't cut the condition pulse short.
+  const { hold, chest, ...statusPart } = activeShip;
+  const sig = JSON.stringify(statusPart);
+  if (sig !== shipStatusSig) {
+    shipStatusSig = sig;
+    shipStatusEl.innerHTML = shipStatusHtml(activeShip);
+    const cond = shipCondition(activeShip.hullCurrent, activeShip.hullMax);
+    if (shownCondition && shownCondition.key !== cond.key) {
+      const el = shipStatusEl.querySelector("[data-ship-condition]");
+      el.classList.add(cond.level > shownCondition.level ? "pulse-down" : "pulse-up");
+      shipFlash(`${activeShip.name}: ${cond.label}.`);
+    }
+    shownCondition = cond;
+  }
+  holdView.update(activeShipId, activeShip);
+}
+
+// ⛵ on an inventory row: into the hold. Stacks ask how many (all by
+// default); a potion takes its bottle along (Section 9.1).
+document.getElementById("inventory-section").addEventListener("click", async (e) => {
+  const btn = e.target.closest('button[data-action="to-ship"]');
+  if (!btn || !currentData || !activeShipId) return;
+  const id = btn.closest("li").dataset.id;
+  const item = currentData.inventory.find(i => i.id === id);
+  if (!item) return;
+  const max = item.type === "armor" || item.type === "weapon" ? 1 : qtyOf(item);
+  const qty = await askQuantity({ title: `Put ${item.name} in the hold`, max, initial: max, confirmLabel: "Stow it" });
+  if (!qty) return;
+  const shipName = activeShip?.name || "the ship";
+  try {
+    const n = await depositItem({
+      campaign: getCampaignId(), charId: params.get("char"), shipId: activeShipId,
+      itemId: id, qty, byName: currentData.name || ""
+    });
+    const bottle = item.type === "potion" ? ` (${n === 1 ? "its bottle goes" : "their bottles go"} with ${n === 1 ? "it" : "them"})` : "";
+    shipFlash(`Stowed ${n > 1 ? `${n} × ` : ""}${item.name} in the hold of ${shipName}${bottle}.`);
+  } catch (err) {
+    if (!(err instanceof ShipError)) console.error(err);
+    shipFlash(shipErrorMessage(err));
+  }
 });
 
 initSheet();

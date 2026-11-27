@@ -37,6 +37,44 @@
   </div>
 
   <main class="gm-main">
+    <!-- The ship panel (gm/gm-ship.js). The dropdown picks which ship this
+         panel shows; "Make it the crew's ship" picks the one players see. -->
+    <section class="card gm-card gm-ship" id="gm-ship">
+      <div class="gm-ship-head">
+        <span class="gm-ship-icon" aria-hidden="true">⛵</span>
+        <select id="ship-select" aria-label="Ship shown in this panel"></select>
+        <button class="small brass" id="make-active-btn" type="button">Make it the crew's ship</button>
+        <span class="muted gm-ship-active-note" id="ship-active-note"></span>
+      </div>
+      <div id="ship-body"></div>
+      <details class="gm-sub" id="ship-hold-fold">
+        <summary>Hold &amp; chest <span class="gm-count" id="ship-hold-count"></span></summary>
+        <div class="gm-sub-body"><div id="gm-hold"></div></div>
+      </details>
+      <details class="gm-sub" id="ship-edit-fold">
+        <summary>Edit ship</summary>
+        <div class="gm-sub-body" id="ship-editor"></div>
+      </details>
+      <details class="gm-sub" id="ship-fleet-fold">
+        <summary>All ships · add a ship</summary>
+        <div class="gm-sub-body">
+          <ul class="inventory-list gm-fleet" id="fleet-list"></ul>
+          <div class="row add-item-row">
+            <div class="field name-field">
+              <label for="new-ship-name">Ship name</label>
+              <input type="text" id="new-ship-name" placeholder="e.g. Salt Widow">
+            </div>
+            <div class="field type-field">
+              <label for="new-ship-type">Type</label>
+              <select id="new-ship-type"></select>
+            </div>
+            <button class="brass small" id="add-ship-btn" type="button">Add ship</button>
+          </div>
+          <p class="muted">A new ship gets its type's values from the Ship Compendium, at full Hull. Change anything afterwards under Edit ship.</p>
+        </div>
+      </details>
+    </section>
+
     <div class="gm-section-head">
       <div class="name-with-star">
         <h2 id="party-heading">At the table</h2>

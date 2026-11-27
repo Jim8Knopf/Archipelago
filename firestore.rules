@@ -13,9 +13,25 @@ service cloud.firestore {
     match /campaigns/{campaignId}/characters/{characterId} {
       allow read, write: if true;
     }
+    // The crew's ships (shared hold and chest) and campaign settings
+    // (which ship is the active one).
+    match /campaigns/{campaignId}/ships/{shipId} {
+      allow read, write: if true;
+    }
+    match /campaigns/{campaignId}/settings/{docId} {
+      allow read, write: if true;
+    }
     // The admin page lists every campaign with a collection-group query
     // over all "characters" collections, which needs its own rule.
     match /{path=**}/characters/{characterId} {
+      allow read: if true;
+    }
+    // Same for the ships and campaign settings, so admin backups, renames
+    // and deletes include them.
+    match /{path=**}/ships/{shipId} {
+      allow read: if true;
+    }
+    match /{path=**}/settings/{docId} {
       allow read: if true;
     }
   }

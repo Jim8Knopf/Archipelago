@@ -44,6 +44,20 @@ page) — nothing is hardcoded per-character, so the sheet stays correct as poin
   Party-wide **Short Rest** / **Long Rest** cover everyone at the table;
   **🏝️ New Island** restores full HP and Mana, repairs broken bottles and clears
   used-skill markers for every character in the campaign, benched ones included.
+- **Ship** — the crew's ship, shared by every character in the campaign. The GM
+  can keep several ships and picks one as **the crew's ship**: that's the one every
+  player's sheet shows. Players see the hull as a word (Perfect condition, A few
+  scrapes, A bit damaged, Badly damaged, Barely afloat, Crippled) worked out from the
+  share of max Hull left (`js/ship-calc.js`), never the numbers; the GM panel shows
+  the numbers and the word players see. The sheet's **⛵ Ship** section lists the
+  ship's values for ship combat; **📦 Ship's hold** is a shared, searchable hold
+  with categories and the **ship's chest** (Doubloons). Everyone has full access:
+  anyone can add, change, take or throw out anything. ⛵ on an inventory row puts it
+  in the hold, Take brings it back; a potion takes its bottle along (Max bottles goes
+  down, and up again when one is taken). The GM can move items between ships.
+  Every hold, chest and move write is a Firestore transaction (`js/ship.js`), so two
+  players acting at once never lose or duplicate an item — which also means these
+  need a connection and don't queue offline.
 - **Rules** (`rules/`) — two books: Core Rules (`rules.md`) and Ship Rules
   (`ships.md`, at `?book=ships`).
 - **Admin** (`admin/`) — behind a password screen: every campaign and character
@@ -73,6 +87,12 @@ Archipelago/
 │   ├── nav.js              shared top navigation (marks the current page)
 │   ├── confirm.js          themed confirm dialog
 │   ├── sync-status.js      Saving… / Saved / Offline marker for every write
+│   ├── ship-types.js       the Ship Compendium's values (keep in sync with ships.md)
+│   ├── ship-calc.js        pure ship helpers: hull condition words, ship defaults,
+│   │                       hold stacking, bottles going along with potions
+│   ├── ship.js             ship writes: active ship, hold/chest/move transactions
+│   ├── hold-ui.js          the hold + chest widget (sheet and GM dashboard)
+│   ├── dialogs.js          form and read-only text dialogs (admin, hold)
 │   ├── sheet-layout.js     each player's sheet section order / collapsed / hidden
 │   └── format.js           small helpers: escapeHtml, flash, roman numerals,
 │                           slugify, portrait URL clean-up
@@ -87,15 +107,15 @@ Archipelago/
 │   └── sheet.js
 ├── gm/
 │   ├── index.html          GM dashboard
-│   └── gm.js
+│   ├── gm.js
+│   └── gm-ship.js          the ship panel: crew's ship, hull, editor, all ships
 ├── admin/
 │   ├── index.html          admin page — all campaigns and characters
 │   ├── admin.js            password gate; loads the admin UI once unlocked
 │   ├── admin-auth.js       password / session-token hashing (WebCrypto)
 │   ├── admin-app.js        the admin UI: campaign list, detail pane, actions
-│   ├── admin-data.js       pure helpers: backup JSON, import plan, batching,
-│   │                       legacy scan, junk hints
-│   └── admin-dialog.js     form and read-only text dialogs
+│   └── admin-data.js       pure helpers: backup JSON, import plan, batching,
+│                           legacy scan, junk hints
 ├── firestore.rules         paste into Firebase console
 ├── .github/workflows/
 │   └── deploy.yml          builds and deploys to GitHub Pages
@@ -125,6 +145,9 @@ secrets and write the admin password hash into `js/admin-config.js`.
 2. Choose **Start in production mode** (we'll paste our own rules next), pick any region.
 3. Once created, go to the **Rules** tab and replace the contents with what's in
    `firestore.rules` in this project. Click **Publish**.
+   Do this again whenever `firestore.rules` changes — e.g. the ship feature added
+   rules for `ships` and `settings`; without them the ship panel and the sheet's
+   ship sections can't load ("permission denied").
 
 That's the entire backend. No servers, no functions, nothing else to deploy —
 Firestore is reachable directly from the static site via the Firebase JS SDK.
@@ -313,7 +336,30 @@ campaigns/{campaignId}/characters/{characterId}
   lastRestAt:       timestamp — written by rests, drives the shared cooldown
   lastRestType:     "short" | "long"
   basicSkills:      legacy — always [] now (see below)
+  layout:           { order, collapsed, hidden } — the player's section layout
+
+campaigns/{campaignId}/ships/{shipId}
+  name, type, typeName  "Salt Widow", "sloop", "Sloop" (type = js/ship-types.js key)
+  hullMax, hullCurrent  only the GM screen shows these numbers
+  armor, maxSpeed, handling, turnRate (degrees), crew, price   numbers
+  maneuverability, broadside, chasers, cargo                    text
+  traits:           array of strings
+  terminalSlots:    number — Guard Stone Terminal slots (0 = no terminal)
+  guardStones:      array of { id, tier, element } — tier "minor" | "moderate" | "major"
+  storyChanges, notes   free text (everyone sees them)
+  chest:            number — Doubloons in the ship's chest
+  hold:             array of inventory items (same shape as a character's), each
+                    with qty, category ("supplies" | "cargo" | "weapons" | "armor" |
+                    "potions" | "treasure" | "misc"), optional note and addedBy
+  createdAt:        millis — ships are listed in the order they were added
+
+campaigns/{campaignId}/settings/main
+  activeShipId:     the crew's ship, or null
 ```
+
+Backups include each campaign's `ships` and `settings` next to its `characters`;
+backups made before ships existed still import. Renaming or deleting a campaign on
+the admin page takes its ships and settings along.
 
 Legacy shapes migrated by `normalize()` on load:
 

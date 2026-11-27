@@ -1,7 +1,7 @@
 // ============================================================
-// Small form dialog for the admin page (move/copy a character, rename a
-// campaign). Same native <dialog> + showModal() approach and look as
-// js/confirm.js: Escape or a backdrop click cancels, focus returns to
+// Small form dialogs: the admin page (move/copy a character, rename a
+// campaign, raw JSON) and the ship's hold (how many, edit an item). Same
+// native <dialog> + showModal() approach and look as js/confirm.js: Escape or a backdrop click cancels, focus returns to
 // whatever had it before. Enter in a field submits (the confirm button is
 // the form's only submit button, so it's the default one).
 //

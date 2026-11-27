@@ -105,9 +105,16 @@ export function idProblem(id) {
   return "";
 }
 
+// The other per-campaign collections a backup carries next to the
+// characters: the ships (with their holds) and the campaign settings
+// (which ship is the crew's). Both are optional in a backup file, so
+// backups from before ships existed still import.
+export const EXTRA_COLLECTIONS = ["ships", "settings"];
+
 // campaigns: Map(campaignId -> Map(charId -> data)). `only` limits the
-// backup to those campaign IDs (one campaign export).
-export function buildBackup(campaigns, { only = null, now = new Date() } = {}) {
+// backup to those campaign IDs (one campaign export). `extras`:
+// Map(campaignId -> { ships: Map(id -> data), settings: Map(id -> data) }).
+export function buildBackup(campaigns, { only = null, now = new Date(), extras = new Map() } = {}) {
   const ids = [...campaigns.keys()].filter(id => !only || only.includes(id)).sort();
   const out = {};
   ids.forEach(campaignId => {
@@ -116,6 +123,15 @@ export function buildBackup(campaigns, { only = null, now = new Date() } = {}) {
       characters[charId] = toJsonValue(campaigns.get(campaignId).get(charId), `${campaignId}/${charId}`);
     });
     out[campaignId] = { characters };
+    EXTRA_COLLECTIONS.forEach(col => {
+      const docs = extras.get(campaignId)?.[col];
+      if (!docs || docs.size === 0) return;
+      const entries = {};
+      [...docs.keys()].sort().forEach(id => {
+        entries[id] = toJsonValue(docs.get(id), `${campaignId}/${col}/${id}`);
+      });
+      out[campaignId][col] = entries;
+    });
   });
   return {
     format: BACKUP_FORMAT,
@@ -157,44 +173,81 @@ export function validateBackup(data) {
       if (cp) errors.push(`Character ID “${charId}” in “${campaignId}” ${cp}.`);
       if (!isPlainObject(char)) errors.push(`Character “${campaignId}/${charId}” isn't an object.`);
     });
+    EXTRA_COLLECTIONS.forEach(col => {
+      if (campaign[col] == null) return;
+      if (!isPlainObject(campaign[col])) { errors.push(`“${col}” in “${campaignId}” isn't a list of documents.`); return; }
+      Object.entries(campaign[col]).forEach(([id, data]) => {
+        const ip = idProblem(id);
+        if (ip) errors.push(`ID “${id}” in “${campaignId}/${col}” ${ip}.`);
+        if (!isPlainObject(data)) errors.push(`“${campaignId}/${col}/${id}” isn't an object.`);
+      });
+    });
   });
   return { errors };
 }
 
 // What importing `backup` would do, given what's in the database now
-// (`existing`: Map(campaignId -> Map or Set of charIds)). One entry per
-// campaign in the backup:
-//   { campaignId, isNewCampaign, create: [charIds], existing: [charIds] }
-export function planImport(backup, existing) {
+// (`existing`: Map(campaignId -> Map or Set of charIds); `existingExtras`:
+// Map(campaignId -> { ships, settings }, each a Map or Set of IDs)). One
+// entry per campaign in the backup:
+//   { campaignId, isNewCampaign, create: [charIds], existing: [charIds],
+//     extras: { ships: { create, existing }, settings: { create, existing } } }
+export function planImport(backup, existing, existingExtras = new Map()) {
   return Object.keys(backup.campaigns).sort().map(campaignId => {
     const here = existing.get(campaignId);
     const has = (id) => !!here && here.has(id);
-    const charIds = Object.keys(backup.campaigns[campaignId].characters).sort();
+    const campaign = backup.campaigns[campaignId];
+    const charIds = Object.keys(campaign.characters).sort();
+    const extras = {};
+    EXTRA_COLLECTIONS.forEach(col => {
+      const ids = Object.keys(campaign[col] || {}).sort();
+      const there = existingExtras.get(campaignId)?.[col];
+      const exists = (id) => !!there && there.has(id);
+      extras[col] = { create: ids.filter(id => !exists(id)), existing: ids.filter(id => exists(id)) };
+    });
     return {
       campaignId,
       isNewCampaign: !here || here.size === 0,
       create: charIds.filter(id => !has(id)),
-      existing: charIds.filter(id => has(id))
+      existing: charIds.filter(id => has(id)),
+      extras
     };
   });
 }
 
-// The writes a plan turns into: new characters always; existing ones only
+// The writes a plan turns into: new documents always; existing ones only
 // for campaigns in `overwrite` (a Set of campaign IDs) — skipped otherwise.
+// Each write is { campaignId, collection, docId, overwrite }. The counts
+// are characters; ships and settings are counted in `extra*`.
 export function importWrites(plan, overwrite) {
   const writes = [];
   let created = 0, overwritten = 0, skipped = 0;
+  let extraCreated = 0, extraOverwritten = 0, extraSkipped = 0;
+  const add = (p, collection, ids, isOverwrite) =>
+    ids.forEach(docId => writes.push({ campaignId: p.campaignId, collection, docId, overwrite: isOverwrite }));
   plan.forEach(p => {
-    p.create.forEach(charId => writes.push({ campaignId: p.campaignId, charId, overwrite: false }));
+    const over = overwrite.has(p.campaignId);
+    add(p, "characters", p.create, false);
     created += p.create.length;
-    if (overwrite.has(p.campaignId)) {
-      p.existing.forEach(charId => writes.push({ campaignId: p.campaignId, charId, overwrite: true }));
+    if (over) {
+      add(p, "characters", p.existing, true);
       overwritten += p.existing.length;
     } else {
       skipped += p.existing.length;
     }
+    EXTRA_COLLECTIONS.forEach(col => {
+      const e = p.extras?.[col] || { create: [], existing: [] };
+      add(p, col, e.create, false);
+      extraCreated += e.create.length;
+      if (over) {
+        add(p, col, e.existing, true);
+        extraOverwritten += e.existing.length;
+      } else {
+        extraSkipped += e.existing.length;
+      }
+    });
   });
-  return { writes, created, overwritten, skipped };
+  return { writes, created, overwritten, skipped, extraCreated, extraOverwritten, extraSkipped };
 }
 
 // ---- Legacy data ----
