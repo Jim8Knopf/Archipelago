@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#10222c">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 </head>
 <body>
   <header class="top">
@@ -34,7 +38,11 @@
 
   <main class="gm-main">
     <div class="gm-section-head">
-      <h2 id="party-heading">At the table</h2>
+      <div class="name-with-star">
+        <h2 id="party-heading">At the table</h2>
+        <span class="muted" id="campaign-name"></span>
+        <button type="button" class="star-toggle" id="default-campaign-btn" aria-pressed="false"></button>
+      </div>
       <div id="bench" class="gm-bench"></div>
     </div>
 
@@ -74,6 +82,7 @@
   <footer class="foot">Fair winds. ⚓</footer>
 
   <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="../js/pwa.js"></script>
   <script type="module" src="gm.js"></script>
 </body>
 </html>

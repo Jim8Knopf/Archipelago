@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#10222c">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 </head>
 <body data-mode="view">
   <!-- View/edit use the same DOM. sheet.js toggles a `readonly` attribute on
@@ -51,7 +55,10 @@
                 <!-- One name field for both modes: an editable text input,
                      made readonly (not disabled — stays clickable/selectable)
                      in View mode. No separate <h2> display element. -->
-                <input type="text" id="name-input" class="name-input-large">
+                <div class="name-with-star">
+                  <input type="text" id="name-input" class="name-input-large">
+                  <button type="button" class="star-toggle" id="default-char-btn" aria-pressed="false"></button>
+                </div>
                 <p class="muted" style="margin:0.3rem 0 0 0;">Character ID: <span class="char-link" id="char-id-display"></span></p>
               </div>
               <div class="row" style="gap:0.5rem;">
@@ -70,9 +77,21 @@
               </div>
             </div>
 
-            <div class="field" data-edit-control="true" style="margin-top:0.6rem;max-width:360px;">
-              <label for="image-url-input">Portrait image URL</label>
-              <input type="text" id="image-url-input" placeholder="https://...">
+            <!-- Portrait: the picture is copied into the character, shrunk
+                 to a small square (js/portrait-image.js), from a file or a
+                 link, so it never breaks when the original disappears. -->
+            <div class="field portrait-field" data-edit-control="true">
+              <label for="image-url-input">Portrait</label>
+              <div class="row portrait-actions">
+                <button type="button" class="small brass" id="portrait-upload-btn">📷 Upload picture</button>
+                <button type="button" class="small" id="portrait-remove-btn">Remove</button>
+                <input type="file" id="portrait-file-input" accept="image/*" hidden>
+              </div>
+              <div class="row portrait-actions">
+                <input type="url" id="image-url-input" placeholder="…or paste a picture link (https://…)">
+                <button type="button" class="small" id="portrait-url-btn">Use link</button>
+              </div>
+              <div class="status-msg" id="portrait-status"></div>
             </div>
 
             <div class="budget-bar" style="margin-top:0.75rem;"><div class="budget-fill" id="budget-fill"></div></div>
@@ -349,6 +368,7 @@
   <footer class="foot">Fair winds. ⚓</footer>
 
   <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="../js/pwa.js"></script>
   <script type="module" src="sheet.js"></script>
 </body>
 </html>

@@ -7,6 +7,7 @@ import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
+import { getDefaultCampaign, setDefaultCampaign } from "../js/defaults.js";
 
 // ============================================================
 // GM dashboard.
@@ -37,6 +38,25 @@ mountSyncStatus(partyActionsEl.parentElement, partyActionsEl);
 
 let campaign = getCampaignId();
 campaignInput.value = campaign;
+
+// Star after the campaign name, next to the party heading: makes this the campaign a bare gm/ link
+// (or the app's GM shortcut) opens on this device (js/defaults.js).
+const defaultCampaignBtn = document.getElementById("default-campaign-btn");
+document.getElementById("campaign-name").textContent = campaign;
+function paintDefaultCampaign() {
+  const on = getDefaultCampaign() === campaign;
+  defaultCampaignBtn.textContent = on ? "★" : "☆";
+  defaultCampaignBtn.title = on
+    ? "Your default campaign: the GM Dashboard opens it on this device. Click to unset."
+    : "Make this your default campaign: the GM Dashboard opens it on this device.";
+  defaultCampaignBtn.setAttribute("aria-label", defaultCampaignBtn.title);
+  defaultCampaignBtn.setAttribute("aria-pressed", String(on));
+}
+defaultCampaignBtn.addEventListener("click", () => {
+  setDefaultCampaign(getDefaultCampaign() === campaign ? null : campaign);
+  paintDefaultCampaign();
+});
+paintDefaultCampaign();
 
 // Latest data per character, kept in sync on every snapshot so the buttons
 // always have current values to compute from without an extra read.

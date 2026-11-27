@@ -199,6 +199,7 @@ details.card {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="number"],
 input[type="password"],
 textarea {
@@ -1740,4 +1741,49 @@ dialog.confirm-dialog::backdrop {
 
 @media (max-width: 480px) {
   .confirm-dialog-actions button { flex: 1 1 auto; }
+}
+
+/* "Make default" star after a name: the sheet's default character and the
+   GM's default campaign (js/defaults.js). Icon only; title explains it. */
+.name-with-star {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.name-with-star .name-input-large { flex: 1; min-width: 0; }
+
+button.star-toggle {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0.1rem 0.25rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--brass-dim);
+  cursor: pointer;
+}
+
+button.star-toggle:hover,
+button.star-toggle[aria-pressed="true"] {
+  background: none;
+  color: var(--brass-light);
+}
+
+/* Sheet portrait controls (edit mode): upload, link, remove. */
+.portrait-field {
+  margin-top: 0.6rem;
+  max-width: 360px;
+}
+
+.portrait-actions {
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  margin-bottom: 0.4rem;
+}
+
+.portrait-actions input[type="url"] {
+  flex: 1;
+  min-width: 0;
 }

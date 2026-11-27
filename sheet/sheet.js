@@ -5,8 +5,12 @@ import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
+import {
+  getDefaultCampaign, getDefaultCharacter, setDefaultCharacter, isDefaultCharacter
+} from "../js/defaults.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
+import { compressPortrait, importFromUrl, isStoredPortrait, PortraitError } from "../js/portrait-image.js";
 import { SHEET_SECTIONS, defaultLayout, moveSection, isDefaultLayout } from "../js/sheet-layout.js";
 import { normalize } from "../js/normalize.js";
 
@@ -167,7 +171,8 @@ setMode("view");
 
 // ---- Loader form ----
 
-document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
+document.getElementById("campaign-input").value =
+  params.get("campaign") || getDefaultCharacter()?.campaign || getDefaultCampaign() || "default-campaign";
 if (params.get("char")) {
   document.getElementById("loader-card").style.display = "none";
 }
@@ -199,6 +204,30 @@ document.getElementById("open-btn").addEventListener("click", async () => {
   }
 });
 
+// ---- Default character (this device) ----
+// Marks the open character as the one the Character Sheet opens when no
+// link says otherwise (js/defaults.js). Unstarring it brings the
+// character picker back.
+
+function initDefaultCharButton(campaign, charId) {
+  const btn = document.getElementById("default-char-btn");
+  const paint = () => {
+    const on = isDefaultCharacter(campaign, charId);
+    btn.textContent = on ? "★" : "☆";
+    btn.title = on
+      ? "Your default character: the Character Sheet opens it on this device. Click to unset."
+      : "Make this your default character: the Character Sheet opens it on this device.";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", String(on));
+  };
+  btn.addEventListener("click", () => {
+    if (isDefaultCharacter(campaign, charId)) setDefaultCharacter(null, null);
+    else setDefaultCharacter(campaign, charId);
+    paint();
+  });
+  paint();
+}
+
 // ---- Main sheet ----
 
 function initSheet() {
@@ -208,6 +237,7 @@ function initSheet() {
 
   charRef = doc(db, "campaigns", campaign, "characters", charId);
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
+  initDefaultCharButton(campaign, charId);
   watchConnection(charRef);
 
   onSnapshot(charRef, (snap) => {
@@ -461,7 +491,9 @@ function renderPortrait(url) {
   const img = document.getElementById("portrait-img");
   const placeholder = document.getElementById("portrait-placeholder");
   const input = document.getElementById("image-url-input");
-  if (document.activeElement !== input) input.value = url || "";
+  // A stored picture is a long data: URL, not something to show or edit.
+  if (document.activeElement !== input) input.value = isStoredPortrait(url) ? "" : (url || "");
+  document.getElementById("portrait-remove-btn").hidden = !url;
 
   const src = portraitUrl(url);
   if (!src) {
@@ -479,8 +511,70 @@ function renderPortrait(url) {
   img.src = src;
 }
 
-document.getElementById("image-url-input").addEventListener("change", (e) => {
-  saveField({ imageUrl: e.target.value.trim() });
+// Upload and link both store a shrunk copy in the character
+// (js/portrait-image.js), so the picture can't expire or vanish later.
+const portraitStatus = document.getElementById("portrait-status");
+const portraitFileInput = document.getElementById("portrait-file-input");
+const portraitUrlInput = document.getElementById("image-url-input");
+const portraitButtons = ["portrait-upload-btn", "portrait-url-btn", "portrait-remove-btn"]
+  .map(id => document.getElementById(id));
+
+async function storePortrait(makeDataUrl) {
+  portraitButtons.forEach(b => { b.disabled = true; });
+  portraitStatus.textContent = "Shrinking picture…";
+  try {
+    const dataUrl = await makeDataUrl();
+    if (await saveField({ imageUrl: dataUrl })) {
+      portraitUrlInput.value = "";
+      flash(portraitStatus, "Picture saved.");
+    } else {
+      portraitStatus.textContent = "";
+    }
+  } catch (err) {
+    if (!(err instanceof PortraitError)) console.error(err);
+    portraitStatus.textContent = "";
+    flash(portraitStatus, err instanceof PortraitError ? err.message : "Couldn't use that picture.", 6000);
+    return err;
+  } finally {
+    portraitButtons.forEach(b => { b.disabled = false; });
+  }
+  return null;
+}
+
+document.getElementById("portrait-upload-btn").addEventListener("click", () => portraitFileInput.click());
+
+portraitFileInput.addEventListener("change", async () => {
+  const file = portraitFileInput.files[0];
+  portraitFileInput.value = "";
+  if (file) await storePortrait(() => compressPortrait(file));
+});
+
+async function useLink() {
+  const link = portraitUrlInput.value.trim();
+  if (!link) { flash(portraitStatus, "Paste a picture link first."); return; }
+  const err = await storePortrait(() => importFromUrl(link));
+  if (!err?.blockedByHost) return;
+
+  // The host won't let the sheet copy the picture; keeping the plain link
+  // still works for as long as the link itself does.
+  const keep = await confirmDialog({
+    message: "That site doesn't allow copying its pictures, so it can't be saved into the character. " +
+             "Use the link as it is? It will break if the link expires (Discord links last about a day).",
+    confirmLabel: "Use link anyway"
+  });
+  if (keep && await saveField({ imageUrl: link })) {
+    portraitUrlInput.value = "";
+    flash(portraitStatus, "Link saved.");
+  }
+}
+
+document.getElementById("portrait-url-btn").addEventListener("click", useLink);
+portraitUrlInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); useLink(); }
+});
+
+document.getElementById("portrait-remove-btn").addEventListener("click", async () => {
+  if (await saveField({ imageUrl: "" })) flash(portraitStatus, "Picture removed.");
 });
 
 // Show the picture only once it has actually loaded; keep the anchor otherwise.

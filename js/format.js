@@ -61,11 +61,14 @@ export function slugify(str) {
 
 // Turns whatever the player pasted into the "Portrait image URL" field into
 // something an <img> can actually load, or "" if it can't be used.
-// - Only http(s) URLs are allowed.
+// - Pictures stored in the character (js/portrait-image.js) are data: URLs
+//   of a raster image type, used as they are.
+// - Otherwise only http(s) URLs are allowed (older characters hold links).
 // - Share links that point at a viewer page rather than the picture itself
 //   (Google Drive, Dropbox) are rewritten to their direct-image form.
 export function portraitUrl(raw) {
   const url = (raw || "").trim();
+  if (/^data:image\/(webp|jpeg|png|gif);base64,[a-z0-9+/=]+$/i.test(url)) return url;
   if (!/^https?:\/\//i.test(url)) return "";
 
   // Google Drive: .../file/d/<id>/view  or  ...?id=<id>
