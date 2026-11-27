@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#10222c">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 </head>
 <body data-mode="view">
   <!-- View/edit use the same DOM. sheet.js toggles a `readonly` attribute on
@@ -53,6 +57,10 @@
                      in View mode. No separate <h2> display element. -->
                 <input type="text" id="name-input" class="name-input-large">
                 <p class="muted" style="margin:0.3rem 0 0 0;">Character ID: <span class="char-link" id="char-id-display"></span></p>
+                <p class="muted default-row">
+                  <button type="button" class="small" id="default-char-btn" aria-pressed="false"></button>
+                  <a href="?pick=1" id="switch-char-link">Switch character</a>
+                </p>
               </div>
               <div class="row" style="gap:0.5rem;">
                 <div class="rest-row">
@@ -349,6 +357,7 @@
   <footer class="foot">Fair winds. ⚓</footer>
 
   <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="../js/pwa.js"></script>
   <script type="module" src="sheet.js"></script>
 </body>
 </html>

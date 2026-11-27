@@ -1427,3 +1427,18 @@ dialog.confirm-dialog::backdrop {
 @media (max-width: 480px) {
   .confirm-dialog-actions button { flex: 1 1 auto; }
 }
+
+/* "Make default" controls: the sheet's default-character toggle and the
+   GM's default-campaign checkbox (js/defaults.js). */
+.default-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.4rem 0 0 0;
+}
+
+.default-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}

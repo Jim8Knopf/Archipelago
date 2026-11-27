@@ -2,7 +2,9 @@
 // so there's only one place that initializes the app and Firestore.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import {
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { firebaseConfig } from "../js/firebase-config.js";
 
 function validateFirebaseConfig(config) {
@@ -29,7 +31,13 @@ function validateFirebaseConfig(config) {
 
 validateFirebaseConfig(firebaseConfig);
 export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// Keep the last-seen characters on the device (IndexedDB), so the
+// installed app still shows the sheet or the party offline. Writes made
+// offline are queued and sent on reconnect, as before. Where IndexedDB is
+// unavailable (some private windows), the SDK falls back to memory only.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 // Reads ?campaign=xxx from the URL, falling back to a default so the
 // prototype works immediately without anyone typing a campaign ID.

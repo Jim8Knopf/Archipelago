@@ -7,6 +7,7 @@ import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
+import { getDefaultCampaign, setDefaultCampaign } from "../js/defaults.js";
 
 // ============================================================
 // GM dashboard.
@@ -37,6 +38,14 @@ mountSyncStatus(partyActionsEl.parentElement, partyActionsEl);
 
 let campaign = getCampaignId();
 campaignInput.value = campaign;
+
+// "Open this campaign by default": a bare gm/ link (or the app's GM
+// shortcut) then opens this campaign on this device (js/defaults.js).
+const defaultCampaignCheck = document.getElementById("default-campaign-check");
+defaultCampaignCheck.checked = getDefaultCampaign() === campaign;
+defaultCampaignCheck.addEventListener("change", () => {
+  setDefaultCampaign(defaultCampaignCheck.checked ? campaign : null);
+});
 
 // Latest data per character, kept in sync on every snapshot so the buttons
 // always have current values to compute from without an extra read.

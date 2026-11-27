@@ -5,6 +5,9 @@ import { db, getCampaignId } from "../js/firebase-init.js";
 import { escapeHtml, flash, clamp, toRoman, slugify, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
+import {
+  getDefaultCampaign, getDefaultCharacter, setDefaultCharacter, isDefaultCharacter
+} from "../js/defaults.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
 import { SHEET_SECTIONS, defaultLayout, normalizeLayout, moveSection, isDefaultLayout } from "../js/sheet-layout.js";
@@ -166,7 +169,8 @@ setMode("view");
 
 // ---- Loader form ----
 
-document.getElementById("campaign-input").value = params.get("campaign") || "default-campaign";
+document.getElementById("campaign-input").value =
+  params.get("campaign") || getDefaultCharacter()?.campaign || getDefaultCampaign() || "default-campaign";
 if (params.get("char")) {
   document.getElementById("loader-card").style.display = "none";
 }
@@ -189,6 +193,7 @@ document.getElementById("open-btn").addEventListener("click", async () => {
       await trackWrite(setDoc(ref, R.defaultCharacter(name)));
     }
     const url = new URL(window.location.href);
+    url.searchParams.delete("pick");
     url.searchParams.set("campaign", campaign);
     url.searchParams.set("char", charId);
     window.location.href = url.toString();
@@ -197,6 +202,29 @@ document.getElementById("open-btn").addEventListener("click", async () => {
     flash(loaderStatus, "Couldn't reach the database — check firebase-config.js and firestore.rules.");
   }
 });
+
+// ---- Default character (this device) ----
+// Marks the open character as the one the Character Sheet opens when no
+// link says otherwise (js/defaults.js). "Switch character" (?pick=1) still
+// reaches the picker.
+
+function initDefaultCharButton(campaign, charId) {
+  const btn = document.getElementById("default-char-btn");
+  const paint = () => {
+    const on = isDefaultCharacter(campaign, charId);
+    btn.textContent = on ? "★ My default" : "☆ Make default";
+    btn.title = on
+      ? "This character opens whenever you open the Character Sheet on this device. Click to unset."
+      : "Open this character whenever you open the Character Sheet on this device.";
+    btn.setAttribute("aria-pressed", String(on));
+  };
+  btn.addEventListener("click", () => {
+    if (isDefaultCharacter(campaign, charId)) setDefaultCharacter(null, null);
+    else setDefaultCharacter(campaign, charId);
+    paint();
+  });
+  paint();
+}
 
 // ---- Main sheet ----
 
@@ -207,6 +235,7 @@ function initSheet() {
 
   charRef = doc(db, "campaigns", campaign, "characters", charId);
   document.getElementById("char-id-display").textContent = `${campaign} / ${charId}`;
+  initDefaultCharButton(campaign, charId);
   watchConnection(charRef);
 
   onSnapshot(charRef, (snap) => {

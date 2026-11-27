@@ -7,6 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/style.css">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#10222c">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 </head>
 <body>
   <header class="top">
@@ -54,6 +58,10 @@
         <label for="campaign-input">Campaign ID</label>
         <input type="text" id="campaign-input">
       </div>
+      <label class="default-row">
+        <input type="checkbox" id="default-campaign-check">
+        Open this campaign by default on this device
+      </label>
       <p class="muted">Everyone using the same Campaign ID sees the same characters live. Make it something only your table knows, e.g. <code>black-tortuga-42</code>, rather than something guessable — see the setup guide for why.</p>
 
       <h4>Add a character</h4>
@@ -74,6 +82,7 @@
   <footer class="foot">Fair winds. ⚓</footer>
 
   <script type="module" src="../js/nav.js"></script>
+  <script type="module" src="../js/pwa.js"></script>
   <script type="module" src="gm.js"></script>
 </body>
 </html>

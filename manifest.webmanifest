@@ -1,0 +1,22 @@
+{
+  "name": "Archipelago — Ship's Log",
+  "short_name": "Archipelago",
+  "description": "Character sheets, GM dashboard and rules for the Archipelago pirate RPG.",
+  "id": "./",
+  "start_url": "./?launch=app",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a1820",
+  "theme_color": "#10222c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Character Sheet", "url": "sheet/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "GM Dashboard", "url": "gm/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Rules", "url": "rules/", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
