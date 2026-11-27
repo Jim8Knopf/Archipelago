@@ -195,7 +195,6 @@ document.getElementById("open-btn").addEventListener("click", async () => {
       await trackWrite(setDoc(ref, R.defaultCharacter(name)));
     }
     const url = new URL(window.location.href);
-    url.searchParams.delete("pick");
     url.searchParams.set("campaign", campaign);
     url.searchParams.set("char", charId);
     window.location.href = url.toString();
@@ -207,17 +206,18 @@ document.getElementById("open-btn").addEventListener("click", async () => {
 
 // ---- Default character (this device) ----
 // Marks the open character as the one the Character Sheet opens when no
-// link says otherwise (js/defaults.js). "Switch character" (?pick=1) still
-// reaches the picker.
+// link says otherwise (js/defaults.js). Unstarring it brings the
+// character picker back.
 
 function initDefaultCharButton(campaign, charId) {
   const btn = document.getElementById("default-char-btn");
   const paint = () => {
     const on = isDefaultCharacter(campaign, charId);
-    btn.textContent = on ? "★ My default" : "☆ Make default";
+    btn.textContent = on ? "★" : "☆";
     btn.title = on
-      ? "This character opens whenever you open the Character Sheet on this device. Click to unset."
-      : "Open this character whenever you open the Character Sheet on this device.";
+      ? "Your default character: the Character Sheet opens it on this device. Click to unset."
+      : "Make this your default character: the Character Sheet opens it on this device.";
+    btn.setAttribute("aria-label", btn.title);
     btn.setAttribute("aria-pressed", String(on));
   };
   btn.addEventListener("click", () => {

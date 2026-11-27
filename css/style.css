@@ -1743,17 +1743,33 @@ dialog.confirm-dialog::backdrop {
   .confirm-dialog-actions button { flex: 1 1 auto; }
 }
 
-/* "Make default" star toggles: the sheet's default character and the
-   GM's default campaign next to the party heading (js/defaults.js). */
-.default-row {
+/* "Make default" star after a name: the sheet's default character and the
+   GM's default campaign (js/defaults.js). Icon only; title explains it. */
+.name-with-star {
   display: flex;
   align-items: center;
+  gap: 0.4rem;
   flex-wrap: wrap;
-  gap: 0.6rem;
-  margin: 0.4rem 0 0 0;
 }
 
-.gm-section-head .default-row { margin: 0; }
+.name-with-star .name-input-large { flex: 1; min-width: 0; }
+
+button.star-toggle {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0.1rem 0.25rem;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--brass-dim);
+  cursor: pointer;
+}
+
+button.star-toggle:hover,
+button.star-toggle[aria-pressed="true"] {
+  background: none;
+  color: var(--brass-light);
+}
 
 /* Sheet portrait controls (edit mode): upload, link, remove. */
 .portrait-field {

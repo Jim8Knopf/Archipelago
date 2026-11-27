@@ -5,7 +5,7 @@
 // in what a link leaves out: gm/ with no ?campaign= opens the default
 // campaign, sheet/ with no ?char= opens the default character. A link that
 // names a campaign or character always wins, so shared player links keep
-// working. sheet/?pick=1 skips the default to show the character picker.
+// working. Unstarring the default brings the character picker back.
 //
 // applyDefaultsToUrl() runs from js/pwa.js, which every page loads before
 // its own script, and rewrites the URL in place (no reload), so sheet.js
@@ -62,7 +62,7 @@ export function applyDefaultsToUrl(page) {
     const campaign = getDefaultCampaign();
     if (!campaign) return;
     params.set("campaign", campaign);
-  } else if (page === "sheet" && !params.get("char") && !params.has("pick")) {
+  } else if (page === "sheet" && !params.get("char")) {
     const d = getDefaultCharacter();
     if (!d) return;
     params.set("campaign", d.campaign);

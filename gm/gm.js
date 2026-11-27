@@ -39,15 +39,17 @@ mountSyncStatus(partyActionsEl.parentElement, partyActionsEl);
 let campaign = getCampaignId();
 campaignInput.value = campaign;
 
-// Star next to the party heading: makes this the campaign a bare gm/ link
+// Star after the campaign name, next to the party heading: makes this the campaign a bare gm/ link
 // (or the app's GM shortcut) opens on this device (js/defaults.js).
 const defaultCampaignBtn = document.getElementById("default-campaign-btn");
+document.getElementById("campaign-name").textContent = campaign;
 function paintDefaultCampaign() {
   const on = getDefaultCampaign() === campaign;
-  defaultCampaignBtn.textContent = `${on ? "★" : "☆"} ${campaign}`;
+  defaultCampaignBtn.textContent = on ? "★" : "☆";
   defaultCampaignBtn.title = on
     ? "Your default campaign: the GM Dashboard opens it on this device. Click to unset."
     : "Make this your default campaign: the GM Dashboard opens it on this device.";
+  defaultCampaignBtn.setAttribute("aria-label", defaultCampaignBtn.title);
   defaultCampaignBtn.setAttribute("aria-pressed", String(on));
 }
 defaultCampaignBtn.addEventListener("click", () => {
