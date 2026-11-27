@@ -14,20 +14,36 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <main>
-    <div class="card full-width">
-      <h2>Admin</h2>
-      <p class="muted">Every campaign and character in this Firebase project, across the whole database — not just one Campaign ID. Useful for cleanup, or finding a campaign ID you forgot.</p>
-      <p class="muted">⚠️ This page has no access control beyond the same open Firestore rules the rest of the prototype uses — anyone with the link can see and reach everything listed here. Don't share this link outside your table. See the setup guide for hardening options.</p>
-      <div class="status-msg" id="admin-status"></div>
+  <!-- admin.js shows the password gate here, and only renders the admin UI
+       (from the template below) once the password is right. -->
+  <main id="admin-root">
+    <div class="card admin-gate"><p class="muted">Loading…</p></div>
+  </main>
+
+  <!-- The admin UI. Rendered by admin-app.js only after the password gate:
+       a toolbar, the campaign list (left) and the detail pane (right). On a
+       phone the list drills into the detail, with a "‹ Campaigns" link back. -->
+  <template id="admin-app-template">
+    <div class="gm-toolbar admin-toolbar">
+      <div class="gm-toolbar-row">
+        <h2 class="admin-toolbar-title">Admin</h2>
+        <div class="admin-toolbar-actions">
+          <button type="button" class="small" id="admin-lock-btn" title="Lock the admin page again in this tab">🔒 Lock</button>
+        </div>
+      </div>
     </div>
 
-    <!-- One card per campaign, packed into the same multi-column flow as
-         the player sheet (display: contents lets the cards join main's columns). -->
-    <div id="admin-content">
-      <div class="card"><p class="muted">Loading…</p></div>
+    <div class="admin-main" id="admin-main" data-view="list">
+      <nav class="card admin-list" aria-label="Campaigns">
+        <input type="search" id="admin-filter" class="admin-filter" placeholder="Filter campaigns…" aria-label="Filter campaigns" autocomplete="off">
+        <div id="admin-list"></div>
+      </nav>
+      <section class="admin-detail" id="admin-detail"></section>
     </div>
-  </main>
+
+    <input type="file" id="admin-import-file" accept="application/json,.json" hidden>
+    <div class="gm-toast" id="admin-toast" role="status" aria-live="polite"></div>
+  </template>
 
   <footer class="foot">Fair winds. ⚓</footer>
 

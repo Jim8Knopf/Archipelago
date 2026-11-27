@@ -13,5 +13,10 @@ service cloud.firestore {
     match /campaigns/{campaignId}/characters/{characterId} {
       allow read, write: if true;
     }
+    // The admin page lists every campaign with a collection-group query
+    // over all "characters" collections, which needs its own rule.
+    match /{path=**}/characters/{characterId} {
+      allow read: if true;
+    }
   }
 }
