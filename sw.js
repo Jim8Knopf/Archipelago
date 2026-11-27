@@ -24,6 +24,7 @@ const PRECACHE = [
   "js/firebase-init.js",
   "js/format.js",
   "js/nav.js",
+  "js/portrait-image.js",
   "js/pwa.js",
   "js/rest.js",
   "js/rules-calc.js",

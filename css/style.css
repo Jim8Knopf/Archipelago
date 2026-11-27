@@ -199,6 +199,7 @@ details.card {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="number"],
 textarea {
   font-family: 'Spectral', Georgia, serif;
@@ -1428,8 +1429,8 @@ dialog.confirm-dialog::backdrop {
   .confirm-dialog-actions button { flex: 1 1 auto; }
 }
 
-/* "Make default" controls: the sheet's default-character toggle and the
-   GM's default-campaign checkbox (js/defaults.js). */
+/* "Make default" star toggles: the sheet's default character and the
+   GM's default campaign next to the party heading (js/defaults.js). */
 .default-row {
   display: flex;
   align-items: center;
@@ -1438,7 +1439,21 @@ dialog.confirm-dialog::backdrop {
   margin: 0.4rem 0 0 0;
 }
 
-.default-row input[type="checkbox"] {
-  width: auto;
-  margin: 0;
+.gm-section-head .default-row { margin: 0; }
+
+/* Sheet portrait controls (edit mode): upload, link, remove. */
+.portrait-field {
+  margin-top: 0.6rem;
+  max-width: 360px;
+}
+
+.portrait-actions {
+  gap: 0.5rem;
+  flex-wrap: nowrap;
+  margin-bottom: 0.4rem;
+}
+
+.portrait-actions input[type="url"] {
+  flex: 1;
+  min-width: 0;
 }

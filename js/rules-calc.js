@@ -329,7 +329,13 @@ export function defaultCharacter(name) {
 // thrown or smashed (back at the Island Reset), empty = what's left of the
 // max. Drinking or pouring out a potion turns a full bottle back into an
 // empty one, so only the potion items and `bottlesBroken` are ever stored.
-export const potionsOf = (d) => (d?.inventory || []).filter(i => i.type === "potion");
+// Sorted by magnitude (I first), then name, so the list order never depends
+// on when a potion was added.
+export const potionsOf = (d) => (d?.inventory || [])
+  .filter(i => i.type === "potion")
+  .sort((a, b) =>
+    magnitudeOf(a) - magnitudeOf(b) ||
+    (a.name || "").localeCompare(b.name || "", undefined, { sensitivity: "base", numeric: true }));
 
 export function bottleCounts(d) {
   const max = Math.max(0, Number(d?.bottlesMax) || 0);
