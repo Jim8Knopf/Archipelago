@@ -39,13 +39,22 @@ mountSyncStatus(partyActionsEl.parentElement, partyActionsEl);
 let campaign = getCampaignId();
 campaignInput.value = campaign;
 
-// "Open this campaign by default": a bare gm/ link (or the app's GM
-// shortcut) then opens this campaign on this device (js/defaults.js).
-const defaultCampaignCheck = document.getElementById("default-campaign-check");
-defaultCampaignCheck.checked = getDefaultCampaign() === campaign;
-defaultCampaignCheck.addEventListener("change", () => {
-  setDefaultCampaign(defaultCampaignCheck.checked ? campaign : null);
+// Star next to the party heading: makes this the campaign a bare gm/ link
+// (or the app's GM shortcut) opens on this device (js/defaults.js).
+const defaultCampaignBtn = document.getElementById("default-campaign-btn");
+function paintDefaultCampaign() {
+  const on = getDefaultCampaign() === campaign;
+  defaultCampaignBtn.textContent = `${on ? "★" : "☆"} ${campaign}`;
+  defaultCampaignBtn.title = on
+    ? "Your default campaign: the GM Dashboard opens it on this device. Click to unset."
+    : "Make this your default campaign: the GM Dashboard opens it on this device.";
+  defaultCampaignBtn.setAttribute("aria-pressed", String(on));
+}
+defaultCampaignBtn.addEventListener("click", () => {
+  setDefaultCampaign(getDefaultCampaign() === campaign ? null : campaign);
+  paintDefaultCampaign();
 });
+paintDefaultCampaign();
 
 // Latest data per character, kept in sync on every snapshot so the buttons
 // always have current values to compute from without an extra read.
