@@ -42,6 +42,10 @@ const GROUP_ICONS = {
 };
 const groupIcon = (group) => GROUP_ICONS[group] || "⛵";
 
+// A ship type's picture path (relative to rules/, js/ship-catalog.js) as a
+// full URL, so it works from this page and can be downloaded.
+const typeImageUrl = (t) => t?.image ? new URL(t.image, new URL("../rules/", window.location.href)).href : "";
+
 export function initShipPanel({ campaign, flash }) {
   const fleetEl = document.getElementById("fleet");
   const fleetHeading = document.getElementById("fleet-heading");
@@ -149,12 +153,17 @@ export function initShipPanel({ campaign, flash }) {
       <div class="gm-vital" data-vital="hull">
         <div class="gauge-label"><span>Hull</span><span>${ship.hullCurrent} / ${ship.hullMax}</span></div>
         <div class="gauge ${gaugeClass(ship.hullCurrent, ship.hullMax)}"><div class="fill" style="width:${pct}%"></div></div>
-        <div class="gm-vital-controls gm-hull-controls">
-          <button class="small" data-hull="-5">−5</button>
+        <div class="gm-vital-controls">
+          <button class="small" data-hull="-10">−10</button>
           <button class="small" data-hull="-1">−1</button>
           <button class="small" data-hull="1">+1</button>
-          <button class="small" data-hull="5">+5</button>
-          <button class="small brass" data-hull="full" title="Harbour or shipyard repair (rules Section 7)">Repair</button>
+          <button class="small" data-hull="10">+10</button>
+        </div>
+        <div class="gm-hull-amount">
+          <input type="number" min="1" inputmode="numeric" placeholder="Amount" aria-label="Hull amount" data-hull-amount>
+          <button class="small danger" data-hull="hit" title="Take this much damage (after Armor)">Damage</button>
+          <button class="small" data-hull="fix" title="Repair this much (rules Section 7)">Repair</button>
+          <button class="small brass" data-hull="full" title="Harbour or shipyard repair: back to full Hull">Full</button>
         </div>
       </div>
       <p class="gm-ship-sees">Players see: <span class="ship-cond-badge cond-${cond.key}">${escapeHtml(cond.label)}</span></p>
@@ -268,9 +277,20 @@ export function initShipPanel({ campaign, flash }) {
 
     const hullBtn = e.target.closest("button[data-hull]");
     if (hullBtn) {
-      const next = hullBtn.dataset.hull === "full"
-        ? ship.hullMax
-        : Math.max(0, Math.min(ship.hullMax, ship.hullCurrent + parseInt(hullBtn.dataset.hull, 10)));
+      const kind = hullBtn.dataset.hull;
+      let delta;
+      if (kind === "full") {
+        delta = ship.hullMax - ship.hullCurrent;
+      } else if (kind === "hit" || kind === "fix") {
+        const input = card.querySelector("[data-hull-amount]");
+        const amount = Math.floor(Number(input.value));
+        if (!(amount > 0)) { input.focus(); return; }
+        delta = kind === "hit" ? -amount : amount;
+        input.value = "";
+      } else {
+        delta = parseInt(kind, 10);
+      }
+      const next = Math.max(0, Math.min(ship.hullMax, ship.hullCurrent + delta));
       if (next === ship.hullCurrent) return;
       try { await updateShip(campaign, id, { hullCurrent: next }); } catch (err) { fail(err); }
       return;
@@ -310,6 +330,13 @@ export function initShipPanel({ campaign, flash }) {
         flash(`${ship.name} deleted.`);
       } catch (err) { fail(err); }
     }
+  });
+
+  // Enter in the amount field = Damage.
+  fleetEl.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !e.target.matches("[data-hull-amount]")) return;
+    e.preventDefault();
+    e.target.closest(".gm-vital").querySelector('[data-hull="hit"]').click();
   });
 
   // ---- Edit dialog ----
@@ -512,7 +539,9 @@ export function initShipPanel({ campaign, flash }) {
         <span class="ship-stat-label">${label}</span><span class="ship-stat-value">${escapeHtml(String(value))}</span>
       </div>`;
     const custom = t.key === "custom";
+    const pic = typeImageUrl(t);
     return `
+      ${pic ? `<div class="ship-banner"><img src="${escapeHtml(pic)}" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
       <div class="gm-card-head">
         <span class="gm-portrait shipyard-icon" aria-hidden="true">${custom ? "🛠️" : groupIcon(t.group)}</span>
         <div class="gm-card-title">
@@ -610,8 +639,14 @@ export function initShipPanel({ campaign, flash }) {
       validate: (v) => (v.name || "").trim() ? "" : "Give the ship a name."
     });
     if (!values) return;
+    // The type's picture from the rules, stored in the new ship like an
+    // uploaded one. Without it (or if it won't load) the ship just has none.
+    let imageUrl = "";
+    if (typeImageUrl(type)) {
+      try { imageUrl = await importFromUrl(typeImageUrl(type), SHIP_PICTURE); } catch (err) { console.warn(err); }
+    }
     try {
-      const ref = await addShip(campaign, values.name.trim(), type.key === "custom" ? null : type);
+      const ref = await addShip(campaign, values.name.trim(), type.key === "custom" ? null : type, imageUrl ? { imageUrl } : {});
       if (values.crew) await setActiveShip(campaign, ref.id);
       openSections.add(`${ref.id}:details`);
       scrollToId = ref.id;

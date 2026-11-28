@@ -339,3 +339,12 @@ main.rules-main {
     break-after: page;
   }
 }
+
+/* Pictures in the books (e.g. ship types: ![Sloop](ships/sloop.webp)). */
+.phb-page img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: .5rem auto;
+  border-radius: 4px;
+}

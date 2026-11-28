@@ -24,6 +24,10 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute always hides, even on elements whose class sets a
+   display (e.g. the shipyard's flex cards, which the filter hides). */
+[hidden] { display: none !important; }
+
 html,
 body {
   min-height: 100vh;
@@ -1987,7 +1991,9 @@ select.dialog-select { width: 100%; }
   font-size: .85rem;
   font-weight: 600;
 }
-.gm-hull-controls { grid-template-columns: repeat(5, 1fr); }
+.gm-hull-amount { display: flex; gap: .3rem; margin-top: .3rem; }
+.gm-hull-amount input { flex: 1 1 4rem; min-width: 0; width: 4rem; padding: .3rem .5rem; }
+.gm-hull-amount button { flex: none; }
 .gm-ship-sees { margin: .2rem 0 .5rem; font-size: .9rem; }
 .gm-ship-card .gm-stats { margin-bottom: .5rem; }
 .gm-stone-list { margin: .2rem 0 .5rem; padding-left: 1.2rem; }

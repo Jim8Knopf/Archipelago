@@ -11,7 +11,7 @@ import { makeId, magnitudeOf } from "./rules-calc.js";
 // ---- Hull condition ----
 //
 // Players never see the hull numbers, only one of these words. It goes by
-// the share of max Hull left, since hulls run from 3 (rowboat) to 110
+// the share of max Hull left, since hulls run from 20 (canoe) to 1,100
 // (Man-of-War). `level` 0 is the best; the sheet fills 5 − level of its
 // five bar segments, so the bar steps with the word instead of giving the
 // exact value away.
@@ -72,7 +72,7 @@ export const ITEM_TYPES = ["item", "potion", "armor", "weapon"];
 
 // A ship that isn't in the compendium (a story ship): the GM fills it in.
 export const CUSTOM_TYPE = {
-  key: "custom", name: "Custom ship", de: "", hull: 10, armor: 0, maxSpeed: 4, handling: 1, turnRate: 45,
+  key: "custom", name: "Custom ship", de: "", hull: 100, armor: 1, maxSpeed: 4, handling: 1, turnRate: 45,
   maneuverability: "+0", broadside: "—", chasers: "—", crew: 0, cargo: "", traits: [], price: 0
 };
 

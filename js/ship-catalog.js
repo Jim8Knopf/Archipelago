@@ -9,6 +9,10 @@
 // **Flaws:** lines — the format the book already uses. Ship traits come
 // from the "- **Trait (German)** — text" list in Section 2.1.
 //
+// A picture for a ship type: put the file in rules/ships/ and add a line
+// like ![Sloop](ships/sloop.webp) anywhere in that ship's block (the Rules
+// page shows it too). `image` is that path, relative to rules/.
+//
 // parseShipCatalog() is pure (testable in Node); loadShipCatalog() fetches.
 // ============================================================
 
@@ -63,6 +67,7 @@ function finishShip(ship) {
     cargo,
     traits: /^[—–-]?$/.test(traitsText.trim()) ? [] : traitsText.split(",").map(t => t.trim()).filter(Boolean),
     price: toNumber(row("Price")),
+    image: ship.image,
     description: ship.text.join(" ").trim(),
     benefits: ship.benefits,
     flaws: ship.flaws
@@ -89,10 +94,12 @@ export function parseShipCatalog(md) {
       if (!group) return;
       const t = h[1].match(/^(.*?)\s*\(([^)]+)\)\s*$/);
       const [name, ...alt] = (t ? t[1] : h[1]).split(" / ").map(s => s.trim());
-      ship = { key: slug(name), name, alt: alt.join(" / "), de: t ? t[2].trim() : "", group, groupDe, summary: "", rows: {}, text: [], benefits: "", flaws: "" };
+      ship = { key: slug(name), name, alt: alt.join(" / "), de: t ? t[2].trim() : "", group, groupDe, summary: "", rows: {}, text: [], benefits: "", flaws: "", image: "" };
       return;
     }
     if (!ship || !line || line === "\\page") return;
+    const img = line.match(/^!\[[^\]]*\]\(\s*([^)\s]+)\s*\)$/);
+    if (img) { ship.image = img[1]; return; }
     const r = line.match(/^\|\s*(.+?)\s*\|\s*(.*?)\s*\|$/);
     if (r) {
       if (!/^-+$/.test(r[1]) && r[1].toLowerCase() !== "value") ship.rows[r[1].toLowerCase()] = r[2];

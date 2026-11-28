@@ -48,7 +48,12 @@ page) — nothing is hardcoded per-character, so the sheet stays correct as poin
   Dashboard shows one card per ship the campaign owns (picture, hull, values, hold),
   and the **🛠️ Shipyard** to browse every ship type with search and group filters.
   The types come straight from the Ship Compendium in `rules/ships.md` — add or
-  change a ship there (same heading/table format) and the shipyard has it. The ★ on
+  change a ship there (same heading/table format) and the shipyard has it. A type
+  can have a picture: put the file in `rules/ships/` and add `![Sloop](ships/sloop.webp)`
+  under that ship in `ships.md` (see `rules/ships/README.md`); a ship added from the
+  type gets a copy. Your own ships can get any picture under Edit ship. Hull is on
+  ship scale (rules Section 6.4): about ten times a character's HP, so a dagger
+  can't sink a fishing boat; ship weapons deal ×10. The ★ on
   a ship card makes it **the crew's ship**: that's the one every player's sheet shows. Players see the hull as a word (Perfect condition, A few
   scrapes, A bit damaged, Badly damaged, Barely afloat, Crippled) worked out from the
   share of max Hull left (`js/ship-calc.js`), never the numbers; the GM panel shows
@@ -346,7 +351,7 @@ campaigns/{campaignId}/ships/{shipId}
   name, type, typeName  "Salt Widow", "sloop", "Sloop" (type = the compendium heading
                         slugified by js/ship-catalog.js, or "custom")
   imageUrl:         picture — a stored 16:9 data: URL, or a plain link
-  hullMax, hullCurrent  only the GM screen shows these numbers
+  hullMax, hullCurrent  ship scale (≈ 10× character HP); only the GM screen shows them
   armor, maxSpeed, handling, turnRate (degrees), crew, price   numbers
   maneuverability, broadside, chasers, cargo                    text
   traits:           array of strings

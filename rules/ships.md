@@ -4,7 +4,7 @@
 
 ## 1. Your Ship — Euer Schiff
 
-Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate, no upgrade shopping. A sloop is always a sloop: Hull 14, Armor 1, Max Speed 7, and so on.
+Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate, no upgrade shopping. A sloop is always a sloop: Hull 140, Armor 2, Max Speed 7, and so on.
 
 If a ship ever changes, it's because of the story — a shipwright's favour, a cursed figurehead, a Guard Stone Terminal pried from a wreck (Section 9). The GM decides what changes and writes it on the ship's record:
 
@@ -21,8 +21,8 @@ Captured ships keep their type's values plus any story changes they already had.
 
 | Value | Deutsch | What it does |
 |---|---|---|
-| **Hull** | Rumpf | The ship's HP. At 0 the ship is crippled (Section 6.3). |
-| **Armor** | Panzerung | Flat damage reduction, exactly like personal Armor. |
+| **Hull** | Rumpf | The ship's HP, on ship scale (Section 6.4). At 0 the ship is crippled (Section 6.3). |
+| **Armor** | Panzerung | Flat damage reduction, like personal Armor — ×10 against ship weapons (Section 6.2). |
 | **Max Speed** | Höchstgeschwindigkeit | Highest speed the ship can reach, in m/s (same unit as Movement). |
 | **Handling** | Handling | How much one Speed action can raise or lower speed. |
 | **Turn Rate** | Wendigkeit | How far one Steer action can turn the ship. |
@@ -101,11 +101,13 @@ Use bilingual read-aloud lines like this for moments the whole table needs to re
 
 ## 6. Firing & Damage — Feuern & Schaden
 
-Ship weapons (cannons, ballistae, ship-mounted spells) resolve **exactly like personal combat** (core rules, Section 4):
+Ship weapons (cannons, ballistae, ship-mounted spells) resolve **like personal combat** (core rules, Section 4), on **ship scale**:
 
 1. The gunner rolls their weapon skill.
-2. On a hit, roll the weapon's damage dice.
-3. The degree of success degrades the target's Armor: normal → full, hard → halved, extreme → ignored.
+2. On a hit, roll the weapon's damage dice and **multiply by 10**.
+3. The degree of success degrades the target's Armor (×10, Section 6.2): normal → full, hard → halved, extreme → ignored.
+
+*Example:* a sloop's 2d4 broadside rolls 3 + 2 = 5 → 50 damage. Against another sloop (Armor 2 → 20) on a normal success, 30 Hull comes off its 140.
 
 ### 6.1 Guns — Geschütze
 
@@ -117,20 +119,28 @@ Ship weapons (cannons, ballistae, ship-mounted spells) resolve **exactly like pe
 
 ### 6.2 Defense — Verteidigung
 
-A ship's **Armor** works identically to personal armor — flat subtraction, minimum 1 damage always gets through. Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 9) reduce the magnitude first.
+A ship's **Armor** is flat subtraction, like personal armor. Against **ship weapons** it counts **×10**, and at least 10 damage always gets through. Against **personal** weapons and spells it counts as written, and there is **no minimum** — a blow that doesn't beat the planking does nothing (Section 6.4). Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 9) reduce the magnitude first.
 
 ### 6.3 Hull 0 — Kampfunfähig
 
 At **0 Hull** the ship is crippled: it stops dead in the water, can't fire, and will sink at the end of the fight unless it is repaired back above 0. Damage never takes Hull below 0.
+
+### 6.4 Ship Scale — People against Ships (Schiffsmaßstab)
+
+A ship is tons of oak and pine, not a person: one Hull point is a whole plank, a frame or a stretch of rail. So Hull runs about ten times higher than a character's HP, and ship weapons hit ten times harder (Section 6).
+
+- **Personal weapons and spells** (a dagger, a cutlass, a musket ball, a fireball) roll their usual damage and subtract the ship's plain Armor, with no minimum. A dagger can't hurt a fishing boat; an axe can hack a hole in one given a minute or two; nothing a person carries troubles a man-of-war.
+- **Sinking a small boat by hand** is still possible: it's just a lot of Combat actions with an axe, a crowbar or a hammer, or a fire left to spread — the GM decides how long a fire burns and what it costs.
+- **Ship weapons against people:** guns are aimed at ships. Turning one on a person (grapeshot across a deck, a swivel gun at a boarding party) is the GM's call; a direct hit at ship scale kills anyone.
 
 ## 7. Repair — Reparatur
 
 Reuses the core **First Aid** mechanic (Section 6.3), just renamed. Requires a consumable (spare timber, tar, canvas — *Ersatzholz, Teer, Segeltuch*):
 
 - Fail → no repair, the resource is still used
-- Normal success → repair 1 Hull
-- Hard success → repair 2 Hull
-- Extreme success → repair 4 Hull
+- Normal success → repair 10 Hull
+- Hard success → repair 20 Hull
+- Extreme success → repair 40 Hull
 - Limit: one repair attempt per ship, per character, per fight
 
 Outside combat, a ship in a harbour or shipyard is fully repaired for a price set by the GM.
@@ -185,28 +195,28 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 
 | Ship | Hull | Arm. | Speed | Hand. | Turn | Man. | Broadside | Price |
 |---|---|---|---|---|---|---|---|---|
-| Outrigger Canoe | 2 | 0 | 3 | 2 | 90° | +20 | — | 20 |
-| Rowboat | 3 | 0 | 2 | 1 | 90° | +15 | — | 50 |
-| Pinnace | 5 | 0 | 4 | 2 | 90° | +15 | — | 400 |
-| Longship | 9 | 0 | 8 | 3 | 60° | +10 | — | 1,200 |
-| War Galley | 10 | 1 | 5 | 3 | 90° | +15/−10 | — | 4,000 |
-| Fishing Boat | 4 | 0 | 3 | 1 | 90° | +12 | — | 150 |
-| Fishing Smack | 8 | 0 | 5 | 2 | 60° | +10 | — | 900 |
-| Lighter | 10 | 1 | 1 | 1 | 30° | −15 | — | 600 |
-| Cog | 14 | 2 | 3 | 1 | 30° | −5 | 1d4 | 1,900 |
-| Fluyt | 13 | 1 | 3 | 1 | 30° | −10 | 1d4 | 3,000 |
-| Merchantman | 22 | 2 | 4 | 1 | 45° | −5 | 2d4 | 4,500 |
-| Caravel | 12 | 1 | 4 | 2 | 60° | +10 | 1d4 | 2,400 |
-| Sloop | 14 | 1 | 7 | 2 | 90° | +18 | 2d4 | 2,800 |
-| Schooner | 20 | 1 | 6 | 2 | 60° | +15 | 3d4 | 3,200 |
-| Xebec | 20 | 1 | 6 | 2 | 90° | +15 | 3d4 | 3,600 |
-| Brigantine | 28 | 2 | 4 | 2 | 45° | +5 | 4d4 | 6,000 |
-| Revenue Cutter | 12 | 1 | 7 | 2 | 90° | +15 | 2d4 | 3,400 |
-| Frigate | 50 | 3 | 6 | 2 | 45° | +5 | 5d6 | 18,000 |
-| Man-of-War | 110 | 5 | 4 | 1 | 30° | −18 | 8d8 | 95,000 |
-| Carrack | 40 | 3 | 4 | 1 | 30° | −12 | 4d6 | 15,000 |
-| Galleon | 60 | 4 | 4 | 1 | 30° | −15 | 6d6 | 26,000 |
-| East Indiaman | 48 | 3 | 5 | 1 | 30° | −8 | 5d6 | 38,000 |
+| Outrigger Canoe | 20 | 1 | 3 | 2 | 90° | +20 | — | 20 |
+| Rowboat | 30 | 1 | 2 | 1 | 90° | +15 | — | 50 |
+| Pinnace | 50 | 1 | 4 | 2 | 90° | +15 | — | 400 |
+| Longship | 90 | 1 | 8 | 3 | 60° | +10 | — | 1,200 |
+| War Galley | 100 | 2 | 5 | 3 | 90° | +15/−10 | — | 4,000 |
+| Fishing Boat | 40 | 1 | 3 | 1 | 90° | +12 | — | 150 |
+| Fishing Smack | 80 | 1 | 5 | 2 | 60° | +10 | — | 900 |
+| Lighter | 120 | 2 | 1 | 1 | 30° | −15 | — | 600 |
+| Cog | 150 | 3 | 3 | 1 | 30° | −5 | 1d4 | 1,900 |
+| Fluyt | 130 | 2 | 3 | 1 | 30° | −10 | 1d4 | 3,000 |
+| Merchantman | 220 | 3 | 4 | 1 | 45° | −5 | 2d4 | 4,500 |
+| Caravel | 120 | 2 | 4 | 2 | 60° | +10 | 1d4 | 2,400 |
+| Sloop | 140 | 2 | 7 | 2 | 90° | +18 | 2d4 | 2,800 |
+| Schooner | 180 | 2 | 6 | 2 | 60° | +15 | 3d4 | 3,200 |
+| Xebec | 170 | 2 | 6 | 2 | 90° | +15 | 3d4 | 3,600 |
+| Brigantine | 260 | 3 | 4 | 2 | 45° | +5 | 4d4 | 6,000 |
+| Revenue Cutter | 130 | 2 | 7 | 2 | 90° | +15 | 2d4 | 3,400 |
+| Frigate | 450 | 4 | 6 | 2 | 45° | +5 | 5d6 | 18,000 |
+| Man-of-War | 1,100 | 6 | 4 | 1 | 30° | −18 | 8d8 | 95,000 |
+| Carrack | 400 | 4 | 4 | 1 | 30° | −12 | 4d6 | 15,000 |
+| Galleon | 600 | 5 | 4 | 1 | 30° | −15 | 6d6 | 26,000 |
+| East Indiaman | 480 | 4 | 5 | 1 | 30° | −8 | 5d6 | 38,000 |
 
 ## 11. Boats & Oared Ships — Boote & Ruderschiffe
 
@@ -215,7 +225,7 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 
 | Value | |
 |---|---|
-| Hull / Armor | 2 / 0 |
+| Hull / Armor | 20 / 1 |
 | Max Speed / Handling / Turn Rate | 3 / 2 / 90° |
 | Maneuverability | +20 |
 | Broadside / Chasers | — / — |
@@ -233,7 +243,7 @@ Paddled, or sailed with a small crab-claw sail, the outrigger is how island folk
 
 | Value | |
 |---|---|
-| Hull / Armor | 3 / 0 |
+| Hull / Armor | 30 / 1 |
 | Max Speed / Handling / Turn Rate | 2 / 1 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | — / — |
@@ -251,7 +261,7 @@ Every larger ship carries one or two of these as a tender, for landing parties, 
 
 | Value | |
 |---|---|
-| Hull / Armor | 5 / 0 |
+| Hull / Armor | 50 / 1 |
 | Max Speed / Handling / Turn Rate | 4 / 2 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | — / Swivel gun 1d4 (bow) |
@@ -269,7 +279,7 @@ Larger ships carry a pinnace for cutting-out raids, scouting shoals and carrying
 
 | Value | |
 |---|---|
-| Hull / Armor | 9 / 0 |
+| Hull / Armor | 90 / 1 |
 | Max Speed / Handling / Turn Rate | 8 / 3 / 60° |
 | Maneuverability | +10 (−10 in storms or high seas) |
 | Broadside / Chasers | — / — (spears, axes, bows) |
@@ -287,7 +297,7 @@ A long, shallow, double-ended hull that can land on a beach or slip up a river a
 
 | Value | |
 |---|---|
-| Hull / Armor | 10 / 1 |
+| Hull / Armor | 100 / 2 |
 | Max Speed / Handling / Turn Rate | 5 / 3 / 90° |
 | Maneuverability | +15 in calm/coastal water, −10 on open sea or in storms |
 | Broadside / Chasers | — / Ballista 1d8 (bow, rotates) |
@@ -309,7 +319,7 @@ Built for speed and precision rather than durability, the war galley trades carg
 
 | Value | |
 |---|---|
-| Hull / Armor | 4 / 0 |
+| Hull / Armor | 40 / 1 |
 | Max Speed / Handling / Turn Rate | 3 / 1 / 90° |
 | Maneuverability | +12 |
 | Broadside / Chasers | — / — |
@@ -327,7 +337,7 @@ One mast, a few oars, nets and a fish well: out at dawn, back by dusk. Nobody lo
 
 | Value | |
 |---|---|
-| Hull / Armor | 8 / 0 |
+| Hull / Armor | 80 / 1 |
 | Max Speed / Handling / Turn Rate | 5 / 2 / 60° |
 | Maneuverability | +10 |
 | Broadside / Chasers | — / — |
@@ -345,7 +355,7 @@ Built to work the banks in any weather and race home with the catch, the smack i
 
 | Value | |
 |---|---|
-| Hull / Armor | 10 / 1 |
+| Hull / Armor | 120 / 2 |
 | Max Speed / Handling / Turn Rate | 1 / 1 / 30° |
 | Maneuverability | −15 |
 | Broadside / Chasers | — / — |
@@ -367,7 +377,7 @@ Where there is no quay, cargo goes ashore by lighter: a broad, flat, heavy barge
 
 | Value | |
 |---|---|
-| Hull / Armor | 14 / 2 |
+| Hull / Armor | 150 / 3 |
 | Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
 | Maneuverability | −5 |
 | Broadside / Chasers | 1d4 / — |
@@ -385,7 +395,7 @@ A round-hulled, flat-bottomed trader built to move as much cargo as possible wit
 
 | Value | |
 |---|---|
-| Hull / Armor | 13 / 1 |
+| Hull / Armor | 130 / 2 |
 | Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
 | Maneuverability | −10 |
 | Broadside / Chasers | 1d4 / — |
@@ -403,7 +413,7 @@ Purpose-built to haul the most cargo for the least money, the fluyt's pear-shape
 
 | Value | |
 |---|---|
-| Hull / Armor | 22 / 2 |
+| Hull / Armor | 220 / 3 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 45° |
 | Maneuverability | −5 |
 | Broadside / Chasers | 2d4 / — |
@@ -425,7 +435,7 @@ The ship that carries most of the world's trade — nothing special to look at, 
 
 | Value | |
 |---|---|
-| Hull / Armor | 12 / 1 |
+| Hull / Armor | 120 / 2 |
 | Max Speed / Handling / Turn Rate | 4 / 2 / 60° |
 | Maneuverability | +10 |
 | Broadside / Chasers | 1d4 / — |
@@ -443,7 +453,7 @@ Small, cheap and easy to handle, the caravel's lateen sails let it work close to
 
 | Value | |
 |---|---|
-| Hull / Armor | 14 / 1 |
+| Hull / Armor | 140 / 2 |
 | Max Speed / Handling / Turn Rate | 7 / 2 / 90° |
 | Maneuverability | +18 |
 | Broadside / Chasers | 2d4 / — |
@@ -461,7 +471,7 @@ Fast, shallow and worked entirely from the deck, the sloop was the first ship of
 
 | Value | |
 |---|---|
-| Hull / Armor | 20 / 1 |
+| Hull / Armor | 180 / 2 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 60° |
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / — |
@@ -479,7 +489,7 @@ The sloop's speed and shallow draft with a bit more cargo and gun capacity — s
 
 | Value | |
 |---|---|
-| Hull / Armor | 20 / 1 |
+| Hull / Armor | 170 / 2 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / 1d4 bow |
@@ -497,7 +507,7 @@ A favourite of corsairs, the xebec combines a galley's independence from the win
 
 | Value | |
 |---|---|
-| Hull / Armor | 28 / 2 |
+| Hull / Armor | 260 / 3 |
 | Max Speed / Handling / Turn Rate | 4 / 2 / 45° |
 | Maneuverability | +5 |
 | Broadside / Chasers | 4d4 / 1d4 bow, 1d4 stern |
@@ -519,7 +529,7 @@ A true jack-of-all-trades: enough cargo to trade, enough guns to fight, enough c
 
 | Value | |
 |---|---|
-| Hull / Armor | 12 / 1 |
+| Hull / Armor | 130 / 2 |
 | Max Speed / Handling / Turn Rate | 7 / 2 / 90° |
 | Maneuverability | +15 |
 | Broadside / Chasers | 2d4 / 1d4 bow |
@@ -537,7 +547,7 @@ A single huge sail plan on a small, sharp hull: the cutter is built to catch slo
 
 | Value | |
 |---|---|
-| Hull / Armor | 50 / 3 |
+| Hull / Armor | 450 / 4 |
 | Max Speed / Handling / Turn Rate | 6 / 2 / 45° |
 | Maneuverability | +5 |
 | Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
@@ -555,7 +565,7 @@ Fast enough to chase down almost anything smaller and armed to outfight almost a
 
 | Value | |
 |---|---|
-| Hull / Armor | 110 / 5 |
+| Hull / Armor | 1,100 / 6 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −18 |
 | Broadside / Chasers | 8d8 / 2d6 bow, 2d6 stern |
@@ -577,7 +587,7 @@ A floating fortress whose broadside ends most fights before they start. Ordinary
 
 | Value | |
 |---|---|
-| Hull / Armor | 40 / 3 |
+| Hull / Armor | 400 / 4 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −12 |
 | Broadside / Chasers | 4d6 / 1d4 bow |
@@ -597,7 +607,7 @@ High-sided, round-bellied and built for endurance, the carrack survives months a
 
 | Value | |
 |---|---|
-| Hull / Armor | 60 / 4 |
+| Hull / Armor | 600 / 5 |
 | Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
 | Maneuverability | −15 |
 | Broadside / Chasers | 6d6 / 2d4 bow, 1d4 stern |
@@ -615,7 +625,7 @@ Built to haul a kingdom's treasure across an ocean, the galleon carries enormous
 
 | Value | |
 |---|---|
-| Hull / Armor | 48 / 3 |
+| Hull / Armor | 480 / 4 |
 | Max Speed / Handling / Turn Rate | 5 / 1 / 30° |
 | Maneuverability | −8 |
 | Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
