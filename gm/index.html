@@ -48,6 +48,26 @@
 
     <div id="char-list" class="gm-party"></div>
 
+    <!-- Ships (gm/gm-ship.js): one card per ship the campaign owns, like
+         the character cards. The ★ on a card makes it the crew's ship —
+         the one every player's sheet shows. -->
+    <div class="gm-section-head">
+      <h2 id="fleet-heading">Ships</h2>
+      <span class="muted" id="crew-ship-note"></span>
+      <button type="button" class="small brass" id="open-shipyard-btn">+ Add a ship</button>
+    </div>
+    <div id="fleet" class="gm-party"></div>
+
+    <details class="card gm-fold" id="shipyard">
+      <summary><h3 class="gm-fold-title">🛠️ Shipyard</h3></summary>
+      <p class="muted">Every ship type in the Ship Rules' compendium. “Add to fleet” copies its values into a new ship at full Hull — change anything afterwards with Edit ship. Each type is one file in <code>rules/ships/</code> (see its README) — the only place its values live, so a corrected type changes every ship of that type. A ship stores only its story changes.</p>
+      <div class="shipyard-tools">
+        <input type="search" id="shipyard-filter" placeholder="Search ship types… e.g. fishing, oars, shallow" aria-label="Search ship types">
+        <div class="hold-chips" id="shipyard-chips" role="group" aria-label="Show group"></div>
+      </div>
+      <div id="shipyard-grid" class="gm-party shipyard-grid"></div>
+    </details>
+
     <details class="card gm-fold" id="spellbook-card">
       <summary><h3 class="gm-fold-title">📖 Spellbook</h3></summary>
       <p class="muted">Every spell known by everyone at the table, with the player's notes.</p>

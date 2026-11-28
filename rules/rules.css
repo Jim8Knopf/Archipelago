@@ -38,6 +38,7 @@ main.rules-main {
 
 .book-tabs {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem;
   margin: 0 0 1.25rem;
@@ -339,3 +340,25 @@ main.rules-main {
     break-after: page;
   }
 }
+
+/* Pictures in the books (e.g. ship types: ![Sloop](ships/sloop.webp)). */
+.phb-page img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: .5rem auto;
+  border-radius: 4px;
+}
+
+/* ---------- Ship Gallery (?book=gallery) ----------
+   The ship type cards from js/ship-cards.js (styled in css/style.css),
+   in a wide grid instead of book pages. */
+.rules-book.ship-gallery {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.ship-gallery-head { color: var(--parchment); margin-bottom: 1rem; }
+.ship-gallery-head h1 { margin: 0 0 .3rem; }
+.ship-gallery-head p { margin: 0 0 .8rem; color: var(--parchment-dk); }
+.ship-gallery .shipyard-card { scroll-margin-top: 1rem; }

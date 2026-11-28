@@ -360,10 +360,30 @@
       </details>
       </div>
 
+      <!-- The crew's ship: whichever ship the GM made active. Shared by
+           every character in the campaign. Players see the hull as a word
+           (js/ship-calc.js), never as numbers. -->
+      <div class="sheet-section" data-section="ship">
+      <details class="card shared-section" open id="ship-section">
+        <summary><h3 style="display:inline;">⛵ Ship</h3></summary>
+        <div id="ship-status"></div>
+      </details>
+      </div>
+
+      <div class="sheet-section" data-section="hold">
+      <details class="card shared-section" open id="hold-section">
+        <summary><h3 style="display:inline;">📦 Ship's hold</h3></summary>
+        <p class="muted">Shared with the whole crew. Put things in with ⛵ in your Inventory, take them out with Take.</p>
+        <div id="hold-container"></div>
+      </details>
+      </div>
+
       <div class="status-msg" id="sheet-status"></div>
     </div>
 
   </main>
+
+  <div class="gm-toast" id="ship-toast" role="status" aria-live="polite"></div>
 
   <footer class="foot">Fair winds. ⚓</footer>
 

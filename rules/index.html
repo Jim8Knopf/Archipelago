@@ -19,7 +19,9 @@
     <nav id="site-nav"></nav>
   </header>
 
-  <!-- Two books: rules.md (core rules, default) and ships.md (?book=ships).
+  <!-- Two books: rules.md (core rules, default) and ships.md (?book=ships),
+       plus the Ship Gallery (?book=gallery): the ship type files in
+       rules/ships/ as cards.
        The text is Homebrewery-flavoured Markdown:
        \page starts a new page, \column a new column, {{note ... }} a note
        box). rules.js fetches and renders it into the book pages below. -->
@@ -27,6 +29,7 @@
     <nav class="book-tabs" id="book-tabs" aria-label="Rulebooks">
       <a href="./" data-book="core">Core Rules</a>
       <a href="?book=ships" data-book="ships">Ship Rules</a>
+      <a href="?book=gallery" data-book="gallery">Ship Gallery</a>
     </nav>
     <div id="rules-book" class="rules-book">
       <p class="rules-status">Unrolling the scrolls…</p>

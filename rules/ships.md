@@ -4,9 +4,11 @@
 
 ## 1. Your Ship — Euer Schiff
 
-Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate, no upgrade shopping. A sloop is always a sloop: Hull 14, Armor 1, Max Speed 7, and so on.
+Ships are **not built with points**. The GM hands the crew a ship of one of the types in the Ship Compendium (Part III), and it comes with that type's **fixed values** — no ranges, no rolling, nothing to calculate, no upgrade shopping. A sloop is always a sloop: every sloop has the same Hull, Armor, speed and guns, and they are the ones in the compendium.
 
-If a ship ever changes, it's because of the story — a shipwright's favour, a cursed figurehead, a Guard Stone Terminal pried from a wreck (Section 9). The GM decides what changes and writes it on the ship's record:
+The compendium is the only place those values live. A ship keeps following its type: if a type's values are corrected, every ship of that type changes with them.
+
+If a ship ever changes, it's because of the story — a shipwright's favour, a cursed figurehead, a Guard Stone Terminal pried from a wreck (Section 9). The GM writes it on the ship's record; a story change replaces just that one value, and everything else still comes from the type:
 
 | Ship Record | |
 |---|---|
@@ -21,8 +23,8 @@ Captured ships keep their type's values plus any story changes they already had.
 
 | Value | Deutsch | What it does |
 |---|---|---|
-| **Hull** | Rumpf | The ship's HP. At 0 the ship is crippled (Section 6.3). |
-| **Armor** | Panzerung | Flat damage reduction, exactly like personal Armor. |
+| **Hull** | Rumpf | The ship's HP (Section 6.4). At 0 the ship is crippled (Section 6.3). |
+| **Armor** | Panzerung | The planking: flat damage reduction like personal Armor, but with no minimum damage (Section 6.2). |
 | **Max Speed** | Höchstgeschwindigkeit | Highest speed the ship can reach, in m/s (same unit as Movement). |
 | **Handling** | Handling | How much one Speed action can raise or lower speed. |
 | **Turn Rate** | Wendigkeit | How far one Steer action can turn the ship. |
@@ -36,7 +38,7 @@ Captured ships keep their type's values plus any story changes they already had.
 
 **Crew** numbers are for the story, pay and provisions. In ship combat only **named characters** (PCs and important NPCs) take actions — nobody tracks 180 sailors.
 
-**Cargo** doesn't replace the core rule that ship storage is "effectively unlimited, within reason" — it just tells the GM how reasonable "within reason" is for this hull.
+**Cargo** doesn't replace the core rule that ship storage is "effectively unlimited, within reason" — it just tells the GM how reasonable "within reason" is for this hull. What is actually aboard goes in the ship's hold (on the Character Sheet and the GM Dashboard); Cargo is the sanity check on how much of it fits.
 
 ### 2.1 Ship Traits — Schiffseigenschaften
 
@@ -44,6 +46,7 @@ Captured ships keep their type's values plus any story changes they already had.
 - **Shallow Draft (Geringer Tiefgang)** — can enter rivers, shallows and reefs that ships without this trait can't follow into.
 - **High Sides (Hohe Bordwand)** — boarding attempts against this ship take a **−20** malus.
 - **Ram (Rammsporn)** — built for ramming. Ramming rules are on hold and will be added later.
+- **Weatherly (Hoch am Wind)** — fore-and-aft or lateen sails that work close to the wind: while **Beating** (Section 4), speed is capped at **2** instead of 1.
 
 \page
 
@@ -77,7 +80,7 @@ Track wind direction on the map with a simple arrow. It affects **speed**, not s
 | **Reaching** (wind at an angle) | Halbwind | No modifier |
 | **Beating** (wind ahead) | Gegen den Wind | Speed capped at 1, regardless of Handling |
 
-The running bonus is the only thing that pushes a ship past its Max Speed. A ship stuck beating into the wind can still turn freely to change its point of sail — that's the way out. Ships with **Oars** ignore the Beating cap while rowing.
+The running bonus is the only thing that pushes a ship past its Max Speed. A ship stuck beating into the wind can still turn freely to change its point of sail — that's the way out. Ships with **Oars** ignore the Beating cap while rowing; **Weatherly** ships are capped at 2 instead of 1.
 
 {{note
 #### GM Cue — Ansage des Spielleiters
@@ -106,30 +109,40 @@ Ship weapons (cannons, ballistae, ship-mounted spells) resolve **exactly like pe
 2. On a hit, roll the weapon's damage dice.
 3. The degree of success degrades the target's Armor: normal → full, hard → halved, extreme → ignored.
 
+*Example:* a 3d8 broadside rolls 5 + 4 + 6 = 15. Against a ship with Armor 3 on a normal success, 12 Hull comes off; on a hard success (Armor halved to 1) 14.
+
 ### 6.1 Guns — Geschütze
 
-- **Each die is one gun battery.** A broadside of 4d6 is four dice, not one bigger die — every battery is on the table. Small ships use smaller dice rather than fewer dice.
+- **Each die is one gun battery,** and the die is the weight of its guns: **d8** light guns, **d10** medium guns, **d12** heavy guns. A broadside of 7d12 is seven batteries of heavy guns — every battery is on the table.
 - **Broadside (Breitseite)** guns fire only to their own side, at full strength.
-- **Chasers (Jagdkanonen)** are one die size smaller (never below d4) but rotate to fire in any direction.
+- **Chasers (Jagdkanonen)** are one die size smaller (never below d6, a swivel gun) but rotate to fire in any direction.
 - **Direction is the gunner's choice, not the ship's.** Firing is a personal Combat/Free action: the character who fires picks the target. The ship's facing only limits which guns point that way.
 - One firing action fires **one** broadside (one side) or **one** chaser.
 
 ### 6.2 Defense — Verteidigung
 
-A ship's **Armor** works identically to personal armor — flat subtraction, minimum 1 damage always gets through. Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 9) reduce the magnitude first.
+A ship's **Armor** is its planking: flat subtraction, like personal armor, halved on a hard success and ignored on an extreme one. Unlike personal armor there is **no minimum damage** — a hit that doesn't beat the planking does nothing (Section 6.4). That is what keeps a sloop's light guns from ever sinking a man-of-war. Ships do not use Evasion or Resilience; avoiding fire is handled through steering, not a defense roll. Against ship-mounted spells, **Guard Stones** (Section 9) reduce the magnitude first.
 
 ### 6.3 Hull 0 — Kampfunfähig
 
 At **0 Hull** the ship is crippled: it stops dead in the water, can't fire, and will sink at the end of the fight unless it is repaired back above 0. Damage never takes Hull below 0.
+
+### 6.4 People against Ships — Menschen gegen Schiffe
+
+A ship is tons of oak and pine, not a person. Its Armor (the planking) is thick enough that most personal weapons never get through it, and with no minimum damage (Section 6.2) a blow that doesn't is simply wasted.
+
+- **Personal weapons and spells** (a dagger, a cutlass, a musket ball, a fireball) roll their usual damage against the ship's Armor. A dagger can't hurt a fishing boat; an axe hacks a hole in one in a few rounds; nothing a person carries troubles a man-of-war. Only the strongest magic dents a real ship.
+- **Sinking a small boat by hand** takes many Combat actions with an axe, a crowbar or a hammer — or a fire left to spread, which the GM runs as a hazard (how long it burns, what it costs).
+- **Ship weapons against people:** guns are aimed at ships. Turning one on a person (grapeshot across a deck, a swivel gun at a boarding party) is the GM's call; a direct hit kills anyone.
 
 ## 7. Repair — Reparatur
 
 Reuses the core **First Aid** mechanic (Section 6.3), just renamed. Requires a consumable (spare timber, tar, canvas — *Ersatzholz, Teer, Segeltuch*):
 
 - Fail → no repair, the resource is still used
-- Normal success → repair 1 Hull
-- Hard success → repair 2 Hull
-- Extreme success → repair 4 Hull
+- Normal success → repair 4 Hull
+- Hard success → repair 8 Hull
+- Extreme success → repair 16 Hull
 - Limit: one repair attempt per ship, per character, per fight
 
 Outside combat, a ship in a harbour or shipyard is fully repaired for a price set by the GM.
@@ -178,333 +191,6 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 
 # Part III — Ship Compendium / Schiffskompendium
 
-*Sixteen ship types from oar-driven antiquity to the Golden Age of Sail, sorted from small to large within each group. All values are fixed and mundane — no ship comes with a Guard Stone Terminal.*
+*Ship types from an outrigger canoe and a fishing boat to the Golden Age's great men-of-war, sorted from small to large within each group. All values are fixed and mundane — no ship comes with a Guard Stone Terminal. Every type lives in its own file in `rules/ships/`; this compendium, the Ship Gallery and the GM's shipyard are all built from those files.*
 
-## 10. Quick Reference
-
-| Ship | Hull | Arm. | Speed | Hand. | Turn | Man. | Broadside | Price |
-|---|---|---|---|---|---|---|---|---|
-| Rowboat | 3 | 0 | 2 | 1 | 90° | +15 | — | 50 |
-| Longship | 9 | 0 | 8 | 3 | 60° | +10 | — | 1,200 |
-| War Galley | 10 | 1 | 5 | 3 | 90° | +15/−10 | — | 4,000 |
-| Cog | 14 | 2 | 3 | 1 | 30° | −5 | 1d4 | 1,900 |
-| Fluyt | 13 | 1 | 3 | 1 | 30° | −10 | 1d4 | 3,000 |
-| Merchantman | 22 | 2 | 4 | 1 | 45° | −5 | 2d4 | 7,000 |
-| Caravel | 12 | 1 | 4 | 2 | 60° | +10 | 1d4 | 2,400 |
-| Sloop | 14 | 1 | 7 | 2 | 90° | +18 | 2d4 | 2,800 |
-| Schooner | 20 | 1 | 6 | 2 | 60° | +15 | 3d4 | 3,200 |
-| Xebec | 20 | 1 | 6 | 2 | 90° | +15 | 3d4 | 3,600 |
-| Brigantine | 28 | 2 | 4 | 2 | 45° | +5 | 4d4 | 6,000 |
-| Frigate | 50 | 3 | 6 | 2 | 45° | +5 | 5d6 | 18,000 |
-| Man-of-War | 110 | 5 | 4 | 1 | 30° | −18 | 8d8 | 95,000 |
-| Carrack | 40 | 3 | 4 | 1 | 30° | −12 | 4d6 | 15,000 |
-| Galleon | 60 | 4 | 4 | 1 | 30° | −15 | 6d6 | 26,000 |
-| East Indiaman | 48 | 3 | 5 | 1 | 30° | −8 | 5d6 | 38,000 |
-
-## 11. Boats & Oared Ships — Boote & Ruderschiffe
-
-### Rowboat / Jolly Boat (Ruderboot)
-*Ancient through present — the boat every other ship carries.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 3 / 0 |
-| Max Speed / Handling / Turn Rate | 2 / 1 / 90° |
-| Maneuverability | +15 |
-| Broadside / Chasers | — / — |
-| Crew / Cargo | 4 / 0.3 t |
-| Traits | Oars, Shallow Draft |
-| Price | 50 Dbl. |
-
-Every larger ship carries one or two of these as a tender, for landing parties, ferrying supplies, or a quiet approach a lookout won't spot. It has no role in ship-to-ship combat.
-
-**Benefits:** costs almost nothing and needs no trained crew; silent approach with no sails to spot; fits aboard a larger ship.
-**Flaws:** no cargo or armament to speak of; a stiff wave can swamp it; useless in open ocean or rough seas.
-
-### Viking-Style Longship (Langschiff)
-*Ancient/early medieval raider.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 9 / 0 |
-| Max Speed / Handling / Turn Rate | 8 / 3 / 60° |
-| Maneuverability | +10 (−10 in storms or high seas) |
-| Broadside / Chasers | — / — (spears, axes, bows) |
-| Crew / Cargo | 40 / 15 t |
-| Traits | Oars, Shallow Draft |
-| Price | 1,200 Dbl. |
-
-A long, shallow, double-ended hull that can land on a beach or slip up a river as easily as it crosses open water. Oars give it a burst of speed no pure sailing ship can match when the wind dies.
-
-**Benefits:** reaches rivers and beaches no larger ship can follow; moves in a dead calm; a huge crew for its size makes it a strong boarding platform.
-**Flaws:** open deck with no shelter from weather or fire; very little cargo space; thin hull and low sides perform badly in storms.
-
-### War Galley (Kriegsgaleere)
-*Trireme/penteconter style — the classic Mediterranean warship.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 10 / 1 |
-| Max Speed / Handling / Turn Rate | 5 / 3 / 90° |
-| Maneuverability | +15 in calm/coastal water, −10 on open sea or in storms |
-| Broadside / Chasers | — / Ballista 1d8 (bow, rotates) |
-| Crew / Cargo | 120 / 15 t |
-| Traits | Oars, Ram |
-| Price | 4,000 Dbl. |
-
-Built for speed and precision rather than durability, the war galley trades cargo and open-ocean resilience for a devastating ram and unmatched short-range agility. It's at its best hugging a coastline in fair weather.
-
-**Benefits:** the bronze ram; independent of wind; exceptional agility in sheltered water; a large marine complement for boarding.
-**Flaws:** poor seaworthiness away from the coast; an enormous crew of mostly non-combatant rowers; almost no cargo room.
-
-\page
-
-## 12. Traders — Handelsschiffe
-
-### Cog (Kogge)
-*Medieval merchant workhorse of the northern seas.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 14 / 2 |
-| Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
-| Maneuverability | −5 |
-| Broadside / Chasers | 1d4 / — |
-| Crew / Cargo | 12 / 120 t |
-| Traits | High Sides |
-| Price | 1,900 Dbl. |
-
-A round-hulled, flat-bottomed trader built to move as much cargo as possible with as small a crew as possible. Slow and clumsy, but its high sides make it a hard ship to board.
-
-**Benefits:** cheap and simple to sail; excellent cargo-to-crew ratio; hard for small raiders to board.
-**Flaws:** painfully slow; barely armed; a single mast means no backup if the rigging is damaged.
-
-### Fluyt (Fleute)
-*Dutch cargo specialist — huge hold, tiny crew.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 13 / 1 |
-| Max Speed / Handling / Turn Rate | 3 / 1 / 30° |
-| Maneuverability | −10 |
-| Broadside / Chasers | 1d4 / — |
-| Crew / Cargo | 15 / 280 t |
-| Traits | Shallow Draft |
-| Price | 3,000 Dbl. |
-
-Purpose-built to haul the most cargo for the least money, the fluyt's pear-shaped hull and clever rigging let a handful of sailors manage a hold most ships would need triple the crew for. It was never meant to fight.
-
-**Benefits:** best cargo-to-crew ratio of any ship here; cheap to run; reaches minor ports other cargo ships can't.
-**Flaws:** nearly unarmed; slow and clumsy; a huge, lightly defended hold makes it a favourite target.
-
-### Merchantman (Kauffahrer)
-*The everyday prize — plain, common, and exactly what most trade routes look like.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 22 / 2 |
-| Max Speed / Handling / Turn Rate | 4 / 1 / 45° |
-| Maneuverability | −5 |
-| Broadside / Chasers | 2d4 / — |
-| Crew / Cargo | 25 / 200 t |
-| Traits | — |
-| Price | 7,000 Dbl. |
-
-The ship that carries most of the world's trade — nothing special to look at, armed just enough to make a lone raider think twice. The bread-and-butter target for a crew looking for a reliable payday.
-
-**Benefits:** there's always another one on the horizon; predictable cargo and defences; cheap to refit if captured intact.
-**Flaws:** a decent payday, not a legendary one; folds quickly against a determined attacker; can't run from anything.
-
-\page
-
-## 13. Raiders — Kaperschiffe
-
-### Caravel (Karavelle)
-*Age-of-Exploration scout and light trader.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 12 / 1 |
-| Max Speed / Handling / Turn Rate | 4 / 2 / 60° |
-| Maneuverability | +10 |
-| Broadside / Chasers | 1d4 / — |
-| Crew / Cargo | 20 / 70 t |
-| Traits | Shallow Draft |
-| Price | 2,400 Dbl. |
-
-Small, cheap and easy to handle, the caravel's lateen sails let it work close to the wind — a rare trick among older ship types. It scouts coastlines and river mouths bigger ships can't approach.
-
-**Benefits:** explores where larger ships can't; sails well against the wind; cheap, with a small capable crew.
-**Flaws:** small hold; light frame and weak guns; cramped on long voyages.
-
-### Sloop (Slup)
-*The quintessential pirate raider.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 14 / 1 |
-| Max Speed / Handling / Turn Rate | 7 / 2 / 90° |
-| Maneuverability | +18 |
-| Broadside / Chasers | 2d4 / — |
-| Crew / Cargo | 30 / 85 t |
-| Traits | Shallow Draft |
-| Price | 2,800 Dbl. |
-
-Fast, shallow and worked entirely from the deck, the sloop was the first ship of nearly every Golden Age pirate. It outruns almost anything bigger and vanishes into water no warship dares follow.
-
-**Benefits:** best speed and agility among common ships; reaches hideouts warships can't; a small skilled crew suffices.
-**Flaws:** modest cargo and guns; a thin hull struggles against a heavy broadside; it wins by not getting hit.
-
-### Schooner (Schoner)
-*Fast, fore-and-aft rigged all-rounder.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 20 / 1 |
-| Max Speed / Handling / Turn Rate | 6 / 2 / 60° |
-| Maneuverability | +15 |
-| Broadside / Chasers | 3d4 / — |
-| Crew / Cargo | 30 / 95 t |
-| Traits | Shallow Draft |
-| Price | 3,200 Dbl. |
-
-The sloop's speed and shallow draft with a bit more cargo and gun capacity — strong for raiding, smuggling and running blockades alike.
-
-**Benefits:** nearly sloop-level agility with more guns; suits smuggling and coastal raids; two masts give redundancy.
-**Flaws:** more rigging to maintain; outgunned by any real warship; thin hull.
-
-### Xebec (Xebeke)
-*Corsair hybrid of galley and lateen-rigged sailer.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 20 / 1 |
-| Max Speed / Handling / Turn Rate | 6 / 2 / 90° |
-| Maneuverability | +15 |
-| Broadside / Chasers | 3d4 / 1d4 bow |
-| Crew / Cargo | 35 / 100 t |
-| Traits | Oars |
-| Price | 3,600 Dbl. |
-
-A favourite of corsairs, the xebec combines a galley's independence from the wind with a fast sailing rig, giving it legendary agility for hit-and-run raids on merchant shipping.
-
-**Benefits:** oars plus real sailing speed; superb agility; a fair balance of cargo and guns.
-**Flaws:** needs oarsmen and sailors; less cargo than a trader; can't out-row a true war galley.
-
-### Brigantine (Brigantine)
-*Balanced two-masted workhorse.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 28 / 2 |
-| Max Speed / Handling / Turn Rate | 4 / 2 / 45° |
-| Maneuverability | +5 |
-| Broadside / Chasers | 4d4 / 1d4 bow, 1d4 stern |
-| Crew / Cargo | 60 / 200 t |
-| Traits | — |
-| Price | 6,000 Dbl. |
-
-A true jack-of-all-trades: enough cargo to trade, enough guns to fight, enough crew to do both. Many successful captains "graduate" from a sloop into a brigantine.
-
-**Benefits:** strong balance of speed, cargo and guns; durable enough for long campaigns; a prestigious step up.
-**Flaws:** less nimble than a sloop or schooner; needs a sizeable crew; costlier to maintain.
-
-\page
-
-## 14. Warships — Kriegsschiffe
-
-### Frigate (Fregatte)
-*Fast, heavily armed warship.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 50 / 3 |
-| Max Speed / Handling / Turn Rate | 6 / 2 / 45° |
-| Maneuverability | +5 |
-| Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
-| Crew / Cargo | 220 / 65 t free hold |
-| Traits | — |
-| Price | 18,000 Dbl. |
-
-Fast enough to chase down almost anything smaller and armed to outfight almost anything bigger — the closest thing to an ideal warship, and the traditional flagship of a truly successful pirate captain.
-
-**Benefits:** heavy guns with real speed; catches smaller ships, outruns bigger ones; a flagship of renown.
-**Flaws:** expensive to buy and keep; a large crew to recruit and pay; a very obvious target.
-
-### Man-of-War / Ship of the Line (Linienschiff)
-*The largest and most heavily armed vessel afloat.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 110 / 5 |
-| Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
-| Maneuverability | −18 |
-| Broadside / Chasers | 8d8 / 2d6 bow, 2d6 stern |
-| Crew / Cargo | 600 / 100 t free hold |
-| Traits | High Sides |
-| Price | 95,000 Dbl. |
-
-A floating fortress whose broadside ends most fights before they start. Ordinary pirates never own one — they're state property, and capturing one is the stuff of legend.
-
-**Benefits:** overwhelming firepower; the most Hull of any ship; terrifying on sight.
-**Flaws:** essentially unattainable; slow and clumsy; upkeep far beyond a normal crew's means.
-
-*Warship cargo is free hold space only — most of the tonnage is guns, powder and crew.*
-
-## 15. Great Haulers — Große Frachtschiffe
-
-### Carrack (Karacke)
-*The lumbering long-hauler that came before the galleon.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 40 / 3 |
-| Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
-| Maneuverability | −12 |
-| Broadside / Chasers | 4d6 / 1d4 bow |
-| Crew / Cargo | 90 / 450 t |
-| Traits | High Sides |
-| Price | 15,000 Dbl. |
-
-High-sided, round-bellied and built for endurance, the carrack survives months at sea but is top-heavy and slow to answer the helm. A well-loaded carrack is a genuinely rich prize.
-
-**Benefits:** a very sturdy hull for its era; hard to board; substantial cargo and fair defences in one hull.
-**Flaws:** top-heavy and slow to turn; cramped crew quarters; a sloop can pick the terms of any fight.
-
-\page
-
-### Galleon (Galeone)
-*Massive treasure and trade ship.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 60 / 4 |
-| Max Speed / Handling / Turn Rate | 4 / 1 / 30° |
-| Maneuverability | −15 |
-| Broadside / Chasers | 6d6 / 2d4 bow, 1d4 stern |
-| Crew / Cargo | 180 / 700 t |
-| Traits | High Sides |
-| Price | 26,000 Dbl. |
-
-Built to haul a kingdom's treasure across an ocean, the galleon carries enormous cargo and enough guns to make most attackers think twice — but it turns like a barn door and can't outrun a determined pursuer.
-
-**Benefits:** a massive hold; heavy guns; high sides and a sterncastle against boarders.
-**Flaws:** easy to out-turn; slow; huge upkeep; a magnet for pirates and pirate-hunters alike.
-
-### East Indiaman (Ostindienfahrer)
-*The big prize — rich cargo, real teeth, and a fight worth planning for.*
-
-| Value | |
-|---|---|
-| Hull / Armor | 48 / 3 |
-| Max Speed / Handling / Turn Rate | 5 / 1 / 30° |
-| Maneuverability | −8 |
-| Broadside / Chasers | 5d6 / 1d4 bow, 1d4 stern |
-| Crew / Cargo | 120 / 1,000 t |
-| Traits | High Sides |
-| Price | 38,000 Dbl. |
-
-Built to haul immensely valuable cargo through dangerous waters, the East Indiaman carries enough guns to be mistaken for a warship — and can fight like one. Not an easy mark: the prize a crew plans a whole campaign around.
-
-**Benefits:** the richest cargo a crew can realistically capture; armed to bluff or beat casual attackers; hard to board.
-**Flaws:** genuinely dangerous to attack; slow to replace if damaged in the taking; often travels with naval escorts.
+\shipcompendium

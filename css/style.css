@@ -24,6 +24,10 @@
   box-sizing: border-box;
 }
 
+/* The hidden attribute always hides, even on elements whose class sets a
+   display (e.g. the shipyard's flex cards, which the filter hides). */
+[hidden] { display: none !important; }
+
 html,
 body {
   min-height: 100vh;
@@ -1786,4 +1790,284 @@ button.star-toggle[aria-pressed="true"] {
 .portrait-actions input[type="url"] {
   flex: 1;
   min-width: 0;
+}
+
+/* ============================================================
+   Ship (js/ship-calc.js, js/hold-ui.js, gm/gm-ship.js)
+   The sheet shows the crew's ship with the hull as a word and a five-step
+   bar; the GM panel shows the numbers. The hold widget is shared by both.
+   ============================================================ */
+
+/* ⛵ on inventory rows: only while the campaign has a crew's ship. */
+.to-ship-btn { display: none; }
+body.has-ship .to-ship-btn { display: inline-block; }
+
+.hold-view select,
+.gm-ship select,
+select.dialog-select {
+  padding: .45rem .5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--brass-dim);
+  background: #fffaf0;
+  color: var(--ink);
+  font-family: 'Spectral', Georgia, serif;
+  font-size: .95rem;
+  max-width: 100%;
+}
+select.dialog-select { width: 100%; }
+
+/* ---- Sheet: ship status ---- */
+.ship-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .2rem .6rem;
+  margin-bottom: .5rem;
+}
+.ship-name { font: 700 1.25rem 'Cinzel', Georgia, serif; color: var(--ink); }
+
+.ship-condition {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .4rem .75rem;
+  padding: .4rem .5rem;
+  margin: 0 -.5rem .75rem;
+  border-radius: var(--radius);
+}
+.cond-perfect, .cond-scraped { --cond: var(--success); }
+.cond-damaged { --cond: var(--brass-dim); }
+.cond-badly, .cond-afloat { --cond: var(--danger-light); }
+.cond-crippled { --cond: var(--danger); }
+
+.ship-segs { display: inline-flex; gap: 3px; }
+.ship-seg {
+  width: 1.6rem;
+  height: .8rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: 3px;
+  background: #d8c79a;
+}
+.ship-seg.on { background: var(--cond); }
+.ship-cond-label { font-weight: 600; color: var(--cond); font-size: 1.05rem; }
+.cond-crippled .ship-cond-label { text-transform: uppercase; letter-spacing: .03em; }
+.ship-condition.pulse-down { animation: gm-pulse-down 1.6s ease-out; }
+.ship-condition.pulse-up { animation: gm-pulse-up 1.6s ease-out; }
+
+.ship-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+.ship-stat {
+  display: flex;
+  flex-direction: column;
+  padding: .35rem .5rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: rgba(255, 250, 240, .5);
+  min-width: 0;
+}
+.ship-stat-label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-soft);
+}
+.ship-stat-value { font-weight: 600; overflow-wrap: anywhere; }
+.ship-line { margin: .35rem 0; font-size: .95rem; overflow-wrap: anywhere; }
+.ship-notes { white-space: pre-line; color: var(--ink-soft); }
+
+/* Condition word as a small badge (GM "Players see", fleet list). */
+.ship-cond-badge {
+  display: inline-block;
+  padding: .05rem .45rem;
+  border-radius: 999px;
+  border: 1px solid var(--cond);
+  color: var(--cond);
+  font-size: .85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---- Hold widget ---- */
+.hold-chest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .4rem .75rem;
+  padding: .5rem .6rem;
+  margin-bottom: .6rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: rgba(201, 162, 75, .15);
+}
+.hold-chest-label b { font-size: 1.1rem; }
+.hold-chest-controls { display: inline-flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.hold-chest-controls input { width: 6.5rem; padding: .3rem .5rem; }
+
+.hold-add { margin-bottom: .6rem; }
+.hold-add > summary {
+  cursor: pointer;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: .9rem;
+  color: var(--ink-soft);
+  padding: .25rem 0;
+}
+
+.hold-tools { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .4rem; }
+.hold-tools input[type="search"] {
+  width: 100%;
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 1rem;
+  padding: .45rem .6rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: #fffaf0;
+  color: var(--ink);
+}
+.hold-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.hold-chip { background: transparent; color: var(--ink); }
+.hold-chip:hover { background: rgba(201, 162, 75, .25); }
+.hold-chip[aria-pressed="true"] { background: var(--navy); color: var(--brass-light); }
+
+.hold-group {
+  margin: .8rem 0 .2rem;
+  font-family: 'Cinzel', Georgia, serif;
+  color: var(--ink);
+}
+.hold-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .5rem;
+}
+.hold-row .item-name { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
+.hold-detail { font-size: .85rem; }
+.hold-actions { display: inline-flex; flex-wrap: wrap; gap: .3rem; margin-left: auto; }
+.hold-meta { flex-basis: 100%; font-size: .8rem; overflow-wrap: anywhere; }
+.hold-count { margin-top: .4rem; }
+
+/* ---- Ship pictures: a wide banner on the sheet and in the edit dialog,
+   a small thumbnail on GM cards (js/portrait-image.js SHIP_PICTURE). ---- */
+.ship-banner {
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  max-height: 240px;
+  margin: 0 0 .75rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--navy-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ship-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ship-banner-empty { color: var(--parchment-dk); font-size: .95rem; }
+
+.ship-trait {
+  display: inline-block;
+  padding: .05rem .45rem;
+  margin: 0 .25rem .25rem 0;
+  border: 1px solid var(--brass-dim);
+  border-radius: 999px;
+  font-size: .8rem;
+  background: rgba(201, 162, 75, .15);
+  cursor: help;
+}
+
+/* ---- GM ship cards ---- */
+.gm-card-head .gm-ship-pic { width: 72px; height: 44px; border-radius: 6px; }
+.gm-ship-type { display: block; font-size: .85rem; }
+.gm-ship-card .star-toggle { flex: none; }
+.gm-crew-badge {
+  margin: 0 0 .5rem;
+  padding: .2rem .5rem;
+  border-radius: var(--radius);
+  background: rgba(201, 162, 75, .25);
+  font-size: .85rem;
+  font-weight: 600;
+}
+.gm-hull-amount { display: flex; gap: .3rem; margin-top: .3rem; }
+.gm-hull-amount input { flex: 1 1 4rem; min-width: 0; width: 4rem; padding: .3rem .5rem; }
+.gm-hull-amount button { flex: none; }
+.gm-ship-sees { margin: .2rem 0 .5rem; font-size: .9rem; }
+.gm-ship-card .gm-stats { margin-bottom: .5rem; }
+.gm-stone-list { margin: .2rem 0 .5rem; padding-left: 1.2rem; }
+
+/* ---- Shipyard ---- */
+.shipyard-tools { display: flex; flex-direction: column; gap: .4rem; margin-bottom: .8rem; }
+.shipyard-tools input[type="search"] {
+  width: 100%;
+  font-family: 'Spectral', Georgia, serif;
+  font-size: 1rem;
+  padding: .45rem .6rem;
+  border: 1px solid var(--brass-dim);
+  border-radius: var(--radius);
+  background: #fffaf0;
+  color: var(--ink);
+}
+.shipyard-grid > .card { margin: 0; background: #f7eed8; }
+.shipyard-card { display: flex; flex-direction: column; }
+.shipyard-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  background: var(--navy);
+}
+.shipyard-summary { margin: 0 0 .5rem; font-style: italic; color: var(--ink-soft); font-size: .9rem; }
+.shipyard-stats { grid-template-columns: repeat(auto-fill, minmax(min(100%, 5.5rem), 1fr)); }
+.shipyard-stats .ship-stat { padding: .2rem .4rem; }
+.shipyard-traits { margin: 0 0 .3rem; }
+.shipyard-price { margin: 0 0 .4rem; font-size: .9rem; }
+.shipyard-card .gm-sub p { margin: .3rem 0; font-size: .9rem; }
+.shipyard-add { margin-top: auto; align-self: flex-start; }
+.shipyard-card .gm-sub { margin-bottom: .6rem; }
+
+/* ---- Edit ship dialog ---- */
+dialog.ship-edit-dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.ship-edit-picture { margin-bottom: .8rem; }
+.ship-edit-picture .portrait-actions { margin-bottom: .4rem; }
+.ship-edit-picture input[type="url"] { flex: 1; min-width: 0; }
+.ship-edit-traits { margin-top: -.4rem; }
+.gm-ship-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: 0 .6rem;
+}
+.gm-ship-form .field input,
+.ship-edit-dialog .field > input,
+.ship-edit-dialog .field textarea { width: 100%; min-width: 0; }
+.gm-ship-subhead { margin: .4rem 0 .3rem; font-family: 'Cinzel', Georgia, serif; color: var(--ink); }
+.gm-ship-subhead .muted { font-family: 'Spectral', Georgia, serif; font-weight: 400; }
+.gm-stone { gap: .3rem; flex-wrap: nowrap; }
+.gm-stone select { flex: 1 1 auto; width: auto; }
+.gm-stone input { flex: 1 1 6rem; min-width: 0; }
+.ship-edit-dialog [data-add-stone] { margin: .3rem 0 .9rem; }
+
+/* A ship value that is a story change (differs from its type file). */
+.ship-changed { color: var(--danger); cursor: help; }
+.ship-warning { color: var(--danger); font-weight: 600; }
+.ship-rules-value {
+  margin-left: .3rem;
+  font-size: .7rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+.ship-rules-value.is-changed { color: var(--danger); font-weight: 600; }
+.ship-banner { position: relative; }
+.ship-banner-tag {
+  position: absolute;
+  left: .4rem;
+  bottom: .4rem;
+  padding: .1rem .4rem;
+  border-radius: 4px;
+  background: rgba(10, 24, 32, .7);
+  color: var(--parchment);
+  font-size: .75rem;
 }

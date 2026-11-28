@@ -1,0 +1,64 @@
+{
+  "_comment": "The Ship Compendium: one Markdown file per ship type in this folder, listed here in book order. Add a ship = add its file and its key (the file name without .md) here. The Rules page, the Ship Gallery and the GM Dashboard all read these files.",
+  "groups": [
+    {
+      "group": "Boats & Oared Ships",
+      "de": "Boote & Ruderschiffe",
+      "ships": [
+        "outrigger-canoe",
+        "rowboat",
+        "pinnace",
+        "longship",
+        "war-galley"
+      ]
+    },
+    {
+      "group": "Working Boats",
+      "de": "Arbeitsboote",
+      "ships": [
+        "fishing-boat",
+        "fishing-smack",
+        "lighter"
+      ]
+    },
+    {
+      "group": "Traders",
+      "de": "Handelsschiffe",
+      "ships": [
+        "cog",
+        "fluyt",
+        "merchantman"
+      ]
+    },
+    {
+      "group": "Raiders",
+      "de": "Kaperschiffe",
+      "ships": [
+        "caravel",
+        "sloop",
+        "schooner",
+        "xebec",
+        "brigantine"
+      ]
+    },
+    {
+      "group": "Warships",
+      "de": "Kriegsschiffe",
+      "ships": [
+        "revenue-cutter",
+        "frigate",
+        "man-of-war"
+      ],
+      "note": "Warship cargo is free hold space only — most of the tonnage is guns, powder and crew."
+    },
+    {
+      "group": "Great Haulers",
+      "de": "Große Frachtschiffe",
+      "ships": [
+        "carrack",
+        "galleon",
+        "east-indiaman"
+      ]
+    }
+  ]
+}

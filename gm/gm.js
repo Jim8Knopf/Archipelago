@@ -8,6 +8,7 @@ import { restCharacter, restCooldownLeft, restedLocally } from "../js/rest.js";
 import { trackWrite, watchConnection, mountSyncStatus } from "../js/sync-status.js";
 import { confirmDialog } from "../js/confirm.js";
 import { getDefaultCampaign, setDefaultCampaign } from "../js/defaults.js";
+import { initShipPanel } from "./gm-ship.js";
 
 // ============================================================
 // GM dashboard.
@@ -71,6 +72,9 @@ const openSections = new Set();
 function flash(msg) {
   flashEl(gmStatus, msg);
 }
+
+// The ship panel above the party (gm/gm-ship.js).
+initShipPanel({ campaign, flash });
 
 // ---- "Not playing today" — a per-browser GM view setting ----
 
