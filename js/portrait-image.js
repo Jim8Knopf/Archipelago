@@ -68,8 +68,13 @@ function blobToDataUrl(blob) {
   });
 }
 
-// Any image Blob/File -> small square data: URL.
-export async function compressPortrait(blob) {
+// Ship pictures (gm/gm-ship.js) are wide instead of square: a 16:9 centre
+// crop. A ship document also holds the hold, so the cap is a little higher.
+export const SHIP_PICTURE = { width: 480, height: 270, maxBytes: 80 * 1024 };
+
+// Any image Blob/File -> small data: URL, a centre crop of width×height
+// (a SIZE square by default).
+export async function compressPortrait(blob, { width = SIZE, height = SIZE, maxBytes = MAX_BYTES } = {}) {
   if (blob.type && !blob.type.startsWith("image/")) {
     throw new PortraitError("That file isn't a picture.");
   }
@@ -78,15 +83,21 @@ export async function compressPortrait(blob) {
   const h = image.height || image.naturalHeight;
   if (!w || !h) throw new PortraitError("That picture appears to be empty.");
 
-  const side = Math.min(w, h);
-  const size = Math.min(SIZE, side);
+  // The largest centre crop with the target's shape, scaled down (never up).
+  const aspect = width / height;
+  const cropW = Math.min(w, h * aspect);
+  const cropH = cropW / aspect;
+  const scale = Math.min(1, width / cropW);
+  const outW = Math.max(1, Math.round(cropW * scale));
+  const outH = Math.max(1, Math.round(cropH * scale));
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
+  canvas.width = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, size, size);
+  ctx.fillRect(0, 0, outW, outH);
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(image, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
+  ctx.drawImage(image, (w - cropW) / 2, (h - cropH) / 2, cropW, cropH, 0, 0, outW, outH);
   image.close?.();
 
   // Browsers that can't encode WebP silently return PNG; use JPEG there.
@@ -96,17 +107,18 @@ export async function compressPortrait(blob) {
 
   let out = probe && probe.type === type ? probe : null;
   for (const q of QUALITIES) {
-    if (out && out.size <= MAX_BYTES) break;
+    if (out && out.size <= maxBytes) break;
     out = await toBlob(canvas, type, q);
   }
-  if (!out || out.size > MAX_BYTES) {
+  if (!out || out.size > maxBytes) {
     throw new PortraitError("Couldn't shrink that picture enough. Try a different one.");
   }
   return blobToDataUrl(out);
 }
 
-// Image link -> small square data: URL (downloaded once, now).
-export async function importFromUrl(link) {
+// Image link -> small data: URL (downloaded once, now). `options` as for
+// compressPortrait().
+export async function importFromUrl(link, options) {
   const src = portraitUrl(link);
   if (!src || src.startsWith("data:")) throw new PortraitError("That isn't a web link (it must start with https://).");
 
@@ -127,7 +139,7 @@ export async function importFromUrl(link) {
         : `Couldn't download that picture (error ${response.status}).`
     );
   }
-  return compressPortrait(await response.blob());
+  return compressPortrait(await response.blob(), options);
 }
 
 export function isStoredPortrait(value) {

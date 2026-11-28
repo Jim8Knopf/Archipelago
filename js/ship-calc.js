@@ -7,7 +7,6 @@
 // ============================================================
 
 import { makeId, magnitudeOf } from "./rules-calc.js";
-import { shipType } from "./ship-types.js";
 
 // ---- Hull condition ----
 //
@@ -71,13 +70,20 @@ export const ITEM_TYPES = ["item", "potion", "armor", "weapon"];
 
 // ---- Ship documents ----
 
-// A new ship of a compendium type (js/ship-types.js), at full Hull.
-export function defaultShip(name, typeKey) {
-  const t = shipType(typeKey);
+// A ship that isn't in the compendium (a story ship): the GM fills it in.
+export const CUSTOM_TYPE = {
+  key: "custom", name: "Custom ship", de: "", hull: 10, armor: 0, maxSpeed: 4, handling: 1, turnRate: 45,
+  maneuverability: "+0", broadside: "—", chasers: "—", crew: 0, cargo: "", traits: [], price: 0
+};
+
+// A new ship of a compendium type (a js/ship-catalog.js entry, read from
+// the Ship Rules), at full Hull. No type: a custom ship.
+export function defaultShip(name, type = CUSTOM_TYPE) {
+  const t = type || CUSTOM_TYPE;
   return {
     name: (name || "").trim() || t.name,
     type: t.key,
-    typeName: t.name,
+    typeName: t.key === "custom" ? "" : t.name,
     hullMax: t.hull,
     hullCurrent: t.hull,
     armor: t.armor,
@@ -95,6 +101,7 @@ export function defaultShip(name, typeKey) {
     guardStones: [],
     storyChanges: "",
     notes: "",
+    imageUrl: "",
     chest: 0,
     hold: [],
     createdAt: Date.now()
@@ -117,13 +124,13 @@ export function normalizeHoldItem(item) {
 
 // Fills in anything an older or partial ship document is missing.
 export function normalizeShip(d) {
-  const def = defaultShip(d?.name, d?.type);
+  const def = defaultShip(d?.name, null);
   const ship = { ...def, ...(d || {}) };
   ship.hullMax = Math.max(0, Math.floor(num(ship.hullMax, def.hullMax)));
   ship.hullCurrent = Math.max(0, Math.min(ship.hullMax, Math.floor(num(ship.hullCurrent, ship.hullMax))));
   ship.chest = Math.max(0, Math.floor(num(ship.chest)));
   ship.terminalSlots = Math.max(0, Math.floor(num(ship.terminalSlots)));
-  ["name", "typeName", "maneuverability", "broadside", "chasers", "cargo", "storyChanges", "notes"]
+  ["name", "type", "typeName", "maneuverability", "broadside", "chasers", "cargo", "storyChanges", "notes", "imageUrl"]
     .forEach(k => { ship[k] = String(ship[k] ?? ""); });
   ["armor", "maxSpeed", "handling", "turnRate", "crew", "price"]
     .forEach(k => { ship[k] = num(ship[k], def[k]); });

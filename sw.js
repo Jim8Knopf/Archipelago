@@ -34,7 +34,7 @@ const PRECACHE = [
   "js/sheet-layout.js",
   "js/ship.js",
   "js/ship-calc.js",
-  "js/ship-types.js",
+  "js/ship-catalog.js",
   "js/sync-status.js",
   "sheet/",
   "sheet/sheet.js",

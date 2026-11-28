@@ -45,8 +45,11 @@ page) — nothing is hardcoded per-character, so the sheet stays correct as poin
   **🏝️ New Island** restores full HP and Mana, repairs broken bottles and clears
   used-skill markers for every character in the campaign, benched ones included.
 - **Ship** — the crew's ship, shared by every character in the campaign. The GM
-  can keep several ships and picks one as **the crew's ship**: that's the one every
-  player's sheet shows. Players see the hull as a word (Perfect condition, A few
+  Dashboard shows one card per ship the campaign owns (picture, hull, values, hold),
+  and the **🛠️ Shipyard** to browse every ship type with search and group filters.
+  The types come straight from the Ship Compendium in `rules/ships.md` — add or
+  change a ship there (same heading/table format) and the shipyard has it. The ★ on
+  a ship card makes it **the crew's ship**: that's the one every player's sheet shows. Players see the hull as a word (Perfect condition, A few
   scrapes, A bit damaged, Badly damaged, Barely afloat, Crippled) worked out from the
   share of max Hull left (`js/ship-calc.js`), never the numbers; the GM panel shows
   the numbers and the word players see. The sheet's **⛵ Ship** section lists the
@@ -87,7 +90,7 @@ Archipelago/
 │   ├── nav.js              shared top navigation (marks the current page)
 │   ├── confirm.js          themed confirm dialog
 │   ├── sync-status.js      Saving… / Saved / Offline marker for every write
-│   ├── ship-types.js       the Ship Compendium's values (keep in sync with ships.md)
+│   ├── ship-catalog.js     reads the ship types straight from rules/ships.md
 │   ├── ship-calc.js        pure ship helpers: hull condition words, ship defaults,
 │   │                       hold stacking, bottles going along with potions
 │   ├── ship.js             ship writes: active ship, hold/chest/move transactions
@@ -108,7 +111,8 @@ Archipelago/
 ├── gm/
 │   ├── index.html          GM dashboard
 │   ├── gm.js
-│   └── gm-ship.js          the ship panel: crew's ship, hull, editor, all ships
+│   └── gm-ship.js          ship cards (crew's ship, hull, hold, edit + picture)
+│                           and the shipyard to browse the ship types
 ├── admin/
 │   ├── index.html          admin page — all campaigns and characters
 │   ├── admin.js            password gate; loads the admin UI once unlocked
@@ -339,7 +343,9 @@ campaigns/{campaignId}/characters/{characterId}
   layout:           { order, collapsed, hidden } — the player's section layout
 
 campaigns/{campaignId}/ships/{shipId}
-  name, type, typeName  "Salt Widow", "sloop", "Sloop" (type = js/ship-types.js key)
+  name, type, typeName  "Salt Widow", "sloop", "Sloop" (type = the compendium heading
+                        slugified by js/ship-catalog.js, or "custom")
+  imageUrl:         picture — a stored 16:9 data: URL, or a plain link
   hullMax, hullCurrent  only the GM screen shows these numbers
   armor, maxSpeed, handling, turnRate (degrees), crew, price   numbers
   maneuverability, broadside, chasers, cargo                    text

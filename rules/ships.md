@@ -36,7 +36,7 @@ Captured ships keep their type's values plus any story changes they already had.
 
 **Crew** numbers are for the story, pay and provisions. In ship combat only **named characters** (PCs and important NPCs) take actions — nobody tracks 180 sailors.
 
-**Cargo** doesn't replace the core rule that ship storage is "effectively unlimited, within reason" — it just tells the GM how reasonable "within reason" is for this hull.
+**Cargo** doesn't replace the core rule that ship storage is "effectively unlimited, within reason" — it just tells the GM how reasonable "within reason" is for this hull. What is actually aboard goes in the ship's hold (on the Character Sheet and the GM Dashboard); Cargo is the sanity check on how much of it fits.
 
 ### 2.1 Ship Traits — Schiffseigenschaften
 
@@ -44,6 +44,7 @@ Captured ships keep their type's values plus any story changes they already had.
 - **Shallow Draft (Geringer Tiefgang)** — can enter rivers, shallows and reefs that ships without this trait can't follow into.
 - **High Sides (Hohe Bordwand)** — boarding attempts against this ship take a **−20** malus.
 - **Ram (Rammsporn)** — built for ramming. Ramming rules are on hold and will be added later.
+- **Weatherly (Hoch am Wind)** — fore-and-aft or lateen sails that work close to the wind: while **Beating** (Section 4), speed is capped at **2** instead of 1.
 
 \page
 
@@ -77,7 +78,7 @@ Track wind direction on the map with a simple arrow. It affects **speed**, not s
 | **Reaching** (wind at an angle) | Halbwind | No modifier |
 | **Beating** (wind ahead) | Gegen den Wind | Speed capped at 1, regardless of Handling |
 
-The running bonus is the only thing that pushes a ship past its Max Speed. A ship stuck beating into the wind can still turn freely to change its point of sail — that's the way out. Ships with **Oars** ignore the Beating cap while rowing.
+The running bonus is the only thing that pushes a ship past its Max Speed. A ship stuck beating into the wind can still turn freely to change its point of sail — that's the way out. Ships with **Oars** ignore the Beating cap while rowing; **Weatherly** ships are capped at 2 instead of 1.
 
 {{note
 #### GM Cue — Ansage des Spielleiters
@@ -178,23 +179,29 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 
 # Part III — Ship Compendium / Schiffskompendium
 
-*Sixteen ship types from oar-driven antiquity to the Golden Age of Sail, sorted from small to large within each group. All values are fixed and mundane — no ship comes with a Guard Stone Terminal.*
+*Twenty-two ship types, from a dugout canoe and a fishing boat to the Golden Age's great men-of-war, sorted from small to large within each group. All values are fixed and mundane — no ship comes with a Guard Stone Terminal.*
 
 ## 10. Quick Reference
 
 | Ship | Hull | Arm. | Speed | Hand. | Turn | Man. | Broadside | Price |
 |---|---|---|---|---|---|---|---|---|
+| Outrigger Canoe | 2 | 0 | 3 | 2 | 90° | +20 | — | 20 |
 | Rowboat | 3 | 0 | 2 | 1 | 90° | +15 | — | 50 |
+| Pinnace | 5 | 0 | 4 | 2 | 90° | +15 | — | 400 |
 | Longship | 9 | 0 | 8 | 3 | 60° | +10 | — | 1,200 |
 | War Galley | 10 | 1 | 5 | 3 | 90° | +15/−10 | — | 4,000 |
+| Fishing Boat | 4 | 0 | 3 | 1 | 90° | +12 | — | 150 |
+| Fishing Smack | 8 | 0 | 5 | 2 | 60° | +10 | — | 900 |
+| Lighter | 10 | 1 | 1 | 1 | 30° | −15 | — | 600 |
 | Cog | 14 | 2 | 3 | 1 | 30° | −5 | 1d4 | 1,900 |
 | Fluyt | 13 | 1 | 3 | 1 | 30° | −10 | 1d4 | 3,000 |
-| Merchantman | 22 | 2 | 4 | 1 | 45° | −5 | 2d4 | 7,000 |
+| Merchantman | 22 | 2 | 4 | 1 | 45° | −5 | 2d4 | 4,500 |
 | Caravel | 12 | 1 | 4 | 2 | 60° | +10 | 1d4 | 2,400 |
 | Sloop | 14 | 1 | 7 | 2 | 90° | +18 | 2d4 | 2,800 |
 | Schooner | 20 | 1 | 6 | 2 | 60° | +15 | 3d4 | 3,200 |
 | Xebec | 20 | 1 | 6 | 2 | 90° | +15 | 3d4 | 3,600 |
 | Brigantine | 28 | 2 | 4 | 2 | 45° | +5 | 4d4 | 6,000 |
+| Revenue Cutter | 12 | 1 | 7 | 2 | 90° | +15 | 2d4 | 3,400 |
 | Frigate | 50 | 3 | 6 | 2 | 45° | +5 | 5d6 | 18,000 |
 | Man-of-War | 110 | 5 | 4 | 1 | 30° | −18 | 8d8 | 95,000 |
 | Carrack | 40 | 3 | 4 | 1 | 30° | −12 | 4d6 | 15,000 |
@@ -202,6 +209,24 @@ Outside combat, a ship in a harbour or shipyard is fully repaired for a price se
 | East Indiaman | 48 | 3 | 5 | 1 | 30° | −8 | 5d6 | 38,000 |
 
 ## 11. Boats & Oared Ships — Boote & Ruderschiffe
+
+### Outrigger Canoe (Auslegerkanu)
+*Island craft — a dugout hull with a float lashed beside it.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 2 / 0 |
+| Max Speed / Handling / Turn Rate | 3 / 2 / 90° |
+| Maneuverability | +20 |
+| Broadside / Chasers | — / — |
+| Crew / Cargo | 2 / 0.2 t |
+| Traits | Oars, Shallow Draft |
+| Price | 20 Dbl. |
+
+Paddled, or sailed with a small crab-claw sail, the outrigger is how island folk cross lagoons and hop between nearby islands. The float makes it far steadier than its size suggests. Paddles count as Oars.
+
+**Benefits:** almost free, and any islander can build one; crosses reefs and lagoons nothing else can; light enough to carry up a beach.
+**Flaws:** room for two and a basket; no shelter at all; open sea and storms are deadly.
 
 ### Rowboat / Jolly Boat (Ruderboot)
 *Ancient through present — the boat every other ship carries.*
@@ -220,6 +245,24 @@ Every larger ship carries one or two of these as a tender, for landing parties, 
 
 **Benefits:** costs almost nothing and needs no trained crew; silent approach with no sails to spot; fits aboard a larger ship.
 **Flaws:** no cargo or armament to speak of; a stiff wave can swamp it; useless in open ocean or rough seas.
+
+### Pinnace (Pinasse)
+*A big ship's boat with a mast — the longboat that can make a voyage of its own.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 5 / 0 |
+| Max Speed / Handling / Turn Rate | 4 / 2 / 90° |
+| Maneuverability | +15 |
+| Broadside / Chasers | — / Swivel gun 1d4 (bow) |
+| Crew / Cargo | 12 / 2 t |
+| Traits | Oars, Shallow Draft |
+| Price | 400 Dbl. |
+
+Larger ships carry a pinnace for cutting-out raids, scouting shoals and carrying a landing party with its gear. With a swivel gun in the bow and a dozen oars it can take a small boat — or run from a big one into water too shallow to follow.
+
+**Benefits:** sails or rows; takes a whole landing party; the swivel gun gives it real teeth for its size.
+**Flaws:** open boat — wet, cold and exposed on any longer trip; needs a mother ship to carry or tow it; anything with a broadside outguns it.
 
 ### Viking-Style Longship (Langschiff)
 *Ancient/early medieval raider.*
@@ -259,7 +302,65 @@ Built for speed and precision rather than durability, the war galley trades carg
 
 \page
 
-## 12. Traders — Handelsschiffe
+## 12. Working Boats — Arbeitsboote
+
+### Fishing Boat (Fischerboot)
+*The open boat every harbour is full of.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 4 / 0 |
+| Max Speed / Handling / Turn Rate | 3 / 1 / 90° |
+| Maneuverability | +12 |
+| Broadside / Chasers | — / — |
+| Crew / Cargo | 3 / 2 t |
+| Traits | Oars, Shallow Draft |
+| Price | 150 Dbl. |
+
+One mast, a few oars, nets and a fish well: out at dawn, back by dusk. Nobody looks twice at a fishing boat, which makes it a fine way to slip into a harbour, land a message, or watch a fleet at anchor.
+
+**Benefits:** cheap and found in every port; draws no attention at all; a handful of people can work it.
+**Flaws:** a day's range — no stores for a real voyage; no defence whatsoever; smells of fish, forever.
+
+### Fishing Smack (Fischkutter)
+*A decked fishing vessel that stays out for days.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 8 / 0 |
+| Max Speed / Handling / Turn Rate | 5 / 2 / 60° |
+| Maneuverability | +10 |
+| Broadside / Chasers | — / — |
+| Crew / Cargo | 6 / 25 t |
+| Traits | Shallow Draft, Weatherly |
+| Price | 900 Dbl. |
+
+Built to work the banks in any weather and race home with the catch, the smack is sturdier and faster than it looks. Many a smuggler started out as a fisherman who found a better-paying cargo.
+
+**Benefits:** seaworthy, quick and handy for its size; a real hold below deck; still looks innocent.
+**Flaws:** no guns; small crew quarters; its hold always smells of fish, which customs men know to search.
+
+### Lighter (Leichter)
+*Flat harbour barge for loading and unloading ships at anchor.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 10 / 1 |
+| Max Speed / Handling / Turn Rate | 1 / 1 / 30° |
+| Maneuverability | −15 |
+| Broadside / Chasers | — / — |
+| Crew / Cargo | 6 / 80 t |
+| Traits | Oars, Shallow Draft |
+| Price | 600 Dbl. |
+
+Where there is no quay, cargo goes ashore by lighter: a broad, flat, heavy barge rowed or poled between ship and beach. Useless at sea, indispensable in a harbour — and the quickest way to get a prize's hold emptied before anyone comes looking.
+
+**Benefits:** carries a trader's worth of cargo; goes right up onto a beach; sturdy and cheap.
+**Flaws:** barely moves; hopeless outside a harbour or river; no defence at all.
+
+\page
+
+## 13. Traders — Handelsschiffe
 
 ### Cog (Kogge)
 *Medieval merchant workhorse of the northern seas.*
@@ -308,7 +409,7 @@ Purpose-built to haul the most cargo for the least money, the fluyt's pear-shape
 | Broadside / Chasers | 2d4 / — |
 | Crew / Cargo | 25 / 200 t |
 | Traits | — |
-| Price | 7,000 Dbl. |
+| Price | 4,500 Dbl. |
 
 The ship that carries most of the world's trade — nothing special to look at, armed just enough to make a lone raider think twice. The bread-and-butter target for a crew looking for a reliable payday.
 
@@ -317,7 +418,7 @@ The ship that carries most of the world's trade — nothing special to look at, 
 
 \page
 
-## 13. Raiders — Kaperschiffe
+## 14. Raiders — Kaperschiffe
 
 ### Caravel (Karavelle)
 *Age-of-Exploration scout and light trader.*
@@ -329,7 +430,7 @@ The ship that carries most of the world's trade — nothing special to look at, 
 | Maneuverability | +10 |
 | Broadside / Chasers | 1d4 / — |
 | Crew / Cargo | 20 / 70 t |
-| Traits | Shallow Draft |
+| Traits | Shallow Draft, Weatherly |
 | Price | 2,400 Dbl. |
 
 Small, cheap and easy to handle, the caravel's lateen sails let it work close to the wind — a rare trick among older ship types. It scouts coastlines and river mouths bigger ships can't approach.
@@ -365,7 +466,7 @@ Fast, shallow and worked entirely from the deck, the sloop was the first ship of
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / — |
 | Crew / Cargo | 30 / 95 t |
-| Traits | Shallow Draft |
+| Traits | Shallow Draft, Weatherly |
 | Price | 3,200 Dbl. |
 
 The sloop's speed and shallow draft with a bit more cargo and gun capacity — strong for raiding, smuggling and running blockades alike.
@@ -383,7 +484,7 @@ The sloop's speed and shallow draft with a bit more cargo and gun capacity — s
 | Maneuverability | +15 |
 | Broadside / Chasers | 3d4 / 1d4 bow |
 | Crew / Cargo | 35 / 100 t |
-| Traits | Oars |
+| Traits | Oars, Weatherly |
 | Price | 3,600 Dbl. |
 
 A favourite of corsairs, the xebec combines a galley's independence from the wind with a fast sailing rig, giving it legendary agility for hit-and-run raids on merchant shipping.
@@ -411,7 +512,25 @@ A true jack-of-all-trades: enough cargo to trade, enough guns to fight, enough c
 
 \page
 
-## 14. Warships — Kriegsschiffe
+## 15. Warships — Kriegsschiffe
+
+### Revenue Cutter (Zollkutter)
+*Small, fast government cruiser — the smuggler's and the pirate's everyday enemy.*
+
+| Value | |
+|---|---|
+| Hull / Armor | 12 / 1 |
+| Max Speed / Handling / Turn Rate | 7 / 2 / 90° |
+| Maneuverability | +15 |
+| Broadside / Chasers | 2d4 / 1d4 bow |
+| Crew / Cargo | 40 / 20 t |
+| Traits | Shallow Draft, Weatherly |
+| Price | 3,400 Dbl. |
+
+A single huge sail plan on a small, sharp hull: the cutter is built to catch sloops and smugglers, not to fight warships. It patrols coasts and harbour mouths with a crew big enough to put a boarding party aboard whatever it stops.
+
+**Benefits:** as fast as a sloop and better close to the wind; a bow chaser for running fights; enough crew to board.
+**Flaws:** light guns and a thin hull; tiny hold; its crew answers to someone ashore, and using one draws the authorities' attention.
 
 ### Frigate (Fregatte)
 *Fast, heavily armed warship.*
@@ -451,7 +570,7 @@ A floating fortress whose broadside ends most fights before they start. Ordinary
 
 *Warship cargo is free hold space only — most of the tonnage is guns, powder and crew.*
 
-## 15. Great Haulers — Große Frachtschiffe
+## 16. Great Haulers — Große Frachtschiffe
 
 ### Carrack (Karacke)
 *The lumbering long-hauler that came before the galleon.*

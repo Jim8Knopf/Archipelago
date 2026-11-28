@@ -53,8 +53,9 @@ async function readShip(tx, ref) {
 
 // ---- Ships ----
 
-export function addShip(campaign, name, typeKey) {
-  return trackWrite(addDoc(shipsCol(campaign), defaultShip(name, typeKey)));
+// `type`: a js/ship-catalog.js entry, or null for a custom ship.
+export function addShip(campaign, name, type) {
+  return trackWrite(addDoc(shipsCol(campaign), defaultShip(name, type)));
 }
 
 export function updateShip(campaign, shipId, fields) {

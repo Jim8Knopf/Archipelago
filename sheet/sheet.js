@@ -1738,7 +1738,9 @@ function shipStatusHtml(s) {
     const tier = guardStoneTier(g.tier);
     return `${escapeHtml(tier.label)}${g.element ? ` (${escapeHtml(g.element)})` : ""} — ${tier.effect}`;
   });
+  const pic = portraitUrl(s.imageUrl);
   return `
+    ${pic ? `<div class="ship-banner"><img src="${escapeHtml(pic)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.remove()"></div>` : ""}
     <div class="ship-head">
       <span class="ship-name">${escapeHtml(s.name)}</span>
       <span class="muted">${escapeHtml(s.typeName || "")}</span>

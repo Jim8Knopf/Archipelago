@@ -37,44 +37,6 @@
   </div>
 
   <main class="gm-main">
-    <!-- The ship panel (gm/gm-ship.js). The dropdown picks which ship this
-         panel shows; "Make it the crew's ship" picks the one players see. -->
-    <section class="card gm-card gm-ship" id="gm-ship">
-      <div class="gm-ship-head">
-        <span class="gm-ship-icon" aria-hidden="true">⛵</span>
-        <select id="ship-select" aria-label="Ship shown in this panel"></select>
-        <button class="small brass" id="make-active-btn" type="button">Make it the crew's ship</button>
-        <span class="muted gm-ship-active-note" id="ship-active-note"></span>
-      </div>
-      <div id="ship-body"></div>
-      <details class="gm-sub" id="ship-hold-fold">
-        <summary>Hold &amp; chest <span class="gm-count" id="ship-hold-count"></span></summary>
-        <div class="gm-sub-body"><div id="gm-hold"></div></div>
-      </details>
-      <details class="gm-sub" id="ship-edit-fold">
-        <summary>Edit ship</summary>
-        <div class="gm-sub-body" id="ship-editor"></div>
-      </details>
-      <details class="gm-sub" id="ship-fleet-fold">
-        <summary>All ships · add a ship</summary>
-        <div class="gm-sub-body">
-          <ul class="inventory-list gm-fleet" id="fleet-list"></ul>
-          <div class="row add-item-row">
-            <div class="field name-field">
-              <label for="new-ship-name">Ship name</label>
-              <input type="text" id="new-ship-name" placeholder="e.g. Salt Widow">
-            </div>
-            <div class="field type-field">
-              <label for="new-ship-type">Type</label>
-              <select id="new-ship-type"></select>
-            </div>
-            <button class="brass small" id="add-ship-btn" type="button">Add ship</button>
-          </div>
-          <p class="muted">A new ship gets its type's values from the Ship Compendium, at full Hull. Change anything afterwards under Edit ship.</p>
-        </div>
-      </details>
-    </section>
-
     <div class="gm-section-head">
       <div class="name-with-star">
         <h2 id="party-heading">At the table</h2>
@@ -85,6 +47,26 @@
     </div>
 
     <div id="char-list" class="gm-party"></div>
+
+    <!-- Ships (gm/gm-ship.js): one card per ship the campaign owns, like
+         the character cards. The ★ on a card makes it the crew's ship —
+         the one every player's sheet shows. -->
+    <div class="gm-section-head">
+      <h2 id="fleet-heading">Ships</h2>
+      <span class="muted" id="crew-ship-note"></span>
+      <button type="button" class="small brass" id="open-shipyard-btn">+ Add a ship</button>
+    </div>
+    <div id="fleet" class="gm-party"></div>
+
+    <details class="card gm-fold" id="shipyard">
+      <summary><h3 class="gm-fold-title">🛠️ Shipyard</h3></summary>
+      <p class="muted">Every ship type in the Ship Rules' compendium. “Add to fleet” copies its values into a new ship at full Hull — change anything afterwards with Edit ship. To add or change a type, edit <code>rules/ships.md</code>.</p>
+      <div class="shipyard-tools">
+        <input type="search" id="shipyard-filter" placeholder="Search ship types… e.g. fishing, oars, shallow" aria-label="Search ship types">
+        <div class="hold-chips" id="shipyard-chips" role="group" aria-label="Show group"></div>
+      </div>
+      <div id="shipyard-grid" class="gm-party shipyard-grid"></div>
+    </details>
 
     <details class="card gm-fold" id="spellbook-card">
       <summary><h3 class="gm-fold-title">📖 Spellbook</h3></summary>
