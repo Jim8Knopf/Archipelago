@@ -2,49 +2,50 @@
 // GM dashboard: the campaign's ships and the shipyard.
 //
 // Ships: one card per ship the campaign owns, built like the character
-// cards — picture, name, hull with ± buttons, the condition word players
-// see, values, a Details fold and the hold. The ★ on a card makes it the
-// crew's ship (campaigns/{id}/settings/main → activeShipId): the one every
-// player's sheet shows. Only the GM sees hull numbers.
+// cards — picture, name, hull with damage/repair, the condition word
+// players see, values, a Details fold and the hold. The ★ on a card makes
+// it the crew's ship (campaigns/{id}/settings/main → activeShipId): the one
+// every player's sheet shows. Only the GM sees hull numbers.
 //
-// Shipyard: every ship type in the Ship Rules (rules/ships.md, read by
-// js/ship-catalog.js), as browsable cards with search and group filters.
-// "Add to fleet" copies a type's values into a new ship.
+// A ship's values come from its type file in rules/ships/ (the only place
+// they live, js/ship-catalog.js); a ship stores just its story changes
+// (js/ship-calc.js resolveShip()). Values that differ from the type are
+// marked ✎ on the card.
+//
+// Shipyard: every type as a browsable card (js/ship-cards.js), with search
+// and group filters. "Add to fleet" creates a ship of that type.
 //
 // Cards are patched, not rebuilt, while you work: a card's top part is
 // redrawn only when its values change, the hold widget inside it is never
-// replaced (so a search or an open add row survives other people's
-// changes), and open folds and menus stay open.
+// replaced, and open folds and menus stay open.
 // ============================================================
 
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { escapeHtml, portraitUrl } from "../js/format.js";
 import * as R from "../js/rules-calc.js";
 import { loadShipCatalog } from "../js/ship-catalog.js";
-import { normalizeShip, shipCondition, guardStoneTier, GUARD_STONE_TIERS } from "../js/ship-calc.js";
 import {
-  shipsCol, settingsRef, addShip, updateShip, deleteShip, setActiveShip, shipErrorMessage
+  resolveShip, overridesFor, shipCondition, guardStoneTier, GUARD_STONE_TIERS, CUSTOM_TYPE
+} from "../js/ship-calc.js";
+import {
+  shipsCol, settingsRef, addShip, updateShip, deleteShip, setActiveShip, shipErrorMessage,
+  isLegacyShip, migrateLegacyShip
 } from "../js/ship.js";
 import { createHoldView } from "../js/hold-ui.js";
+import { shipTypeCardHtml, createShipTypeBrowser, traitsHtml } from "../js/ship-cards.js";
 import { confirmDialog } from "../js/confirm.js";
 import { formDialog } from "../js/dialogs.js";
 import {
-  compressPortrait, importFromUrl, isStoredPortrait, PortraitError, SHIP_PICTURE
+  compressPortrait, importFromUrl, PortraitError, SHIP_PICTURE
 } from "../js/portrait-image.js";
 
-const GROUP_ICONS = {
-  "Boats & Oared Ships": "🚣",
-  "Working Boats": "🎣",
-  "Traders": "📦",
-  "Raiders": "🏴‍☠️",
-  "Warships": "⚔️",
-  "Great Haulers": "⚓"
-};
-const groupIcon = (group) => GROUP_ICONS[group] || "⛵";
-
-// A ship type's picture path (relative to rules/, js/ship-catalog.js) as a
-// full URL, so it works from this page and can be downloaded.
-const typeImageUrl = (t) => t?.image ? new URL(t.image, new URL("../rules/", window.location.href)).href : "";
+// The values a GM can change on a ship (story changes), as edit fields.
+const VALUE_FIELDS = [
+  ["hull", "Max Hull", "number"], ["armor", "Armor", "number"], ["maxSpeed", "Max Speed (m/s)", "number"],
+  ["handling", "Handling", "number"], ["turnRate", "Turn Rate (°)", "number"], ["maneuverability", "Maneuverability", "text"],
+  ["broadside", "Broadside", "text"], ["chasers", "Chasers", "text"], ["crew", "Crew", "number"],
+  ["cargo", "Cargo", "text"], ["price", "Price (Dbl.)", "number"]
+];
 
 export function initShipPanel({ campaign, flash }) {
   const fleetEl = document.getElementById("fleet");
@@ -52,15 +53,16 @@ export function initShipPanel({ campaign, flash }) {
   const crewNote = document.getElementById("crew-ship-note");
   const shipyardEl = document.getElementById("shipyard");
   const shipyardGrid = document.getElementById("shipyard-grid");
-  const shipyardFilter = document.getElementById("shipyard-filter");
-  const shipyardChips = document.getElementById("shipyard-chips");
 
-  let ships = {};           // id -> normalized ship
+  let rawShips = {};        // id -> document as stored
+  let ships = {};           // id -> resolveShip() result
   let activeShipId = null;
   let shipsLoaded = false;
   let settingsLoaded = false;
-  let catalog = { ships: [], traits: {} };
+  let catalog = null;       // js/ship-catalog.js result, once loaded
+  let catalogDone = false;  // loaded, or failed (then only custom values are known)
   let scrollToId = null;    // a ship just added: scroll to its card once it's there
+  const migrated = new Set();
 
   // id -> { el, main, holdView, holdCount, sig, hull }
   const cards = new Map();
@@ -71,17 +73,29 @@ export function initShipPanel({ campaign, flash }) {
     || (ships[a].createdAt || 0) - (ships[b].createdAt || 0)
     || (ships[a].name || "").localeCompare(ships[b].name || "");
   const shipIds = () => Object.keys(ships).sort(order);
+  const typeOf = (ship) => (ship.type === "custom" ? null : catalog?.byKey?.[ship.type]) || null;
 
-  const traitTitle = (name) => catalog.traits[name.toLowerCase()]?.text || "";
-  const traitsHtml = (traits) => traits.map(t =>
-    `<span class="ship-trait" title="${escapeHtml(traitTitle(t))}">${escapeHtml(t)}</span>`).join("");
+  function resolveAll() {
+    ships = Object.fromEntries(Object.entries(rawShips).map(([id, raw]) => [id, resolveShip(raw, catalog)]));
+  }
+
+  // Ships saved in the older shape (a full copy of their type's values)
+  // are rewritten once, now that the type files are known.
+  function migrateLegacy() {
+    if (!catalog) return;
+    Object.entries(rawShips).forEach(([id, raw]) => {
+      if (!isLegacyShip(raw) || migrated.has(id)) return;
+      migrated.add(id);
+      migrateLegacyShip(campaign, id, raw, catalog).catch(fail);
+    });
+  }
 
   // ---- Ship cards ----
 
-  function pictureHtml(url, cls = "") {
+  function pictureHtml(url) {
     const src = portraitUrl(url);
     return `
-      <span class="gm-portrait gm-ship-pic ${cls}">
+      <span class="gm-portrait gm-ship-pic">
         ${src ? `<img src="${escapeHtml(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}
         <span class="gm-portrait-placeholder"${src ? ' style="display:none;"' : ""}>⛵</span>
       </span>`;
@@ -102,19 +116,32 @@ export function initShipPanel({ campaign, flash }) {
       </details>`;
   }
 
+  // A value, marked when it's a story change (differs from the type file).
+  function valueHtml(ship, field, text) {
+    if (!ship.changed.includes(field)) return `<b>${text}</b>`;
+    const type = typeOf(ship);
+    const rules = type ? (field === "traits" ? type.traits.join(", ") || "none" : type[field]) : "";
+    return `<b class="ship-changed" title="Story change — the rules say ${escapeHtml(String(rules))}">${text}✎</b>`;
+  }
+
   function detailsHtml(ship) {
     const stones = ship.guardStones.map(g => {
       const tier = guardStoneTier(g.tier);
       return `<li>${escapeHtml(tier.label)}${g.element ? ` · ${escapeHtml(g.element)}` : ""} <span class="muted">(${tier.effect})</span></li>`;
     }).join("");
     const rows = [
-      ["Crew", ship.crew || "—"],
-      ["Cargo", ship.cargo || "—"],
-      ["Price", ship.price ? `${ship.price.toLocaleString()} Dbl.` : "—"]
-    ].map(([k, v]) => `<tr><th>${k}</th><td>${escapeHtml(String(v))}</td></tr>`).join("");
+      ["Crew", "crew", ship.crew || "—"],
+      ["Cargo", "cargo", ship.cargo || "—"],
+      ["Price", "price", ship.price ? `${ship.price.toLocaleString("en")} Dbl.` : "—"]
+    ].map(([k, f, v]) => `<tr><th>${k}</th><td>${valueHtml(ship, f, escapeHtml(String(v)))}</td></tr>`).join("");
+    const changed = ship.changed.length
+      ? `<p class="muted gm-sub-label">✎ ${ship.changed.length} value${ship.changed.length === 1 ? "" : "s"} changed by the story; everything else follows the ${escapeHtml(ship.typeName)} in the Ship Rules.</p>`
+      : ship.type === "custom" ? "" : `<p class="muted gm-sub-label">All values follow the ${escapeHtml(ship.typeName)} in the Ship Rules.</p>`;
     return `
+      ${ship.typeKnown ? "" : `<p class="gm-sub-label ship-warning">⚠ The type file “${escapeHtml(ship.type)}” is missing from rules/ships/ — only this ship's own story changes are known.</p>`}
+      ${changed}
       <table class="gm-mini-table gm-info-table">${rows}</table>
-      ${ship.traits.length ? `<p class="gm-sub-label">${traitsHtml(ship.traits)}</p>` : ""}
+      ${ship.traits.length ? `<p class="gm-sub-label">${traitsHtml(ship.traits, catalog?.traits)}${ship.changed.includes("traits") ? " ✎" : ""}</p>` : ""}
       ${ship.terminalSlots > 0
         ? `<p class="muted gm-sub-label"><strong>Guard Stone Terminal</strong> — ${ship.guardStones.length} of ${ship.terminalSlots} slot${ship.terminalSlots === 1 ? "" : "s"} filled</p>
            ${stones ? `<ul class="gm-stone-list">${stones}</ul>` : ""}`
@@ -132,12 +159,13 @@ export function initShipPanel({ campaign, flash }) {
     const crewTitle = active
       ? "The crew's ship: every player's sheet shows it. Click to show players no ship."
       : "Make this the crew's ship: every player's sheet shows it.";
+    const v = (field, text) => valueHtml(ship, field, escapeHtml(String(text)));
     return `
       <div class="gm-card-head">
-        ${pictureHtml(ship.imageUrl)}
+        ${pictureHtml(ship.picture)}
         <div class="gm-card-title">
           <h3>${escapeHtml(ship.name || "Unnamed")}</h3>
-          <span class="muted gm-ship-type">${escapeHtml(ship.typeName || "Custom ship")}</span>
+          <span class="muted gm-ship-type">${ship.typeKnown ? "" : "⚠ "}${escapeHtml(ship.typeName)}</span>
         </div>
         <button type="button" class="star-toggle" data-ship-action="crew" aria-pressed="${active}" title="${crewTitle}" aria-label="${crewTitle}">${active ? "★" : "☆"}</button>
         <details class="gm-menu" data-section="menu"${menuOpen}>
@@ -151,7 +179,7 @@ export function initShipPanel({ campaign, flash }) {
       </div>
       ${active ? `<p class="gm-crew-badge">★ The crew's ship — players see this one</p>` : ""}
       <div class="gm-vital" data-vital="hull">
-        <div class="gauge-label"><span>Hull</span><span>${ship.hullCurrent} / ${ship.hullMax}</span></div>
+        <div class="gauge-label"><span>Hull</span><span>${ship.hullCurrent} / ${ship.hullMax}${ship.changed.includes("hull") ? " ✎" : ""}</span></div>
         <div class="gauge ${gaugeClass(ship.hullCurrent, ship.hullMax)}"><div class="fill" style="width:${pct}%"></div></div>
         <div class="gm-vital-controls">
           <button class="small" data-hull="-10">−10</button>
@@ -168,13 +196,13 @@ export function initShipPanel({ campaign, flash }) {
       </div>
       <p class="gm-ship-sees">Players see: <span class="ship-cond-badge cond-${cond.key}">${escapeHtml(cond.label)}</span></p>
       <span class="gm-stats">
-        <span title="Armor">Arm <b>${ship.armor}</b></span>
-        <span title="Max Speed (m/s)">Speed <b>${ship.maxSpeed}</b></span>
-        <span title="Handling">Hand <b>${ship.handling}</b></span>
-        <span title="Turn Rate">Turn <b>${ship.turnRate}°</b></span>
-        <span title="Maneuverability">Man <b>${escapeHtml(ship.maneuverability)}</b></span>
-        <span title="Broadside">Broadside <b>${escapeHtml(ship.broadside)}</b></span>
-        <span title="Chasers">Chasers <b>${escapeHtml(ship.chasers)}</b></span>
+        <span title="Armor">Arm ${v("armor", ship.armor)}</span>
+        <span title="Max Speed (m/s)">Speed ${v("maxSpeed", ship.maxSpeed)}</span>
+        <span title="Handling">Hand ${v("handling", ship.handling)}</span>
+        <span title="Turn Rate">Turn ${v("turnRate", `${ship.turnRate}°`)}</span>
+        <span title="Maneuverability">Man ${v("maneuverability", ship.maneuverability)}</span>
+        <span title="Broadside">Broadside ${v("broadside", ship.broadside)}</span>
+        <span title="Chasers">Chasers ${v("chasers", ship.chasers)}</span>
       </span>
       ${subFold(id, "details", "Details", detailsHtml(ship))}`;
   }
@@ -199,7 +227,7 @@ export function initShipPanel({ campaign, flash }) {
   }
 
   function renderFleet() {
-    if (!shipsLoaded || !settingsLoaded) return;
+    if (!shipsLoaded || !settingsLoaded || !catalogDone) return;
     const ids = shipIds();
     const keep = new Set(ids);
     for (const [id, entry] of cards) {
@@ -222,7 +250,7 @@ export function initShipPanel({ campaign, flash }) {
         }
         entry.hull = ship.hullCurrent;
       }
-      entry.holdCount.textContent = `${ship.hold.length} · ${ship.chest.toLocaleString()} Dbl.`;
+      entry.holdCount.textContent = `${ship.hold.length} · ${ship.chest.toLocaleString("en")} Dbl.`;
       entry.holdView.update(id, ship);
 
       if (fleetEl.children[index] !== entry.el) fleetEl.insertBefore(entry.el, fleetEl.children[index] || null);
@@ -256,17 +284,24 @@ export function initShipPanel({ campaign, flash }) {
   }, true);
 
   const closeMenus = (except) => fleetEl.querySelectorAll("details.gm-menu[open]").forEach(m => {
-    if (m !== except) { m.open = false; }
+    if (m !== except) m.open = false;
   });
   document.addEventListener("click", (e) => closeMenus(e.target.closest("details.gm-menu")));
 
   // A broken picture falls back to the placeholder.
-  [fleetEl, shipyardGrid].forEach(el => el.addEventListener("error", (e) => {
+  fleetEl.addEventListener("error", (e) => {
     if (e.target.tagName !== "IMG") return;
     e.target.style.display = "none";
     const ph = e.target.nextElementSibling;
     if (ph) ph.style.display = "";
-  }, true));
+  }, true);
+
+  // Enter in the amount field = Damage.
+  fleetEl.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || !e.target.matches("[data-hull-amount]")) return;
+    e.preventDefault();
+    e.target.closest(".gm-vital").querySelector('[data-hull="hit"]').click();
+  });
 
   fleetEl.addEventListener("click", async (e) => {
     const card = e.target.closest(".gm-ship-card");
@@ -292,7 +327,7 @@ export function initShipPanel({ campaign, flash }) {
       }
       const next = Math.max(0, Math.min(ship.hullMax, ship.hullCurrent + delta));
       if (next === ship.hullCurrent) return;
-      try { await updateShip(campaign, id, { hullCurrent: next }); } catch (err) { fail(err); }
+      try { await updateShip(campaign, id, { hullDamage: ship.hullMax - next }); } catch (err) { fail(err); }
       return;
     }
 
@@ -321,7 +356,7 @@ export function initShipPanel({ campaign, flash }) {
 
     if (action === "delete") {
       const goods = ship.hold.length || ship.chest
-        ? ` Its hold (${ship.hold.length} kind${ship.hold.length === 1 ? "" : "s"} of thing) and ${ship.chest.toLocaleString()} Dbl. go down with it — move them to another ship first if you want to keep them.`
+        ? ` Its hold (${ship.hold.length} kind${ship.hold.length === 1 ? "" : "s"} of thing) and ${ship.chest.toLocaleString("en")} Dbl. go down with it — move them to another ship first if you want to keep them.`
         : "";
       if (!await confirmDialog({ message: `Delete ${ship.name} for good?${goods}`, confirmLabel: "Delete ship", danger: true })) return;
       try {
@@ -332,27 +367,16 @@ export function initShipPanel({ campaign, flash }) {
     }
   });
 
-  // Enter in the amount field = Damage.
-  fleetEl.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" || !e.target.matches("[data-hull-amount]")) return;
-    e.preventDefault();
-    e.target.closest(".gm-vital").querySelector('[data-hull="hit"]').click();
-  });
-
   // ---- Edit dialog ----
-
-  const TEXT_FIELDS = [
-    ["name", "Name"], ["typeName", "Type"], ["maneuverability", "Maneuverability"],
-    ["broadside", "Broadside"], ["chasers", "Chasers"], ["cargo", "Cargo"]
-  ];
-  const NUMBER_FIELDS = [
-    ["hullMax", "Max Hull"], ["armor", "Armor"], ["maxSpeed", "Max Speed (m/s)"], ["handling", "Handling"],
-    ["turnRate", "Turn Rate (°)"], ["crew", "Crew"], ["price", "Price (Dbl.)"], ["terminalSlots", "Guard Stone slots"]
-  ];
+  //
+  // Values start at what the ship has now; for a ship of a compendium type
+  // each shows the rules value beside it, and only values that differ are
+  // stored (as story changes). "Back to the rules" clears them all.
 
   function editShip(id) {
     const ship = ships[id];
     if (!ship) return Promise.resolve();
+    const type = typeOf(ship);
     const previousFocus = document.activeElement;
     let picture = ship.imageUrl || "";
     let stones = ship.guardStones.map(g => ({ ...g }));
@@ -360,11 +384,21 @@ export function initShipPanel({ campaign, flash }) {
     const dialog = document.createElement("dialog");
     dialog.className = "confirm-dialog ship-edit-dialog";
     dialog.setAttribute("aria-label", `Edit ${ship.name}`);
-    const field = (key, label, input) => `<div class="field"><label for="ship-e-${key}">${label}</label>${input}</div>`;
+    const rulesHint = (field) => {
+      if (!type) return "";
+      const value = field === "traits" ? type.traits.join(", ") || "none" : type[field];
+      return `<span class="ship-rules-value" data-rules-for="${field}">rules: ${escapeHtml(String(value))}</span>`;
+    };
+    const field = (key, label, input, hint = "") => `<div class="field"><label for="ship-e-${key}">${label} ${hint}</label>${input}</div>`;
     dialog.innerHTML = `
       <form method="dialog" class="confirm-dialog-body" novalidate>
         <h3 class="confirm-dialog-title">Edit ${escapeHtml(ship.name)}</h3>
-        <p class="muted">Players see everything here except the hull numbers.</p>
+        <p class="muted">${type
+          ? `A ${escapeHtml(type.name)}: its values come from the Ship Rules. Change one only for a story reason — it's stored as this ship's story change and marked ✎.`
+          : ship.type === "custom" ? "A custom ship: all its values are its own." : `⚠ The type “${escapeHtml(ship.type)}” isn't in the Ship Rules any more.`}
+          Players see everything here except the hull numbers.</p>
+
+        ${field("name", "Name", `<input type="text" id="ship-e-name" name="name" value="${escapeHtml(ship.name)}">`)}
 
         <div class="ship-edit-picture">
           <div class="ship-banner" data-pic></div>
@@ -380,18 +414,22 @@ export function initShipPanel({ campaign, flash }) {
           <p class="muted" data-pic-status></p>
         </div>
 
+        <h4 class="gm-ship-subhead">Values</h4>
         <div class="gm-ship-form">
-          ${TEXT_FIELDS.map(([k, l]) => field(k, l, `<input type="text" id="ship-e-${k}" name="${k}" value="${escapeHtml(ship[k])}">`)).join("")}
-          ${NUMBER_FIELDS.map(([k, l]) => field(k, l, `<input type="number" min="0" id="ship-e-${k}" name="${k}" value="${ship[k]}">`)).join("")}
+          ${VALUE_FIELDS.map(([k, l, kind]) => field(k, l,
+            `<input type="${kind}"${kind === "number" ? ' min="0"' : ""} id="ship-e-${k}" name="${k}" value="${escapeHtml(String(ship[k]))}">`,
+            rulesHint(k))).join("")}
         </div>
-        ${field("traits", "Traits (comma-separated)", `<input type="text" id="ship-e-traits" name="traits" value="${escapeHtml(ship.traits.join(", "))}" placeholder="Oars, Shallow Draft">`)}
-        <p class="muted ship-edit-traits">Rules traits: ${Object.values(catalog.traits).map(t => `<span class="ship-trait" title="${escapeHtml(t.text)}">${escapeHtml(t.name)}</span>`).join(" ") || "—"}</p>
+        ${field("traits", "Traits (comma-separated)", `<input type="text" id="ship-e-traits" name="traits" value="${escapeHtml(ship.traits.join(", "))}">`, rulesHint("traits"))}
+        <p class="muted ship-edit-traits">Rules traits: ${Object.values(catalog?.traits || {}).map(t => `<span class="ship-trait" title="${escapeHtml(t.text)}">${escapeHtml(t.name)}</span>`).join(" ") || "—"}</p>
+        ${type ? `<button type="button" class="small" data-reset-values>↺ All values back to the rules</button>` : ""}
 
         <h4 class="gm-ship-subhead">Guard Stones <span class="muted">(rules Section 9 — one per terminal slot)</span></h4>
+        ${field("terminalSlots", "Guard Stone Terminal slots", `<input type="number" min="0" id="ship-e-terminalSlots" name="terminalSlots" value="${ship.terminalSlots}">`)}
         <ul class="inventory-list" data-stones></ul>
         <button type="button" class="small" data-add-stone>+ Seat a Guard Stone</button>
 
-        ${field("storyChanges", "Story changes", `<textarea id="ship-e-storyChanges" name="storyChanges" rows="2" placeholder="e.g. Guard Stone Terminal from a wreck">${escapeHtml(ship.storyChanges)}</textarea>`)}
+        ${field("storyChanges", "Story changes (text)", `<textarea id="ship-e-storyChanges" name="storyChanges" rows="2" placeholder="Why it differs — e.g. Guard Stone Terminal from a wreck, reinforced hull">${escapeHtml(ship.storyChanges)}</textarea>`)}
         ${field("notes", "Ship notes — every player sees these", `<textarea id="ship-e-notes" name="notes" rows="2">${escapeHtml(ship.notes)}</textarea>`)}
 
         <p class="admin-gate-error admin-dialog-error" role="alert" data-error></p>
@@ -408,9 +446,10 @@ export function initShipPanel({ campaign, flash }) {
     const slotsInput = $("#ship-e-terminalSlots");
 
     function paintPicture() {
-      const src = portraitUrl(picture);
+      const own = portraitUrl(picture);
+      const src = own || (type?.image || "");
       $("[data-pic]").innerHTML = src
-        ? `<img src="${escapeHtml(src)}" alt="" referrerpolicy="no-referrer">`
+        ? `<img src="${escapeHtml(src)}" alt="" referrerpolicy="no-referrer">${own ? "" : `<span class="ship-banner-tag">picture of the ${escapeHtml(type.name)} type</span>`}`
         : `<span class="ship-banner-empty">⛵ No picture yet</span>`;
       $('[data-pic-action="remove"]').hidden = !picture;
     }
@@ -426,10 +465,22 @@ export function initShipPanel({ campaign, flash }) {
         </li>`).join("") : `<li class="muted">No stones seated.</li>`;
       const add = $("[data-add-stone]");
       add.disabled = stones.length >= slots;
-      add.title = slots === 0 ? "No Guard Stone Terminal — set Guard Stone slots first" : "";
+      add.title = slots === 0 ? "No Guard Stone Terminal — set its slots first" : "";
+    }
+
+    // A value that differs from the rules gets its hint highlighted.
+    function paintChanged() {
+      if (!type) return;
+      [...VALUE_FIELDS.map(([k]) => k), "traits"].forEach(k => {
+        const input = $(`#ship-e-${k}`);
+        const value = k === "traits" ? input.value.split(",").map(t => t.trim()).filter(Boolean) : input.value;
+        const changed = Object.keys(overridesFor(ship.type, { [k]: value }, catalog)).length > 0;
+        $(`[data-rules-for="${k}"]`)?.classList.toggle("is-changed", changed);
+      });
     }
     paintPicture();
     paintStones();
+    paintChanged();
 
     async function usePicture(make) {
       dialog.querySelectorAll("[data-pic-action]").forEach(b => { b.disabled = true; });
@@ -453,7 +504,12 @@ export function initShipPanel({ campaign, flash }) {
       if (e.target === dialog) { dialog.close("cancel"); return; }
       const pic = e.target.closest("[data-pic-action]");
       if (pic?.dataset.picAction === "upload") { $("[data-pic-file]").click(); return; }
-      if (pic?.dataset.picAction === "remove") { picture = ""; picStatus.textContent = "Picture removed — Save to keep it that way."; paintPicture(); return; }
+      if (pic?.dataset.picAction === "remove") {
+        picture = "";
+        picStatus.textContent = type?.image ? "Own picture removed — the type's picture shows again. Save to keep it." : "Picture removed — Save to keep it that way.";
+        paintPicture();
+        return;
+      }
       if (pic?.dataset.picAction === "link") {
         const link = $("[data-pic-link]").value.trim();
         if (!link) { picStatus.textContent = "Paste a picture link first."; return; }
@@ -466,6 +522,13 @@ export function initShipPanel({ campaign, flash }) {
           picStatus.textContent = "Link ready — Save to keep it.";
           paintPicture();
         }
+        return;
+      }
+      if (e.target.closest("[data-reset-values]")) {
+        [...VALUE_FIELDS.map(([k]) => k), "traits"].forEach(k => {
+          $(`#ship-e-${k}`).value = k === "traits" ? type.traits.join(", ") : String(type[k]);
+        });
+        paintChanged();
         return;
       }
       if (e.target.closest("[data-add-stone]")) { stones.push({ id: R.makeId(), tier: "minor", element: "Fire" }); paintStones(); return; }
@@ -482,6 +545,7 @@ export function initShipPanel({ campaign, flash }) {
       if (e.key === "Enter") { e.preventDefault(); $('[data-pic-action="link"]').click(); }
     });
     slotsInput.addEventListener("input", paintStones);
+    form.addEventListener("input", paintChanged);
     $("[data-stones]").addEventListener("input", (e) => {
       const input = e.target.closest("[data-stone-field]");
       if (!input) return;
@@ -494,19 +558,25 @@ export function initShipPanel({ campaign, flash }) {
       const error = $("[data-error]");
       const name = (v.name || "").trim();
       if (!name) { error.textContent = "Give the ship a name."; return; }
-      const fields = { imageUrl: picture };
-      TEXT_FIELDS.forEach(([k]) => { fields[k] = (v[k] || "").trim(); });
-      NUMBER_FIELDS.forEach(([k]) => { fields[k] = Math.max(0, Math.floor(Number(v[k]) || 0)); });
-      if (stones.length > fields.terminalSlots) {
+      const terminalSlots = Math.max(0, Math.floor(Number(v.terminalSlots) || 0));
+      if (stones.length > terminalSlots) {
         error.textContent = `${stones.length} Guard Stones need ${stones.length} terminal slots — raise the slots or remove a stone.`;
         return;
       }
-      fields.traits = (v.traits || "").split(",").map(t => t.trim()).filter(Boolean);
-      fields.guardStones = stones.map(g => ({ id: g.id, tier: g.tier, element: (g.element || "").trim() }));
-      fields.storyChanges = (v.storyChanges || "").trim();
-      fields.notes = (v.notes || "").trim();
+      const values = Object.fromEntries(VALUE_FIELDS.map(([k, , kind]) => [k, kind === "number" ? Math.max(0, Math.floor(Number(v[k]) || 0)) : (v[k] || "").trim()]));
+      values.traits = (v.traits || "").split(",").map(t => t.trim()).filter(Boolean);
       const latest = ships[id] || ship;
-      fields.hullCurrent = R.currentAfterMaxChange(latest.hullCurrent, latest.hullMax, fields.hullMax);
+      const fields = {
+        name,
+        imageUrl: picture,
+        overrides: overridesFor(ship.type, values, catalog),
+        // Lost Hull stays lost when Max Hull changes (never more than all of it).
+        hullDamage: Math.min(latest.hullDamage, values.hull),
+        terminalSlots,
+        guardStones: stones.map(g => ({ id: g.id, tier: g.tier, element: (g.element || "").trim() })),
+        storyChanges: (v.storyChanges || "").trim(),
+        notes: (v.notes || "").trim()
+      };
       try {
         await updateShip(campaign, id, fields);
         flash(`${name} saved.`);
@@ -530,105 +600,50 @@ export function initShipPanel({ campaign, flash }) {
 
   // ---- Shipyard ----
 
-  let shipyardGroup = "all";
-  const typeCards = new Map();   // key -> { el, type }
+  const typeCards = new Map();   // key -> card element
 
-  function typeCardHtml(t) {
-    const stat = (label, value, title = "") => `
-      <div class="ship-stat"${title ? ` title="${escapeHtml(title)}"` : ""}>
-        <span class="ship-stat-label">${label}</span><span class="ship-stat-value">${escapeHtml(String(value))}</span>
-      </div>`;
-    const custom = t.key === "custom";
-    const pic = typeImageUrl(t);
-    return `
-      ${pic ? `<div class="ship-banner"><img src="${escapeHtml(pic)}" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>` : ""}
-      <div class="gm-card-head">
-        <span class="gm-portrait shipyard-icon" aria-hidden="true">${custom ? "🛠️" : groupIcon(t.group)}</span>
-        <div class="gm-card-title">
-          <h3>${escapeHtml(t.name)}</h3>
-          <span class="muted">${escapeHtml([t.de, t.alt].filter(Boolean).join(" · ") || t.group)}</span>
-        </div>
-        <span class="gm-count" data-owned hidden></span>
-      </div>
-      <p class="shipyard-summary">${escapeHtml(t.summary)}</p>
-      ${custom ? "" : `
-        <div class="ship-stats shipyard-stats">
-          ${stat("Hull", t.hull)}${stat("Armor", t.armor)}${stat("Speed", `${t.maxSpeed} m/s`)}
-          ${stat("Handling", t.handling)}${stat("Turn", `${t.turnRate}°`)}${stat("Man.", t.maneuverability)}
-          ${stat("Broadside", t.broadside)}${stat("Chasers", t.chasers)}
-          ${stat("Crew", t.crew || "—")}${stat("Cargo", t.cargo || "—")}
-        </div>
-        ${t.traits.length ? `<p class="shipyard-traits">${traitsHtml(t.traits)}</p>` : ""}
-        <p class="shipyard-price">💰 ${t.price.toLocaleString()} Dbl. <span class="muted">· ${escapeHtml(t.group)}</span></p>
-        <details class="gm-sub">
-          <summary>About this ship</summary>
-          <div class="gm-sub-body">
-            <p>${escapeHtml(t.description)}</p>
-            ${t.benefits ? `<p><strong>Benefits:</strong> ${escapeHtml(t.benefits)}</p>` : ""}
-            ${t.flaws ? `<p><strong>Flaws:</strong> ${escapeHtml(t.flaws)}</p>` : ""}
-          </div>
-        </details>`}
-      <button type="button" class="brass small shipyard-add" data-add-type="${escapeHtml(t.key)}">+ Add to fleet</button>`;
-  }
-
-  function buildShipyard() {
-    const custom = {
-      key: "custom", name: "Custom ship", de: "", alt: "", group: "",
-      summary: "A ship that isn't in the compendium — fill in every value yourself under Edit ship."
-    };
-    shipyardGrid.innerHTML = "";
-    typeCards.clear();
-    [...catalog.ships, custom].forEach(t => {
+  const browser = createShipTypeBrowser({
+    grid: shipyardGrid,
+    filter: document.getElementById("shipyard-filter"),
+    chips: document.getElementById("shipyard-chips")
+  }, {
+    makeCard(type) {
       const el = document.createElement("div");
       el.className = "card gm-card shipyard-card";
-      el.dataset.type = t.key;
-      el.innerHTML = typeCardHtml(t);
-      shipyardGrid.appendChild(el);
-      typeCards.set(t.key, { el, type: t });
-    });
-    const groups = [...new Set(catalog.ships.map(t => t.group))];
-    shipyardChips.innerHTML = [["all", "All"], ...groups.map(g => [g, `${groupIcon(g)} ${g}`])].map(([key, label]) =>
-      `<button type="button" class="small hold-chip" data-group="${escapeHtml(key)}" aria-pressed="${key === shipyardGroup}">${escapeHtml(label)}</button>`).join("");
-    filterShipyard();
-    renderShipyardCounts();
-  }
+      el.dataset.type = type.key;
+      const add = `<button type="button" class="brass small shipyard-add" data-add-type="${escapeHtml(type.key)}">+ Add to fleet</button>`;
+      el.innerHTML = type.key === "custom"
+        ? `<div class="gm-card-head"><span class="gm-portrait shipyard-icon" aria-hidden="true">🛠️</span>
+             <div class="gm-card-title"><h3>Custom ship</h3><span class="muted">not in the compendium</span></div>
+             <span class="gm-count" data-owned hidden></span></div>
+           <p class="shipyard-summary">A story ship that isn't in the Ship Rules — fill in every value yourself under Edit ship.</p>${add}`
+        : shipTypeCardHtml(type, { traits: catalog?.traits, actionsHtml: add });
+      typeCards.set(type.key, el);
+      return el;
+    }
+  });
 
-  function filterShipyard() {
-    const q = shipyardFilter.value.trim().toLowerCase();
-    typeCards.forEach(({ el, type: t }) => {
-      const inGroup = shipyardGroup === "all" || t.group === shipyardGroup || t.key === "custom";
-      const text = [t.name, t.de, t.alt, t.group, t.summary, t.description, t.benefits, t.flaws, ...(t.traits || [])].join(" ").toLowerCase();
-      el.hidden = !(inGroup && (!q || text.includes(q) || t.key === "custom"));
-    });
-    shipyardChips.querySelectorAll("[data-group]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.group === shipyardGroup)));
-  }
+  const customType = { ...CUSTOM_TYPE, group: "", alwaysShow: true };
 
   // "2 in fleet" on each type the campaign already owns.
   function renderShipyardCounts() {
     const owned = {};
     Object.values(ships).forEach(s => { owned[s.type] = (owned[s.type] || 0) + 1; });
-    typeCards.forEach(({ el }, key) => {
+    typeCards.forEach((el, key) => {
       const badge = el.querySelector("[data-owned]");
       badge.hidden = !owned[key];
       badge.textContent = owned[key] ? `${owned[key]} in fleet` : "";
     });
   }
 
-  shipyardFilter.addEventListener("input", filterShipyard);
-  shipyardChips.addEventListener("click", (e) => {
-    const chip = e.target.closest("[data-group]");
-    if (!chip) return;
-    shipyardGroup = chip.dataset.group;
-    filterShipyard();
-  });
-
   shipyardGrid.addEventListener("click", async (e) => {
     const btn = e.target.closest("[data-add-type]");
     if (!btn) return;
-    const type = typeCards.get(btn.dataset.addType)?.type;
-    if (!type) return;
+    const key = btn.dataset.addType;
+    const type = key === "custom" ? null : catalog?.byKey?.[key];
+    if (key !== "custom" && !type) return;
     const values = await formDialog({
-      title: type.key === "custom" ? "Add a custom ship" : `Add a ${type.name}`,
+      title: type ? `Add a ${type.name}` : "Add a custom ship",
       confirmLabel: "Add to fleet",
       bodyHtml: `
         <div class="field">
@@ -639,44 +654,53 @@ export function initShipPanel({ campaign, flash }) {
       validate: (v) => (v.name || "").trim() ? "" : "Give the ship a name."
     });
     if (!values) return;
-    // The type's picture from the rules, stored in the new ship like an
-    // uploaded one. Without it (or if it won't load) the ship just has none.
-    let imageUrl = "";
-    if (typeImageUrl(type)) {
-      try { imageUrl = await importFromUrl(typeImageUrl(type), SHIP_PICTURE); } catch (err) { console.warn(err); }
-    }
+    const name = values.name.trim();
+    let ref;
     try {
-      const ref = await addShip(campaign, values.name.trim(), type.key === "custom" ? null : type, imageUrl ? { imageUrl } : {});
-      if (values.crew) await setActiveShip(campaign, ref.id);
-      openSections.add(`${ref.id}:details`);
-      scrollToId = ref.id;
-      flash(`${values.name.trim()} joins the fleet.${values.crew ? " Players see it now." : ""}`);
-      renderFleet();
-    } catch (err) { fail(err); }
+      ref = await addShip(campaign, name, type);
+    } catch (err) { fail(err); return; }
+    openSections.add(`${ref.id}:details`);
+    scrollToId = ref.id;
+    renderFleet();
+    if (values.crew) {
+      try { await setActiveShip(campaign, ref.id); } catch (err) { fail(err); return; }
+    }
+    flash(`${name} joins the fleet.${values.crew ? " Players see it now." : ""}`);
   });
 
   document.getElementById("open-shipyard-btn").addEventListener("click", () => {
     shipyardEl.open = true;
     shipyardEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    shipyardFilter.focus({ preventScroll: true });
+    document.getElementById("shipyard-filter").focus({ preventScroll: true });
   });
 
-  loadShipCatalog().then(c => { catalog = c; buildShipyard(); renderFleet(); }, (err) => {
+  loadShipCatalog("../rules/").then(c => {
+    catalog = c;
+    browser.setTypes([...c.ships, customType]);
+    resolveAll();
+    migrateLegacy();
+  }, (err) => {
     console.error(err);
-    buildShipyard();
-    shipyardGrid.insertAdjacentHTML("afterbegin", `<p class="card empty-state">Couldn't load the Ship Rules, so only a custom ship can be added right now.</p>`);
+    browser.setTypes([customType]);
+    shipyardGrid.insertAdjacentHTML("afterbegin", `<p class="card empty-state">Couldn't load the ship types from the Ship Rules (rules/ships/), so only a custom ship can be added, and ships show only their own values.</p>`);
+  }).finally(() => {
+    catalogDone = true;
+    renderShipyardCounts();
+    renderFleet();
   });
 
   // ---- Live data ----
 
   onSnapshot(shipsCol(campaign), (snap) => {
-    ships = {};
-    snap.docs.forEach(d => { ships[d.id] = normalizeShip(d.data()); });
+    rawShips = {};
+    snap.docs.forEach(d => { rawShips[d.id] = d.data(); });
+    resolveAll();
+    migrateLegacy();
     shipsLoaded = true;
     renderFleet();
   }, (err) => {
     console.error(err);
-    fleetEl.innerHTML = `<div class="card empty-state">Couldn't load the ships — publish the ships and settings rules from firestore.rules in the Firebase console.</div>`;
+    fleetEl.innerHTML = `<div class="card empty-state">Couldn't load the ships (${escapeHtml(err.code || err.message)}) — publish the ships and settings rules from firestore.rules in the Firebase console.</div>`;
   });
 
   onSnapshot(settingsRef(campaign), (snap) => {

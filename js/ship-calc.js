@@ -69,34 +69,40 @@ export function defaultCategoryFor(type) {
 export const ITEM_TYPES = ["item", "potion", "armor", "weapon"];
 
 // ---- Ship documents ----
+//
+// A ship in a campaign stores only what belongs to that one ship: its
+// name, its type (a key into the Ship Compendium files, js/ship-catalog.js),
+// its story changes (`overrides`: just the values that differ from the
+// type), how much Hull it has lost (`hullDamage`), and its picture, Guard
+// Stones, notes, chest and hold. Every value it shares with its type is
+// read from the type file each time (resolveShip()), so the compendium
+// stays the only place a type's values live.
 
-// A ship that isn't in the compendium (a story ship): the GM fills it in.
+// The values a ship gets from its type, and that a story change can replace.
+export const SHIP_VALUE_FIELDS = [
+  "hull", "armor", "maxSpeed", "handling", "turnRate", "maneuverability",
+  "broadside", "chasers", "crew", "cargo", "traits", "price"
+];
+const NUMBER_FIELDS = ["hull", "armor", "maxSpeed", "handling", "turnRate", "crew", "price"];
+
+// A ship that isn't in the compendium (a story ship): all its values are
+// its own (overrides), starting from these.
 export const CUSTOM_TYPE = {
   key: "custom", name: "Custom ship", de: "", hull: 100, armor: 1, maxSpeed: 4, handling: 1, turnRate: 45,
   maneuverability: "+0", broadside: "—", chasers: "—", crew: 0, cargo: "", traits: [], price: 0
 };
 
-// A new ship of a compendium type (a js/ship-catalog.js entry, read from
-// the Ship Rules), at full Hull. No type: a custom ship.
-export function defaultShip(name, type = CUSTOM_TYPE) {
-  const t = type || CUSTOM_TYPE;
+const pickValues = (t) => Object.fromEntries(SHIP_VALUE_FIELDS.map(f => [f, f === "traits" ? [...(t[f] || [])] : t[f]]));
+
+// A new ship of a compendium type (a js/ship-catalog.js entry), undamaged.
+// No type: a custom ship, which keeps all its values as its own.
+export function defaultShip(name, type = null) {
+  const custom = !type || type.key === "custom";
   return {
-    name: (name || "").trim() || t.name,
-    type: t.key,
-    typeName: t.key === "custom" ? "" : t.name,
-    hullMax: t.hull,
-    hullCurrent: t.hull,
-    armor: t.armor,
-    maxSpeed: t.maxSpeed,
-    handling: t.handling,
-    turnRate: t.turnRate,
-    maneuverability: t.maneuverability,
-    broadside: t.broadside,
-    chasers: t.chasers,
-    crew: t.crew,
-    cargo: t.cargo,
-    traits: [...t.traits],
-    price: t.price,
+    name: (name || "").trim() || (custom ? CUSTOM_TYPE.name : type.name),
+    type: custom ? "custom" : type.key,
+    overrides: custom ? pickValues(CUSTOM_TYPE) : {},
+    hullDamage: 0,
     terminalSlots: 0,
     guardStones: [],
     storyChanges: "",
@@ -122,26 +128,84 @@ export function normalizeHoldItem(item) {
   };
 }
 
-// Fills in anything an older or partial ship document is missing.
-export function normalizeShip(d) {
-  const def = defaultShip(d?.name, null);
-  const ship = { ...def, ...(d || {}) };
-  ship.hullMax = Math.max(0, Math.floor(num(ship.hullMax, def.hullMax)));
-  ship.hullCurrent = Math.max(0, Math.min(ship.hullMax, Math.floor(num(ship.hullCurrent, ship.hullMax))));
-  ship.chest = Math.max(0, Math.floor(num(ship.chest)));
-  ship.terminalSlots = Math.max(0, Math.floor(num(ship.terminalSlots)));
-  ["name", "type", "typeName", "maneuverability", "broadside", "chasers", "cargo", "storyChanges", "notes", "imageUrl"]
-    .forEach(k => { ship[k] = String(ship[k] ?? ""); });
-  ["armor", "maxSpeed", "handling", "turnRate", "crew", "price"]
-    .forEach(k => { ship[k] = num(ship[k], def[k]); });
-  ship.traits = Array.isArray(ship.traits) ? ship.traits.filter(Boolean).map(String) : [];
-  ship.guardStones = (Array.isArray(ship.guardStones) ? ship.guardStones : []).map(g => ({
+function cleanValue(field, value) {
+  if (field === "traits") return Array.isArray(value) ? value.filter(Boolean).map(String) : [];
+  if (NUMBER_FIELDS.includes(field)) return Math.max(0, num(value));
+  return String(value ?? "");
+}
+
+// The stored document, tidied: what a ship owns itself. Ships saved before
+// overrides existed carried a full copy of their type's values; for a typed
+// ship that copy is dropped (the type file wins), keeping only the share of
+// Hull lost (`legacyHullShare`, turned into hullDamage by resolveShip()).
+export function normalizeShipDoc(raw) {
+  const d = { ...defaultShip(raw?.name, null), ...(raw || {}) };
+  d.type = String(d.type || "custom");
+  const legacy = raw && "hullMax" in raw && !("overrides" in raw);
+  let overrides = raw?.overrides && typeof raw.overrides === "object" ? raw.overrides : {};
+  if (legacy) {
+    const max = num(raw.hullMax);
+    d.legacyHullShare = max > 0 ? Math.max(0, Math.min(1, 1 - num(raw.hullCurrent, max) / max)) : 0;
+    overrides = d.type === "custom"
+      ? { ...pickValues(CUSTOM_TYPE), ...Object.fromEntries(SHIP_VALUE_FIELDS.filter(f => f in raw).map(f => [f, raw[f]])), hull: raw.hullMax }
+      : {};
+  }
+  d.overrides = Object.fromEntries(Object.entries(overrides)
+    .filter(([f]) => SHIP_VALUE_FIELDS.includes(f))
+    .map(([f, v]) => [f, cleanValue(f, v)]));
+  d.hullDamage = Math.max(0, Math.floor(num(d.hullDamage)));
+  d.chest = Math.max(0, Math.floor(num(d.chest)));
+  d.terminalSlots = Math.max(0, Math.floor(num(d.terminalSlots)));
+  ["name", "storyChanges", "notes", "imageUrl"].forEach(k => { d[k] = String(d[k] ?? ""); });
+  d.guardStones = (Array.isArray(d.guardStones) ? d.guardStones : []).map(g => ({
     id: g?.id || makeId(),
     tier: guardStoneTier(g?.tier).key,
     element: String(g?.element ?? "")
   }));
-  ship.hold = Array.isArray(ship.hold) ? ship.hold.map(normalizeHoldItem) : [];
-  return ship;
+  d.hold = Array.isArray(d.hold) ? d.hold.map(normalizeHoldItem) : [];
+  return d;
+}
+
+// The ship as everyone sees it: its type's values with its story changes
+// on top. `catalog` is js/ship-catalog.js's (null while it loads). Adds
+// hullMax / hullCurrent, typeName, typeKnown (the type file exists),
+// changed (fields that differ from the type) and picture (its own, else
+// its type's).
+export function resolveShip(raw, catalog) {
+  const d = normalizeShipDoc(raw);
+  const isCustom = d.type === "custom";
+  const type = isCustom ? null : catalog?.byKey?.[d.type] || null;
+  const base = type || CUSTOM_TYPE;
+  const values = {};
+  SHIP_VALUE_FIELDS.forEach(f => {
+    values[f] = f in d.overrides ? d.overrides[f] : cleanValue(f, base[f]);
+  });
+  const hullMax = Math.floor(values.hull);
+  const damage = d.legacyHullShare != null ? Math.round(hullMax * d.legacyHullShare) : d.hullDamage;
+  return {
+    ...d,
+    ...values,
+    hullDamage: Math.min(damage, hullMax),
+    hullMax,
+    hullCurrent: Math.max(0, hullMax - damage),
+    typeName: isCustom ? CUSTOM_TYPE.name : type ? type.name : `Unknown type “${d.type}”`,
+    typeKnown: isCustom || !!type,
+    changed: isCustom ? [] : Object.keys(d.overrides),
+    picture: d.imageUrl || type?.image || ""
+  };
+}
+
+// The overrides to store for edited values: only what differs from the
+// type (a custom ship keeps everything).
+export function overridesFor(typeKey, values, catalog) {
+  const type = typeKey === "custom" ? null : catalog?.byKey?.[typeKey];
+  const out = {};
+  SHIP_VALUE_FIELDS.forEach(f => {
+    if (!(f in values)) return;
+    const v = cleanValue(f, values[f]);
+    if (!type || JSON.stringify(v) !== JSON.stringify(cleanValue(f, type[f]))) out[f] = v;
+  });
+  return out;
 }
 
 // ---- Items: stacking and splitting ----

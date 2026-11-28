@@ -14,7 +14,8 @@ import { compressPortrait, importFromUrl, isStoredPortrait, PortraitError } from
 import { SHEET_SECTIONS, defaultLayout, moveSection, isDefaultLayout } from "../js/sheet-layout.js";
 import { normalize } from "../js/normalize.js";
 import { settingsRef, shipRef, depositItem, shipErrorMessage, ShipError } from "../js/ship.js";
-import { normalizeShip, shipCondition, guardStoneTier, qtyOf } from "../js/ship-calc.js";
+import { resolveShip, shipCondition, guardStoneTier, qtyOf } from "../js/ship-calc.js";
+import { loadShipCatalog } from "../js/ship-catalog.js";
 import { createHoldView, askQuantity } from "../js/hold-ui.js";
 
 const params = new URLSearchParams(window.location.search);
@@ -1694,8 +1695,16 @@ const shipFlash = (msg) => flash(shipToast, msg, 3500);
 const shipStatusEl = document.getElementById("ship-status");
 const holdContainer = document.getElementById("hold-container");
 let activeShipId = null;
-let activeShip = null;
+let activeShipRaw = null;   // the ship document as stored
+let activeShip = null;      // resolveShip(): its type's values + story changes
 let holdView = null;
+// The ship's values come from its type file in rules/ships/; until those
+// are loaded the section waits rather than show made-up values.
+let shipCatalog = null;
+let shipCatalogDone = false;
+loadShipCatalog("../rules/")
+  .then(c => { shipCatalog = c; }, (err) => console.error(err))
+  .finally(() => { shipCatalogDone = true; renderShip(); });
 let shipStatusSig = "";
 let shownCondition = null;
 
@@ -1713,11 +1722,11 @@ function watchShip(campaign, charId) {
       unsubShip?.();
       unsubShip = null;
       activeShipId = id;
-      activeShip = null;
+      activeShipRaw = null;
       shownCondition = null;
       if (id) {
         unsubShip = onSnapshot(shipRef(campaign, id), (s) => {
-          activeShip = s.exists() ? normalizeShip(s.data()) : null;
+          activeShipRaw = s.exists() ? s.data() : null;
           renderShip();
         }, (err) => console.error(err));
       }
@@ -1738,7 +1747,7 @@ function shipStatusHtml(s) {
     const tier = guardStoneTier(g.tier);
     return `${escapeHtml(tier.label)}${g.element ? ` (${escapeHtml(g.element)})` : ""} — ${tier.effect}`;
   });
-  const pic = portraitUrl(s.imageUrl);
+  const pic = portraitUrl(s.picture);
   return `
     ${pic ? `<div class="ship-banner"><img src="${escapeHtml(pic)}" alt="" referrerpolicy="no-referrer" onerror="this.parentElement.remove()"></div>` : ""}
     <div class="ship-head">
@@ -1768,6 +1777,7 @@ function shipStatusHtml(s) {
 
 function renderShip() {
   if (!holdView) return;
+  activeShip = activeShipRaw ? resolveShip(activeShipRaw, shipCatalog) : null;
   const has = !!activeShip;
   document.body.classList.toggle("has-ship", has);
   // No ship: both sections hide in View mode; Edit mode says why.
@@ -1780,6 +1790,13 @@ function renderShip() {
     shipStatusSig = "";
     shipStatusEl.innerHTML = `<p class="empty-state">No ship yet — the GM picks the crew's ship on the GM Dashboard.</p>`;
     holdView.update(null, null);
+    return;
+  }
+
+  if (!shipCatalogDone) {
+    shipStatusSig = "";
+    shipStatusEl.innerHTML = `<p class="muted">⛵ ${escapeHtml(activeShip.name)} — loading the ship's values…</p>`;
+    holdView.update(activeShipId, activeShip);
     return;
   }
 

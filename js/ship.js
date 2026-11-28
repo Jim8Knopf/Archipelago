@@ -17,12 +17,12 @@
 // ============================================================
 
 import {
-  collection, doc, runTransaction, setDoc, updateDoc, deleteDoc, addDoc
+  collection, doc, runTransaction, setDoc, updateDoc, deleteDoc, addDoc, deleteField
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { db } from "./firebase-init.js";
 import { trackWrite } from "./sync-status.js";
 import {
-  normalizeShip, normalizeHoldItem, defaultShip, addStacked, takeFrom, toHoldItem,
+  normalizeShipDoc, resolveShip, SHIP_VALUE_FIELDS, normalizeHoldItem, defaultShip, addStacked, takeFrom, toHoldItem,
   addToInventory, takeFromInventory, bottlesAfter
 } from "./ship-calc.js";
 
@@ -37,10 +37,16 @@ export class ShipError extends Error {}
 // Turns any failure into a message worth showing.
 export function shipErrorMessage(err) {
   if (err instanceof ShipError) return err.message;
-  if (err?.code === "unavailable" || err?.code === "failed-precondition" || !navigator.onLine) {
-    return "The ship's hold needs a connection — try again once you're online.";
+  if (err?.code === "permission-denied") {
+    return "The database refused this — publish the current firestore.rules (ships and settings) in the Firebase console.";
   }
-  return "Couldn't save — check your connection.";
+  if (err?.code === "invalid-argument") {
+    return `Couldn't save: the database rejected the data (${err.message}).`;
+  }
+  if (err?.code === "unavailable" || err?.code === "failed-precondition" || !navigator.onLine) {
+    return "This needs a connection — try again once you're online.";
+  }
+  return `Couldn't save${err?.code ? ` (${err.code})` : ""} — check your connection.`;
 }
 
 const rawInventory = (char) => (char.inventory || []).map(i => i.type ? i : { ...i, type: "item" });
@@ -48,7 +54,7 @@ const rawInventory = (char) => (char.inventory || []).map(i => i.type ? i : { ..
 async function readShip(tx, ref) {
   const snap = await tx.get(ref);
   if (!snap.exists()) throw new ShipError("That ship is gone.");
-  return normalizeShip(snap.data());
+  return normalizeShipDoc(snap.data());
 }
 
 // ---- Ships ----
@@ -57,6 +63,21 @@ async function readShip(tx, ref) {
 // fields (e.g. imageUrl) go on top of the type's values.
 export function addShip(campaign, name, type, extra = {}) {
   return trackWrite(addDoc(shipsCol(campaign), { ...defaultShip(name, type), ...extra }));
+}
+
+// Ships saved before story changes were stored separately carried a full
+// copy of their type's values. This rewrites one to the current shape:
+// overrides (custom ships only) and hullDamage, the old copied fields
+// removed. Run by the GM Dashboard once it has the compendium loaded.
+export const isLegacyShip = (raw) => !!raw && "hullMax" in raw && !("overrides" in raw);
+
+export function migrateLegacyShip(campaign, shipId, raw, catalog) {
+  const ship = resolveShip(raw, catalog);
+  const update = { overrides: ship.overrides, hullDamage: ship.hullDamage };
+  ["hullMax", "hullCurrent", "typeName", ...SHIP_VALUE_FIELDS.filter(f => f !== "hull")].forEach(f => {
+    if (f in raw) update[f] = deleteField();
+  });
+  return trackWrite(updateDoc(shipRef(campaign, shipId), update));
 }
 
 export function updateShip(campaign, shipId, fields) {

@@ -2048,3 +2048,26 @@ dialog.ship-edit-dialog { width: min(640px, calc(100vw - 32px)); max-height: cal
 .gm-stone select { flex: 1 1 auto; width: auto; }
 .gm-stone input { flex: 1 1 6rem; min-width: 0; }
 .ship-edit-dialog [data-add-stone] { margin: .3rem 0 .9rem; }
+
+/* A ship value that is a story change (differs from its type file). */
+.ship-changed { color: var(--danger); cursor: help; }
+.ship-warning { color: var(--danger); font-weight: 600; }
+.ship-rules-value {
+  margin-left: .3rem;
+  font-size: .7rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-soft);
+}
+.ship-rules-value.is-changed { color: var(--danger); font-weight: 600; }
+.ship-banner { position: relative; }
+.ship-banner-tag {
+  position: absolute;
+  left: .4rem;
+  bottom: .4rem;
+  padding: .1rem .4rem;
+  border-radius: 4px;
+  background: rgba(10, 24, 32, .7);
+  color: var(--parchment);
+  font-size: .75rem;
+}

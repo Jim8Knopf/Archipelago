@@ -12,7 +12,7 @@
 // offline data comes from the SDK's IndexedDB cache (js/firebase-init.js).
 // ============================================================
 
-const CACHE = "archipelago-v2";
+const CACHE = "archipelago-v3";
 
 // Pages to keep available offline even if they were never opened online.
 const PRECACHE = [
@@ -34,6 +34,7 @@ const PRECACHE = [
   "js/sheet-layout.js",
   "js/ship.js",
   "js/ship-calc.js",
+  "js/ship-cards.js",
   "js/ship-catalog.js",
   "js/sync-status.js",
   "sheet/",
@@ -46,6 +47,7 @@ const PRECACHE = [
   "rules/rules.css",
   "rules/rules.md",
   "rules/ships.md",
+  "rules/ships/index.json",
   "icons/icon-192.png"
 ];
 

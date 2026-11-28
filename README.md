@@ -47,13 +47,14 @@ page) — nothing is hardcoded per-character, so the sheet stays correct as poin
 - **Ship** — the crew's ship, shared by every character in the campaign. The GM
   Dashboard shows one card per ship the campaign owns (picture, hull, values, hold),
   and the **🛠️ Shipyard** to browse every ship type with search and group filters.
-  The types come straight from the Ship Compendium in `rules/ships.md` — add or
-  change a ship there (same heading/table format) and the shipyard has it. A type
-  can have a picture: put the file in `rules/ships/` and add `![Sloop](ships/sloop.webp)`
-  under that ship in `ships.md` (see `rules/ships/README.md`); a ship added from the
-  type gets a copy. Your own ships can get any picture under Edit ship. Hull is on
-  ship scale (rules Section 6.4): about ten times a character's HP, so a dagger
-  can't sink a fishing boat; ship weapons deal ×10. The ★ on
+  Every ship type is **one file in `rules/ships/`** (listed in `index.json`) — the only
+  place its values live. The Ship Rules' compendium, the Rules page's **Ship Gallery**
+  (for players), the shipyard and the ship cards are all built from those files, and a
+  ship in a campaign stores only its type and its **story changes** (values that
+  differ, marked ✎ on the GM card), so correcting a type file changes every ship of
+  that type. A type can have a picture next to its file (see `rules/ships/README.md`);
+  a ship can also get its own under Edit ship. Ship armor is planking with no minimum
+  damage (rules Section 6.2/6.4), so a dagger can't sink a fishing boat. The ★ on
   a ship card makes it **the crew's ship**: that's the one every player's sheet shows. Players see the hull as a word (Perfect condition, A few
   scrapes, A bit damaged, Badly damaged, Barely afloat, Crippled) worked out from the
   share of max Hull left (`js/ship-calc.js`), never the numbers; the GM panel shows
@@ -95,7 +96,9 @@ Archipelago/
 │   ├── nav.js              shared top navigation (marks the current page)
 │   ├── confirm.js          themed confirm dialog
 │   ├── sync-status.js      Saving… / Saved / Offline marker for every write
-│   ├── ship-catalog.js     reads the ship types straight from rules/ships.md
+│   ├── ship-catalog.js     reads the ship type files (rules/ships/) and builds the
+│   │                       Ship Rules' compendium from them
+│   ├── ship-cards.js       ship type cards + search, for the shipyard and the gallery
 │   ├── ship-calc.js        pure ship helpers: hull condition words, ship defaults,
 │   │                       hold stacking, bottles going along with potions
 │   ├── ship.js             ship writes: active ship, hold/chest/move transactions
@@ -107,7 +110,8 @@ Archipelago/
 ├── rules/
 │   ├── index.html          rules page — renders the books as Homebrewery-style pages
 │   ├── rules.md            core ruleset (\page, \column and {{note ... }} supported)
-│   ├── ships.md            ship rules
+│   ├── ships.md            ship rules (Part III comes from ships/)
+│   ├── ships/              one Markdown file per ship type + index.json
 │   ├── rules.js
 │   └── rules.css
 ├── sheet/
@@ -348,13 +352,16 @@ campaigns/{campaignId}/characters/{characterId}
   layout:           { order, collapsed, hidden } — the player's section layout
 
 campaigns/{campaignId}/ships/{shipId}
-  name, type, typeName  "Salt Widow", "sloop", "Sloop" (type = the compendium heading
-                        slugified by js/ship-catalog.js, or "custom")
-  imageUrl:         picture — a stored 16:9 data: URL, or a plain link
-  hullMax, hullCurrent  ship scale (≈ 10× character HP); only the GM screen shows them
-  armor, maxSpeed, handling, turnRate (degrees), crew, price   numbers
-  maneuverability, broadside, chasers, cargo                    text
-  traits:           array of strings
+  name:             "Salt Widow"
+  type:             a file name in rules/ships/ without .md ("sloop"), or "custom"
+  overrides:        story changes only — the values that differ from the type file:
+                    { hull, armor, maxSpeed, handling, turnRate, maneuverability,
+                      broadside, chasers, crew, cargo, traits, price } (any subset;
+                    a custom ship keeps all of them here). Everything else is read
+                    from the type file every time (js/ship-calc.js resolveShip()).
+  hullDamage:       Hull lost; current Hull = max Hull − hullDamage. Only the GM
+                    screen shows the numbers.
+  imageUrl:         its own picture (16:9 data: URL or a link); "" = the type's picture
   terminalSlots:    number — Guard Stone Terminal slots (0 = no terminal)
   guardStones:      array of { id, tier, element } — tier "minor" | "moderate" | "major"
   storyChanges, notes   free text (everyone sees them)
